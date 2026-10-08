@@ -1,0 +1,7 @@
+node_modules
+out
+dist
+*.md
+.claude
+graphify-out
+package-lock.json

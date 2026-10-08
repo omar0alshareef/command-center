@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/* Design tokens from UI/UX §4. Components use these, never raw hex. */
+:root {
+  --bg: #0a0a10;
+  --surface: #111118;
+  --surface-2: #16161f;
+  --surface-3: #1c1c28;
+  --border: #1a1a2e;
+  --border-strong: #2a2a44;
+  --muted: #9b9baa;
+  --text: #ffffff;
+  --accent: #585cf0;
+  --accent-light: #8286ff;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+}
+
+:root[data-theme='light'] {
+  --bg: #f6f6fa;
+  --surface: #ffffff;
+  --surface-2: #f0f0f6;
+  --surface-3: #e7e7f0;
+  --border: #e1e1ec;
+  --border-strong: #c9c9da;
+  --muted: #6b6b7b;
+  --text: #0f0f18;
+  --accent: #4549d6;
+  --accent-light: #585cf0;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-text: var(--text);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
