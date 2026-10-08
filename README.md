@@ -7,7 +7,7 @@ Read the docs in this order: `COMMAND_CENTER_BLUEPRINT.md` â†’ `UI_UX_SPEC.md` â
 ## Prerequisites (Windows)
 
 - Node.js 22+
-- Visual Studio Build Tools with the "Desktop development with C++" workload (needed by `node-pty` in M8). `better-sqlite3` ships a prebuilt N-API binary, so it needs no compiler.
+- `node-pty` (the Terminal tab) 1.1 ships prebuilt Windows and macOS binaries, loaded as-is by Electron: no compiler is needed there. On Linux, or if the prebuilt binary fails to load, install the Visual Studio Build Tools (Windows, "Desktop development with C++") or `build-essential` and run `npm rebuild node-pty`. `better-sqlite3` ships a prebuilt N-API binary too.
 - Python 3 (node-gyp)
 
 ## Quick start

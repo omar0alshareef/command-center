@@ -27,6 +27,15 @@ const api: Api = {
     setDates: (req) => ipcRenderer.invoke(CH.milestoneDates, req),
   },
   activity: { older: (req) => ipcRenderer.invoke(CH.activityOlder, req) },
+  terminal: {
+    shells: () => ipcRenderer.invoke(CH.termShells),
+    create: (req) => ipcRenderer.invoke(CH.termCreate, req),
+    write: (id, data) => ipcRenderer.send(CH.termWrite, id, data),
+    resize: (id, cols, rows) => ipcRenderer.send(CH.termResize, id, cols, rows),
+    kill: (id) => ipcRenderer.invoke(CH.termKill, id),
+    onData: (cb) => subscribe(CH.termData, cb),
+    onExit: (cb) => subscribe(CH.termExit, cb),
+  },
   onDbChanged: (cb) => subscribe<undefined>(CH.dbChanged, () => cb()),
   onDbStatus: (cb) => subscribe<SyncStatus>(CH.dbStatus, cb),
 };

@@ -1,9 +1,10 @@
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Check, ChevronDown, SquareTerminal, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Task, TaskPatch, TaskStatus } from '@command-center/core';
 import { cn } from '../../lib/cn';
 import { useAgents, useTasksById } from '../../lib/hooks';
 import { saveTaskFields, transitionTask } from '../../lib/task-actions';
+import { typeInTerminal } from '../../lib/terminal-actions';
 import { STATUS_NAME, STATUS_ORDER } from '../../lib/status';
 import { useApp } from '../../store';
 import { useMoveFlow } from '../../views/task-board/MoveFlow';
@@ -361,6 +362,11 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
             </option>
           ))}
         </select>
+        <Tooltip content="Types the command into the Terminal; you press Enter">
+          <Button onClick={() => void typeInTerminal(`command-center prepare ${task.id}`)} data-run-prepare>
+            <SquareTerminal size={14} aria-hidden /> Run prepare here
+          </Button>
+        </Tooltip>
         <span
           aria-live="polite"
           className="inline-flex w-14 items-center gap-1 text-[11px] text-success"

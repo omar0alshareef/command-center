@@ -24,6 +24,13 @@ export const CH = {
   milestoneNote: 'milestones:note',
   milestoneDates: 'milestones:dates',
   activityOlder: 'activity:older',
+  termShells: 'terminal:shells',
+  termCreate: 'terminal:create',
+  termWrite: 'terminal:write',
+  termResize: 'terminal:resize',
+  termKill: 'terminal:kill',
+  termData: 'terminal:data',
+  termExit: 'terminal:exit',
   dbChanged: 'db:changed',
   dbStatus: 'db:status',
 } as const;
@@ -63,6 +70,19 @@ export interface TransitionRequest {
   payload?: RendererTransitionPayload;
 }
 
+export interface ShellInfo {
+  id: string;
+  name: string;
+}
+
+export interface TerminalSessionInfo {
+  id: string;
+  pid: number;
+  shellId: string;
+  name: string;
+  cwd: string;
+}
+
 export interface Api {
   platform: string;
   project: {
@@ -97,6 +117,16 @@ export interface Api {
       agentId?: string;
       limit?: number;
     }): Promise<Result<AgentLogEntry[]>>;
+  };
+  terminal: {
+    shells(): Promise<ShellInfo[]>;
+    create(req: { shellId?: string; cols: number; rows: number }): Promise<Result<TerminalSessionInfo>>;
+    /** Fire-and-forget: keystrokes must not wait for a round trip. */
+    write(id: string, data: string): void;
+    resize(id: string, cols: number, rows: number): void;
+    kill(id: string): Promise<void>;
+    onData(cb: (e: { id: string; data: string }) => void): () => void;
+    onExit(cb: (e: { id: string; exitCode: number }) => void): () => void;
   };
   onDbChanged(cb: () => void): () => void;
   onDbStatus(cb: (status: SyncStatus) => void): () => void;

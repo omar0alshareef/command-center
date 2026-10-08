@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { resolveProjectRoot } from './config';
-import { projectEvents, registerIpc } from './ipc-handlers';
+import { projectEvents, pty, registerIpc } from './ipc-handlers';
 import { ProjectService } from './project';
 import { loadSavedRoot } from './settings';
 import { buildWindowOptions } from './window-options';
@@ -19,6 +19,11 @@ function createWindow(): void {
   });
 
   win.once('ready-to-show', () => win.show());
+  // A reload (or crash) drops the renderer's sessions: their shells would be orphans, so end them.
+  win.webContents.on('did-start-navigation', (e) => {
+    if (e.isMainFrame && !e.isSameDocument) pty.killAll();
+  });
+  win.webContents.on('render-process-gone', () => pty.killAll());
 
   // Never open new windows or navigate away from the app shell.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -47,7 +52,10 @@ void app.whenReady().then(() => {
   });
 });
 
-app.on('before-quit', () => project.close());
+app.on('before-quit', () => {
+  pty.killAll();
+  project.close();
+});
 
 app.on('window-all-closed', () => {
   app.quit();

@@ -10,7 +10,9 @@ import { Button } from './components/ui/button';
 import { ToastHost } from './components/ui/feedback';
 import { FatalError, ViewSkeleton, Welcome } from './screens';
 import { useApp } from './store';
+import { useTerminal } from './lib/terminal';
 import { ActiveView } from './views';
+import { TerminalPanel } from './views/terminal/TerminalPanel';
 
 export function App() {
   const project = useApp((s) => s.project);
@@ -24,6 +26,11 @@ export function App() {
   const setSync = useApp((s) => s.setSync);
 
   useHotkeys();
+  const terminalVisited = useTerminal((s) => s.visited);
+  const markTerminalVisited = useTerminal((s) => s.markVisited);
+  useEffect(() => {
+    if (activeTab === 'terminal') markTerminalVisited();
+  }, [activeTab, markTerminalVisited]);
 
   useEffect(() => {
     document.documentElement.dataset['theme'] = theme;
@@ -69,9 +76,14 @@ export function App() {
           >
             {tracker && !loading ? (
               <ActiveView tab={activeTab} tracker={tracker} />
-            ) : (
+            ) : activeTab === 'terminal' ? null : (
               <ViewSkeleton />
             )}
+            {terminalVisited ? (
+              <div className={activeTab === 'terminal' ? 'h-full' : 'hidden'}>
+                <TerminalPanel visible={activeTab === 'terminal'} />
+              </div>
+            ) : null}
           </main>
           <StatusBar />
           <MilestonePanel />

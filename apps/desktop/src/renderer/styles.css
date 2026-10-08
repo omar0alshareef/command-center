@@ -195,3 +195,15 @@ dialog.modal::backdrop {
 :root[data-theme='light'] {
   color-scheme: light;
 }
+
+/* Terminal: xterm fills its host; the host div is created per session and toggled by the panel. */
+.term-host {
+  height: 100%;
+  width: 100%;
+}
+.term-host .xterm {
+  height: 100%;
+}
+.term-host .xterm-viewport {
+  background-color: transparent !important;
+}
