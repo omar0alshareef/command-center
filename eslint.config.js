@@ -5,7 +5,7 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/out/**', '**/node_modules/**', 'graphify-out/**'] },
+  { ignores: ['**/dist/**', '**/out/**', '**/node_modules/**', 'graphify-out/**', '.supervisor/**'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
