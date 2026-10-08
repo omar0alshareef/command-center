@@ -53,7 +53,7 @@ function toError(e: unknown): Result<never> {
   };
 }
 
-function run<T>(fn: () => T): Result<T> {
+export function run<T>(fn: () => T): Result<T> {
   try {
     return { ok: true, value: fn() };
   } catch (e) {

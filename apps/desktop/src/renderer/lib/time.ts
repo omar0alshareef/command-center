@@ -26,3 +26,12 @@ export function elapsed(sinceIso: string, now = Date.now()): string {
   }
   return `${Math.floor(diff / DAY)}d ${Math.floor((diff % DAY) / HOUR)}h`;
 }
+
+/** A calendar date (YYYY-MM-DD) as "Oct 8", or "Oct 8, 2025" outside the current year. No timezone shifts. */
+export function formatDate(iso: string | null, now = new Date()): string {
+  if (!iso) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return '—';
+  const label = `${MONTHS[m - 1]} ${d}`;
+  return y === now.getFullYear() ? label : `${label}, ${y}`;
+}

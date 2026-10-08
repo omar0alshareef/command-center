@@ -1,4 +1,5 @@
 import type {
+  Milestone,
   NewTask,
   Task,
   TaskHistory,
@@ -19,6 +20,8 @@ export const CH = {
   taskCreate: 'tasks:create',
   taskHistory: 'tasks:history',
   taskContext: 'tasks:context',
+  milestoneNote: 'milestones:note',
+  milestoneDates: 'milestones:dates',
   dbChanged: 'db:changed',
   dbStatus: 'db:status',
 } as const;
@@ -76,6 +79,14 @@ export interface Api {
     history(taskId: string): Promise<Result<TaskHistory>>;
     /** Rendered TASK_CONTEXT.md for the task, or null if it does not exist. */
     contextMd(taskId: string): Promise<Result<string | null>>;
+  };
+  milestones: {
+    addNote(req: { milestoneId: string; text: string }): Promise<Result<Milestone>>;
+    /** Any of planned_start / planned_end / actual_start / actual_end as YYYY-MM-DD, or null to clear. */
+    setDates(req: {
+      milestoneId: string;
+      dates: Record<string, string | null>;
+    }): Promise<Result<Milestone>>;
   };
   onDbChanged(cb: () => void): () => void;
   onDbStatus(cb: (status: SyncStatus) => void): () => void;

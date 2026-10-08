@@ -98,17 +98,22 @@ export function SlidePanel({
   onClose,
   label,
   dim = false,
+  className,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
   dim?: boolean;
+  /** Extra classes, e.g. a `top-[84px]` offset to sit below the title and tab bars. */
+  className?: string;
   children: ReactNode;
 }) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    // An open dialog (e.g. the task modal over the panel) owns Esc.
+    const onKey = (e: KeyboardEvent) =>
+      e.key === 'Escape' && !document.querySelector('dialog[open]') && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -123,8 +128,9 @@ export function SlidePanel({
         aria-hidden={!open}
         inert={!open}
         className={cn(
-          'fixed inset-y-0 right-0 z-40 w-[480px] max-w-full border-l border-border bg-surface shadow-pop transition-transform duration-200 ease-out',
+          'fixed top-0 right-0 bottom-0 z-40 w-[480px] max-w-full border-l border-border bg-surface shadow-pop transition-transform duration-200 ease-out',
           open ? 'translate-x-0' : 'translate-x-full',
+          className,
         )}
       >
         <button

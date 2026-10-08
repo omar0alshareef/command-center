@@ -22,6 +22,10 @@ const api: Api = {
     history: (taskId) => ipcRenderer.invoke(CH.taskHistory, taskId),
     contextMd: (taskId) => ipcRenderer.invoke(CH.taskContext, taskId),
   },
+  milestones: {
+    addNote: (req) => ipcRenderer.invoke(CH.milestoneNote, req),
+    setDates: (req) => ipcRenderer.invoke(CH.milestoneDates, req),
+  },
   onDbChanged: (cb) => subscribe<undefined>(CH.dbChanged, () => cb()),
   onDbStatus: (cb) => subscribe<SyncStatus>(CH.dbStatus, cb),
 };

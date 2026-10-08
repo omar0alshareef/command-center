@@ -7,9 +7,10 @@ import { StatusDot } from '../components/ui/badges';
 import { EmptyState } from '../components/ui/feedback';
 import { activeAgentCount, completedThisWeek } from '../lib/derive';
 import type { TabId } from '../store';
+import { SwimLane } from './swim-lane/SwimLane';
 import { TaskBoard } from './task-board/TaskBoard';
 
-// Placeholders show real counts until each view lands (M5 Swim Lane, M6 Agent Hub, M7 Calendar, M8 Terminal).
+// Placeholders show real counts until each view lands (M6 Agent Hub, M7 Calendar, M8 Terminal).
 
 interface Stat {
   label: string;
@@ -58,19 +59,7 @@ function Placeholder({
 const noMilestones = (t: TrackerState) => t.milestones.length === 0;
 
 const VIEWS: Record<TabId, (t: TrackerState) => ReactNode> = {
-  'swim-lane': (t) => (
-    <Placeholder
-      title="Swim Lane"
-      note="Timeline arrives in M5."
-      empty={noMilestones(t)}
-      stats={[
-        { label: 'Milestones', value: t.milestones.length },
-        { label: 'Phases', value: t.phases.length },
-        { label: 'Domains', value: new Set(t.milestones.map((m) => m.domain)).size },
-        { label: 'Key milestones', value: t.milestones.filter((m) => m.is_key_milestone).length },
-      ]}
-    />
-  ),
+  'swim-lane': (t) => <SwimLane tracker={t} />,
   'task-board': (t) => <TaskBoard tracker={t} />,
   'agent-hub': (t) => {
     // The built-in operator and system agents don't count as connected agents.

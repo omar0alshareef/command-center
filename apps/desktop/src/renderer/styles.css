@@ -84,6 +84,25 @@ body {
   animation: pulse-dot 1.6s ease-in-out infinite;
 }
 
+/* Swim Lane nodes: focus ring only for keyboard focus; new nodes fade in (opacity only, the transform attribute positions them). */
+.node {
+  outline: none;
+}
+.node .node-focus {
+  opacity: 0;
+}
+.node:focus-visible .node-focus {
+  opacity: 1;
+}
+@keyframes node-enter {
+  from {
+    opacity: 0;
+  }
+}
+.node-enter {
+  animation: node-enter 400ms ease-out;
+}
+
 @keyframes shimmer {
   from {
     background-position: 200% 0;
@@ -131,6 +150,7 @@ dialog.modal::backdrop {
 
 @media (prefers-reduced-motion: reduce) {
   .pulse-dot,
+  .node-enter,
   .skeleton {
     animation: none;
   }
