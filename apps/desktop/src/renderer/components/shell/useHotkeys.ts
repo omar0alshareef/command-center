@@ -1,0 +1,26 @@
+import { useEffect } from 'react';
+import { useApp } from '../../store';
+import { TABS } from './tabs';
+
+/** Ctrl/Cmd+1…5 jump to a tab; Ctrl/Cmd+Tab cycles (Shift reverses). */
+export function useHotkeys(): void {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const { activeTab, setActiveTab } = useApp.getState();
+      const n = Number(e.key);
+      if (Number.isInteger(n) && n >= 1 && n <= TABS.length) {
+        e.preventDefault();
+        const tab = TABS[n - 1];
+        if (tab) setActiveTab(tab.id);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const i = TABS.findIndex((t) => t.id === activeTab);
+        const next = TABS[(i + (e.shiftKey ? -1 : 1) + TABS.length) % TABS.length];
+        if (next) setActiveTab(next.id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}

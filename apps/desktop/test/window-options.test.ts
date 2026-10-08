@@ -26,4 +26,10 @@ describe('resolveProjectRoot', () => {
     expect(resolveProjectRoot({ PROJECT_ROOT: '  ' })).toBeNull();
     expect(resolveProjectRoot({})).toBeNull();
   });
+
+  it('prefers env over the saved setting and falls back to it', () => {
+    expect(resolveProjectRoot({ PROJECT_ROOT: '/env' }, '/saved')).toBe('/env');
+    expect(resolveProjectRoot({}, '/saved')).toBe('/saved');
+    expect(resolveProjectRoot({ PROJECT_ROOT: ' ' }, ' ')).toBeNull();
+  });
 });

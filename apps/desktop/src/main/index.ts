@@ -1,7 +1,12 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { resolveProjectRoot } from './config';
+import { projectEvents, registerIpc } from './ipc-handlers';
+import { ProjectService } from './project';
+import { loadSavedRoot } from './settings';
 import { buildWindowOptions } from './window-options';
+
+const project = new ProjectService(projectEvents);
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -32,13 +37,17 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
-  console.log(`PROJECT_ROOT: ${resolveProjectRoot(process.env) ?? '(not set)'}`);
+  registerIpc(project);
+  const root = resolveProjectRoot(process.env, loadSavedRoot());
+  if (root) project.open(root);
   createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+app.on('before-quit', () => project.close());
 
 app.on('window-all-closed', () => {
   app.quit();

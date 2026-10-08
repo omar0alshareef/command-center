@@ -46,6 +46,7 @@
   --color-danger: var(--danger);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --shadow-pop: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
 html,
@@ -55,4 +56,85 @@ body {
   font-family: var(--font-sans);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Title bar is draggable; interactive controls inside it opt out. */
+.drag {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Visible focus ring on every interactive element (UI/UX §7.7). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Modal: native <dialog>. Backdrop per UI/UX §4.6. */
+dialog.modal {
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  max-width: 100vw;
+  max-height: 100vh;
+  overflow: visible;
+}
+dialog.modal[open] {
+  animation: modal-in 150ms ease-out;
+}
+dialog.modal::backdrop {
+  background: rgba(5, 5, 10, 0.6);
+  backdrop-filter: blur(6px);
+}
+.modal-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot,
+  .skeleton {
+    animation: none;
+  }
+  dialog.modal[open] {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

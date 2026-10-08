@@ -6,6 +6,8 @@ import { resolve } from 'node:path';
 export default defineConfig({
   main: {
     build: {
+      // core ships TypeScript source: bundle it. better-sqlite3 (native) stays external.
+      externalizeDeps: { exclude: ['@command-center/core'] },
       outDir: 'out/main',
       rollupOptions: { input: resolve(__dirname, 'src/main/index.ts') },
     },

@@ -25,6 +25,13 @@ export function openDb(projectRoot: string): Db {
   return db;
 }
 
+/** Read-only connection for change detection (D3). Never migrates; the DB must already exist. */
+export function openDbReadonly(projectRoot: string): Db {
+  const db = new Database(dbPath(projectRoot), { readonly: true, fileMustExist: true });
+  db.pragma('busy_timeout = 5000');
+  return db;
+}
+
 export function migrate(db: Db): void {
   db.exec(
     'CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)',

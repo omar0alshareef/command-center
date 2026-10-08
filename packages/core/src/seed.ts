@@ -167,8 +167,8 @@ export function seedDb(db: Db, opts: SeedOptions = {}): SeedSummary {
 
     const insMs = db.prepare(
       `INSERT INTO milestones (id, title, domain, week, phase, planned_start, planned_end, actual_start,
-         drift_days, is_key_milestone, key_milestone_label, dependencies, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         drift_days, is_key_milestone, key_milestone_label, dependencies, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     const insTask = db.prepare(
       `INSERT INTO subtasks (id, milestone_id, label, status, done, assignee, blocked_by, blocked_reason,
@@ -205,6 +205,9 @@ export function seedDb(db: Db, opts: SeedOptions = {}): SeedSummary {
               ]
             : [],
         ),
+        // Explicit, not the CURRENT_TIMESTAMP default: keeps the seed deterministic.
+        new Date(plannedStart).toISOString(),
+        new Date(plannedStart).toISOString(),
       );
 
       const past = week <= CURRENT_WEEK - 4;
