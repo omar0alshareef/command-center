@@ -1,7 +1,7 @@
 import type { Task } from '@command-center/core';
 
 // Calendar math. Completion times are stored in UTC; every day boundary here is the viewer's local midnight.
-// Weeks start on Monday (UI/UX §6.4; a setting can change it later).
+// Weeks start on Monday by default (UI/UX §6.4); Settings can switch to Sunday.
 
 const pad = (n: number) => String(n).padStart(2, '0');
 export const dayKey = (d: Date): string =>
@@ -31,12 +31,13 @@ export function isoWeek(d: Date): number {
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const DOW_SUN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 export const monthDay = (d: Date): string => `${MON[d.getMonth()]} ${d.getDate()}`;
 
 export interface CalendarDay {
   date: Date;
   key: string;
-  dow: (typeof DOW)[number];
+  dow: (typeof DOW)[number] | (typeof DOW_SUN)[number];
   isToday: boolean;
   isWeekend: boolean;
   tasks: Task[];
@@ -52,17 +53,24 @@ export interface CalendarWeek {
 }
 
 /** Seven Monday-to-Sunday columns holding the done tasks completed on each local day, earliest first. */
-export function buildWeek(tasks: readonly Task[], anchor: Date, now = new Date()): CalendarWeek {
-  const monday = mondayOf(anchor);
+export function buildWeek(
+  tasks: readonly Task[],
+  anchor: Date,
+  now = new Date(),
+  weekStart: 'mon' | 'sun' = 'mon',
+): CalendarWeek {
+  // `monday` / `sunday` are the first and last day of the shown week (named for the default).
+  const monday = weekStart === 'sun' ? addDays(anchor, -anchor.getDay()) : mondayOf(anchor);
+  const names = weekStart === 'sun' ? DOW_SUN : DOW;
   const today = dayKey(now);
-  const days: CalendarDay[] = DOW.map((dow, i) => {
+  const days: CalendarDay[] = names.map((dow, i) => {
     const date = addDays(monday, i);
     return {
       date,
       key: dayKey(date),
       dow,
       isToday: dayKey(date) === today,
-      isWeekend: i >= 5,
+      isWeekend: dow === 'Sat' || dow === 'Sun',
       tasks: [],
     };
   });
@@ -80,11 +88,12 @@ export function buildWeek(tasks: readonly Task[], anchor: Date, now = new Date()
         a.id.localeCompare(b.id),
     );
   const sunday = addDays(monday, 6);
+  const week = isoWeek(weekStart === 'sun' ? addDays(monday, 1) : monday);
   return {
     monday,
     sunday,
-    week: isoWeek(monday),
-    label: `Week ${isoWeek(monday)} · ${monthDay(monday)} – ${monthDay(sunday)}`,
+    week,
+    label: `Week ${week} · ${monthDay(monday)} – ${monthDay(sunday)}`,
     total: days.reduce((n, d) => n + d.tasks.length, 0),
     days,
   };

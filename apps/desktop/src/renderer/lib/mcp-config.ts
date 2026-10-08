@@ -20,7 +20,7 @@ export function buildMcpConfig(projectRoot: string, launch: McpLaunch): McpConfi
         [SERVER_NAME]: {
           command: launch.command,
           ...(launch.args.length ? { args: launch.args } : {}),
-          env: { PROJECT_ROOT: projectRoot },
+          env: { ...launch.env, PROJECT_ROOT: projectRoot },
         },
       },
     },
@@ -33,8 +33,10 @@ export function buildMcpConfig(projectRoot: string, launch: McpLaunch): McpConfi
     SERVER_NAME,
     quote(launch.command),
     ...launch.args.map(quote),
-    '-e',
-    quote(`PROJECT_ROOT=${projectRoot}`),
+    ...Object.entries({ ...launch.env, PROJECT_ROOT: projectRoot }).flatMap(([k, v]) => [
+      '-e',
+      quote(`${k}=${v}`),
+    ]),
   ].join(' ');
   return { json, cli };
 }

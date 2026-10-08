@@ -29,17 +29,19 @@ export function CopyBlock({ label, text }: { label: string; text: string }) {
 }
 
 /** How to connect an agent to this project (UI/UX §6.3 empty state; Settings reuses it in M12). */
-export function McpConnect() {
+export function McpConnect({ showFolder = true }: { showFolder?: boolean }) {
   const project = useApp((s) => s.project);
   const chooseProject = useApp((s) => s.chooseProject);
   if (!project?.root) return null;
   const { json, cli } = buildMcpConfig(project.root, project.mcp);
   return (
     <div className="flex max-w-3xl flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <span className="font-mono text-[12px] break-all">Project folder: {project.root}</span>
-        <Button onClick={() => void chooseProject()}>Change project folder…</Button>
-      </div>
+      {showFolder ? (
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-mono text-[12px] break-all">Project folder: {project.root}</span>
+          <Button onClick={() => void chooseProject()}>Change project folder…</Button>
+        </div>
+      ) : null}
       <CopyBlock label="Claude Code command" text={cli} />
       <CopyBlock label="MCP config" text={json} />
       <WebhookCard />

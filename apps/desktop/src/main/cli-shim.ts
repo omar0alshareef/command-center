@@ -4,7 +4,9 @@ import { join, resolve } from 'node:path';
 
 /** The operator CLI bundle next to the app (`npm run build -w packages/cli`), or null when it is not built. */
 export function cliBundle(): string | null {
-  const bundle = resolve(app.getAppPath(), '../../packages/cli/dist/index.js');
+  const bundle = app.isPackaged
+    ? join(app.getAppPath(), 'out', 'bundles', 'cli.mjs')
+    : resolve(app.getAppPath(), '../../packages/cli/dist/index.js');
   return existsSync(bundle) ? bundle : null;
 }
 

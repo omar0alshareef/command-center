@@ -95,6 +95,8 @@ interface TerminalState {
   /** The Terminal tab has been opened at least once (it auto-spawns a session then). */
   visited: boolean;
   fontSize: number;
+  /** Shell id new sessions use when none is picked (Settings); null = the detected default. */
+  defaultShell: string | null;
   quickActionsOpen: boolean;
 
   init: () => Promise<void>;
@@ -104,6 +106,7 @@ interface TerminalState {
   restartSession: (id: string) => Promise<void>;
   setActive: (id: string) => void;
   changeFont: (delta: number) => void;
+  setDefaultShell: (id: string | null) => void;
   toggleQuickActions: () => void;
   clearActive: () => void;
   /** Types text into the active session without pressing Enter. */
@@ -169,6 +172,7 @@ export const useTerminal = create<TerminalState>()(
       error: null,
       visited: false,
       fontSize: 13,
+      defaultShell: null,
       quickActionsOpen: true,
 
       init: async () => {
@@ -195,7 +199,12 @@ export const useTerminal = create<TerminalState>()(
         if (get().creating) return null;
         set({ creating: true, error: null });
         try {
-          const res = await window.api.terminal.create({ shellId, cols: 80, rows: 24 });
+          const chosen = shellId ?? get().defaultShell ?? undefined;
+          const res = await window.api.terminal.create({
+            shellId: get().shells.some((x) => x.id === chosen) ? chosen : shellId,
+            cols: 80,
+            rows: 24,
+          });
           if (!res.ok) {
             set({ error: res.error.message });
             return null;
@@ -268,6 +277,8 @@ export const useTerminal = create<TerminalState>()(
         }
       },
 
+      setDefaultShell: (defaultShell) => set({ defaultShell }),
+
       toggleQuickActions: () => set((s) => ({ quickActionsOpen: !s.quickActionsOpen })),
 
       clearActive: () => {
@@ -286,7 +297,11 @@ export const useTerminal = create<TerminalState>()(
     }),
     {
       name: 'cc-terminal',
-      partialize: (s) => ({ fontSize: s.fontSize, quickActionsOpen: s.quickActionsOpen }),
+      partialize: (s) => ({
+        fontSize: s.fontSize,
+        defaultShell: s.defaultShell,
+        quickActionsOpen: s.quickActionsOpen,
+      }),
     },
   ),
 );

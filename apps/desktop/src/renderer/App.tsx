@@ -3,7 +3,11 @@ import { useEffect } from 'react';
 import { StatusBar } from './components/shell/StatusBar';
 import { TabBar } from './components/shell/TabBar';
 import { TitleBar } from './components/shell/TitleBar';
+import { CommandPalette } from './components/CommandPalette';
+import { SettingsModal } from './components/SettingsModal';
+import { ShortcutSheet } from './components/ShortcutSheet';
 import { useHotkeys } from './components/shell/useHotkeys';
+import { useNotifications } from './components/shell/useNotifications';
 import { MilestonePanel } from './components/milestone/MilestonePanel';
 import { TaskDetailModal } from './components/task/TaskDetailModal';
 import { Button } from './components/ui/button';
@@ -26,6 +30,18 @@ export function App() {
   const setSync = useApp((s) => s.setSync);
 
   useHotkeys();
+  useNotifications();
+  const themePref = useApp((s) => s.themePref);
+  const setThemePref = useApp((s) => s.setThemePref);
+  // Resolve the saved preference at startup; 'system' then follows the OS live.
+  useEffect(() => {
+    setThemePref(themePref);
+    if (themePref !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: light)');
+    const on = () => setThemePref('system');
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [themePref, setThemePref]);
   const terminalVisited = useTerminal((s) => s.visited);
   const markTerminalVisited = useTerminal((s) => s.markVisited);
   useEffect(() => {
@@ -88,6 +104,9 @@ export function App() {
           <StatusBar />
           <MilestonePanel />
           <TaskDetailModal />
+          <SettingsModal />
+          <CommandPalette />
+          <ShortcutSheet />
           <ToastHost />
         </div>
       </MotionConfig>

@@ -28,6 +28,10 @@
   --text: #0f0f18;
   --accent: #4549d6;
   --accent-light: #585cf0;
+  /* Darker status colours: the dark-theme ones are 2:1 on white (M12 contrast audit, >= 3:1 needed). */
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #c92a2a;
 }
 
 @theme inline {

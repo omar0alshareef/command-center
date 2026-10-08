@@ -7,6 +7,8 @@ import { mergeTracker } from './lib/share';
 
 export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal';
 export type Theme = 'dark' | 'light';
+export type ThemePref = Theme | 'system';
+export type WeekStart = 'mon' | 'sun';
 
 export interface SyncState {
   state: 'live' | 'syncing' | 'disconnected';
@@ -30,7 +32,16 @@ interface AppState {
   panelIntent: 'dates' | 'add-task' | null;
   /** One-shot request for the swim lane to scroll a milestone into view. */
   scrollToMilestoneId: string | null;
+  /** The theme in effect (resolved from `themePref`; 'system' follows the OS). */
   theme: Theme;
+  themePref: ThemePref;
+  weekStart: WeekStart;
+  /** OS notification when a task newly enters Review / Blocked while the window is unfocused. */
+  notifications: boolean;
+  settingsOpen: boolean;
+  paletteOpen: boolean;
+  shortcutsOpen: boolean;
+  firstRunDismissed: boolean;
   /** Agent Hub feed filter: 'all' | 'manual' | 'system' | an agent id. */
   hubFilter: string;
   /** Orchestrator ids whose sub-agents are collapsed in the Agent Hub tree (persisted). */
@@ -55,6 +66,13 @@ interface AppState {
   clearPanelIntent: () => void;
   scrollToMilestone: (id: string | null) => void;
   toggleTheme: () => void;
+  setThemePref: (pref: ThemePref) => void;
+  setWeekStart: (w: WeekStart) => void;
+  setNotifications: (on: boolean) => void;
+  setSettingsOpen: (open: boolean) => void;
+  setPaletteOpen: (open: boolean) => void;
+  setShortcutsOpen: (open: boolean) => void;
+  dismissFirstRun: () => void;
   setSync: (sync: Pick<SyncState, 'state' | 'error'>) => void;
   /** Optimistic local edit of one task; the server's answer replaces it. */
   patchTask: (id: string, patch: Partial<Task>) => void;
@@ -66,6 +84,12 @@ interface AppState {
   refresh: () => Promise<void>;
   chooseProject: () => Promise<void>;
   retryProject: () => Promise<void>;
+}
+
+/** 'system' follows the OS colour scheme; the window can be told to re-resolve when it changes. */
+export function resolveTheme(pref: ThemePref): Theme {
+  if (pref !== 'system') return pref;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -145,6 +169,13 @@ export const useApp = create<AppState>()(
       panelIntent: null,
       scrollToMilestoneId: null,
       theme: 'dark',
+      themePref: 'dark',
+      weekStart: 'mon',
+      notifications: true,
+      settingsOpen: false,
+      paletteOpen: false,
+      shortcutsOpen: false,
+      firstRunDismissed: false,
 
       setActiveTab: (activeTab) => set({ activeTab }),
       setSelectedMilestoneId: (selectedMilestoneId) => set({ selectedMilestoneId }),
@@ -157,7 +188,18 @@ export const useApp = create<AppState>()(
         }),
       clearPanelIntent: () => set({ panelIntent: null }),
       scrollToMilestone: (scrollToMilestoneId) => set({ scrollToMilestoneId }),
-      toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      toggleTheme: () =>
+        set((s) => {
+          const theme: Theme = s.theme === 'dark' ? 'light' : 'dark';
+          return { theme, themePref: theme };
+        }),
+      setThemePref: (themePref) => set({ themePref, theme: resolveTheme(themePref) }),
+      setWeekStart: (weekStart) => set({ weekStart }),
+      setNotifications: (notifications) => set({ notifications }),
+      setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
+      setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+      dismissFirstRun: () => set({ firstRunDismissed: true }),
       setSync: (next) => set((s) => ({ sync: { ...s.sync, ...next } })),
 
       patchTask: (id, patch) =>
@@ -242,7 +284,15 @@ export const useApp = create<AppState>()(
     }),
     {
       name: 'cc-ui',
-      partialize: (s) => ({ activeTab: s.activeTab, theme: s.theme, hubCollapsed: s.hubCollapsed }),
+      partialize: (s) => ({
+        activeTab: s.activeTab,
+        theme: s.theme,
+        themePref: s.themePref,
+        weekStart: s.weekStart,
+        notifications: s.notifications,
+        firstRunDismissed: s.firstRunDismissed,
+        hubCollapsed: s.hubCollapsed,
+      }),
     },
   ),
 );

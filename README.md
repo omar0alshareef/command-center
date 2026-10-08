@@ -83,6 +83,7 @@ command-center prepare --id TASK-001   # Research Explorer -> Token Compressor -
 command-center start   --id TASK-001   # start_task, dispatch the agent with the context, run checks, complete_task
 command-center audit   --id TASK-001   # Code Quality -> Security -> Final Validator; FAIL sends a reviewed task back
 command-center lessons --task TASK-001 # lessons from past rejections that apply (or --query text; no flag = latest)
+command-center hydrate --plan plan.json # create phases, agents, milestones and tasks from a plan (see Hydrate below)
 ```
 
 - Every stage is a sub-agent (`research_explorer`, `token_compressor`, `prompt_optimizer`, `code_quality`, `security_auditor`, `final_validator`, under `operator-cli`) and writes its result to the Agent Hub activity feed.
@@ -95,6 +96,49 @@ command-center lessons --task TASK-001 # lessons from past rejections that apply
 
 Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves **what went wrong** in the `lessons_learned` table and rewrites `.claude/LESSONS_LEARNED.md` (a generated view: edit lessons in the app's Agent Hub, not in the file). When the task is completed again, the `complete_task` summary is recorded as **the fix**; a rejection may also carry a **prevention** note. Similar new tasks are handed the most relevant lessons (FTS5 search over reason, fix and prevention) in `get_task_context`, in the `enrich_task` reply, in `TASK_CONTEXT.md` (`## Relevant lessons`) and in `command-center prepare`. The Agent Hub's Lessons list lets you search, edit and delete them.
 
+## Hydrate a project from your docs
+
+Fresh clone to a populated board in a few minutes:
+
+1. `npm install`, `npm run dev`, and pick (or create) a project folder.
+2. Connect Claude Code (see above), or just use the CLI below.
+3. Turn your manifesto and roadmap into a prompt, give it to any agent, and save its JSON reply:
+
+   ```bash
+   command-center hydrate --manifesto manifesto.md --roadmap roadmap.md --out prompt.txt
+   # paste prompt.txt into your agent; save the JSON it returns as plan.json
+   command-center hydrate --plan plan.json --dry-run   # validate, nothing is written
+   command-center hydrate --plan plan.json             # phases, agents, milestones and tasks, in one transaction
+   ```
+
+The plan holds `project`, `phases`, `agents` and `milestones` (each with its `tasks`); the prompt spells out the exact shape. A bad reference (unknown phase, dependency on a later milestone) rolls the whole import back. The Swim Lane, Task Board, Agent Hub and Calendar fill in live. The Swim Lane's getting-started card tracks the four setup steps.
+
+## Webhooks
+
+The app listens on `127.0.0.1:38120` with a per-project bearer token (Settings or Agent Hub shows it, with a copy-ready `curl`; Regenerate replaces it). Details, `curl`, git post-commit hook and n8n examples: [docs/WEBHOOKS.md](docs/WEBHOOKS.md).
+
+## Keyboard
+
+`Ctrl/Cmd+K` command palette (tabs, tasks, milestones, settings), `Ctrl/Cmd+1…5` tabs, `Ctrl/Cmd+,` Settings, `?` shortcut sheet, `/` search, `T` today, `[` `]` milestones, `Esc` closes the top overlay. Card drag works from the keyboard (Space, arrows, Space) with screen-reader announcements.
+
+## Settings
+
+Theme (dark / light / system), week start (Mon / Sun), OS notifications when a task newly enters Review or Blocked while the window is unfocused, default terminal shell and font size, project folder, webhook port/token, and the copy-ready MCP command and config. Preferences live in the app's local storage; the project data lives only in `command-center.db`.
+
+## Install as an app
+
+```bash
+npm run dist            # Windows NSIS installer in release/ (macOS: dmg, Linux: AppImage when run there)
+npm run pack            # unpacked app in release/win-unpacked, no installer
+npm run install:global  # puts `command-center` and `command-center-mcp` on your PATH
+```
+
+The installer ships the MCP server and CLI inside the app and runs them with the app's own Electron, so a packaged install needs no Node: Settings shows the exact `claude mcp add` command for it. The native modules (`node-pty`, `better-sqlite3`) use their prebuilt binaries, so packaging needs no compiler on Windows or macOS. The installer is unsigned (SmartScreen will warn); code signing needs your own certificate.
+
+## Testing
+
+`npm test` (unit and integration), `npm run smoke -w apps/desktop` (Playwright-for-Electron against the built app, or `-- --exe "<path>"` against a packaged one: launch, hydrate through the CLI, tabs, drag a card, modal, palette, settings, terminal, webhook status, MCP over stdio), `node apps/desktop/smoke/perf.mjs` (500 tasks and 5,000 log rows).
+
 ## Scripts
 
 | Command | What it does |
@@ -102,6 +146,9 @@ Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves
 | `npm run dev` | Launch the Electron app with hot reload |
 | `npm run build -w apps/desktop` | Production build of the app |
 | `npm run build -w packages/mcp-server` | Bundle the MCP server |
+| `npm run pack` / `npm run dist` | Unpacked app / installer into `release/` |
+| `npm run install:global` | Link `command-center` and `command-center-mcp` globally |
+| `npm run smoke -w apps/desktop` | Electron smoke test |
 | `npm run typecheck` | `tsc --noEmit` (strict) in every workspace |
 | `npm run lint` | ESLint over the repo |
 | `npm test` | Vitest unit and integration tests |

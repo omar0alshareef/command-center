@@ -1,4 +1,4 @@
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Settings, Sun } from 'lucide-react';
 import { overallProgress, scheduleBadge } from '../../lib/derive';
 import { useApp, type SyncState } from '../../store';
 import { Skeleton } from '../ui/feedback';
@@ -41,6 +41,7 @@ export function TitleBar() {
   const sync = useApp((s) => s.sync);
   const theme = useApp((s) => s.theme);
   const toggleTheme = useApp((s) => s.toggleTheme);
+  const openSettings = useApp((s) => s.setSettingsOpen);
   // macOS: leave room for the inset traffic lights (frameless window).
   const darwin = window.api.platform === 'darwin';
 
@@ -78,6 +79,14 @@ export function TitleBar() {
         className="no-drag grid size-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text"
       >
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+      <button
+        type="button"
+        onClick={() => openSettings(true)}
+        aria-label="Settings (Ctrl+,)"
+        className="no-drag grid size-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text"
+      >
+        <Settings size={16} />
       </button>
     </header>
   );

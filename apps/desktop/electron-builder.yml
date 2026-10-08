@@ -1,0 +1,26 @@
+appId: com.commandcenter.app
+productName: Command Center
+directories:
+  output: ../../release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# The prebuilt N-API binaries (better-sqlite3, node-pty) ship in the npm packages: no compiler needed.
+npmRebuild: false
+# Native code cannot load from inside the asar archive.
+asarUnpack:
+  - node_modules/better-sqlite3/**
+  - node_modules/node-pty/**
+win:
+  target: nsis
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+linux:
+  target: AppImage
+  category: Development

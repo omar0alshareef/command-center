@@ -11,6 +11,7 @@ import {
   type PointerEvent,
 } from 'react';
 import type { TrackerState } from '@command-center/core';
+import { FirstRunCard } from '../../components/FirstRunCard';
 import { HydrationEmptyState } from '../../components/HydrationEmptyState';
 import { Button } from '../../components/ui/button';
 import { ContextMenu, type MenuItem } from '../../components/ui/menu';
@@ -335,6 +336,7 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
     return (
       <section className="h-full p-6">
         <h1 className="sr-only">Swim Lane</h1>
+        <FirstRunCard />
         <HydrationEmptyState />
       </section>
     );
@@ -347,6 +349,7 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
   return (
     <section className="flex h-full flex-col" aria-label="Swim Lane">
       <h1 className="sr-only">Swim Lane</h1>
+      <FirstRunCard />
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-4">
         <Button onClick={placeNow} aria-label="Scroll to today" title="Scroll to today (T)">
           <CalendarClock size={14} aria-hidden /> Today

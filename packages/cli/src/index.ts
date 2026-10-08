@@ -1,4 +1,5 @@
-import { CoreError } from '@command-center/core';
+import { CoreError, hydrate, hydrationPrompt } from '@command-center/core';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { Command, InvalidArgumentError } from 'commander';
 import { agentsCommand, lessonsCommand, logCommand, statusCommand } from './commands';
 import { CliError, openProject, type Handle } from './context';
@@ -110,6 +111,72 @@ program
         lessonsCommand(h, { ...o, json: Boolean(o.json) }, out),
         undefined
       ),
+    ),
+  );
+
+program
+  .command('hydrate')
+  .description(
+    'Fill the board from a plan (--plan plan.json), or write the extraction prompt for an agent (--manifesto + --roadmap)',
+  )
+  .option('--plan <file>', 'JSON plan: project, phases, agents, milestones with tasks')
+  .option('--manifesto <file>', 'project manifesto (markdown/text)')
+  .option('--roadmap <file>', 'project roadmap (markdown/text)')
+  .option(
+    '--out <file>',
+    'with --manifesto/--roadmap: write the prompt here instead of printing it',
+  )
+  .option('--dry-run', 'validate the plan and report counts, change nothing')
+  .option('--json', 'machine-readable output')
+  .action(
+    action(
+      (
+        h,
+        o: {
+          plan?: string;
+          manifesto?: string;
+          roadmap?: string;
+          out?: string;
+          dryRun?: boolean;
+          json?: boolean;
+        },
+      ) => {
+        const read = (f: string) => {
+          try {
+            return readFileSync(f, 'utf8');
+          } catch {
+            throw new CliError(`Cannot read ${f}.`);
+          }
+        };
+        if (o.plan) {
+          let plan: unknown;
+          try {
+            plan = JSON.parse(read(o.plan));
+          } catch (e) {
+            if (e instanceof CliError) throw e;
+            throw new CliError(`${o.plan} is not valid JSON.`);
+          }
+          const s = hydrate(h.db, plan, { dryRun: o.dryRun });
+          out(
+            o.json
+              ? JSON.stringify(s)
+              : `${s.dryRun ? 'Dry run (nothing written): would create' : 'Created'} ${s.phases} phases, ${s.agents} agents, ${s.milestones} milestones, ${s.tasks} tasks.`,
+          );
+          return undefined;
+        }
+        if (!o.manifesto || !o.roadmap)
+          throw new CliError(
+            'Give --plan <file>, or both --manifesto <file> and --roadmap <file>.',
+          );
+        const prompt = hydrationPrompt(read(o.manifesto), read(o.roadmap));
+        if (o.out) {
+          writeFileSync(o.out, prompt);
+          out(
+            `Prompt written to ${o.out}. Give it to your agent, save its JSON reply, then run: command-center hydrate --plan <file>`,
+          );
+        } else out(prompt);
+        return undefined;
+      },
     ),
   );
 

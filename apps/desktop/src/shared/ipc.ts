@@ -44,6 +44,8 @@ export const CH = {
 export interface McpLaunch {
   command: string;
   args: string[];
+  /** Extra environment for the server process (packaged installs run it with Electron as plain node). */
+  env?: Record<string, string>;
   /** True when the bundled server file was found next to the app; false means a global install is assumed. */
   bundled: boolean;
 }

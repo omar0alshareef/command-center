@@ -54,6 +54,7 @@ function Chip({
 /** Calendar (UI/UX §6.4): what did we actually finish, and when? Done tasks by local completion day. */
 export function Calendar({ tracker }: { tracker: TrackerState }) {
   const setOpenTaskId = useApp((s) => s.setOpenTaskId);
+  const weekStart = useApp((s) => s.weekStart);
   const nowMs = useNow(60_000);
   const todayKey = dayKey(new Date(nowMs));
   const [anchor, setAnchor] = useState<Date>(() => new Date());
@@ -62,9 +63,9 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
 
   // `todayKey` is the only part of "now" the grid needs: it moves the today marker at local midnight.
   const week = useMemo(
-    () => buildWeek(tracker.subtasks, anchor, new Date()),
+    () => buildWeek(tracker.subtasks, anchor, new Date(), weekStart),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- todayKey re-evaluates "today" at local midnight
-    [tracker.subtasks, anchor, todayKey],
+    [tracker.subtasks, anchor, todayKey, weekStart],
   );
   const milestones = useMemo(
     () => new Map(tracker.milestones.map((m) => [m.id, m])),

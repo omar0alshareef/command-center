@@ -93,7 +93,11 @@ describe('handleWebhook', () => {
       description: 'abc123 fix',
     });
     expect(a.status).toBe(200);
-    expect(db.prepare("SELECT action FROM agent_log WHERE agent_id = 'git-hook' AND action = 'commit'").get()).toEqual({
+    expect(
+      db
+        .prepare("SELECT action FROM agent_log WHERE agent_id = 'git-hook' AND action = 'commit'")
+        .get(),
+    ).toEqual({
       action: 'commit',
     });
   });

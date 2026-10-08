@@ -15,7 +15,10 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "install:global": "npm run build -w packages/mcp-server -w packages/cli && npm install -g ./packages/mcp-server ./packages/cli",
+    "pack": "npm run pack -w apps/desktop",
+    "dist": "npm run dist -w apps/desktop"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
