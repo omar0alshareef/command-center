@@ -4,10 +4,12 @@ import {
   DependenciesIncompleteError,
   IllegalTransitionError,
   ReasonRequiredError,
+  SelfApprovalError,
   TaskNotFoundError,
 } from './errors';
+import { sameAgentFamily } from './agents';
 import { addLesson } from './lessons';
-import { getTask, logAction } from './queries';
+import { getAgent, getTask, logAction } from './queries';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';
 
 /** Which statuses each trigger may start from. Blueprint state table + ROADMAP D5. */
@@ -58,6 +60,25 @@ const LOG_ACTION: Record<Trigger, string> = {
 };
 
 /**
+ * Review must be independent. An agent may not approve work that was last submitted for review by
+ * itself or by an agent in its own family (parent or sub-agent), which would otherwise be possible by
+ * registering a throwaway sub-agent. Humans (the operator) may approve anything. With no recorded
+ * submission (e.g. a task that was set to review directly) there is nobody to conflict with.
+ */
+function assertIndependentApproval(db: Db, taskId: string, actor: string): void {
+  const agent = getAgent(db, actor);
+  if (!agent || agent.type === 'human') return;
+  const last = db
+    .prepare(
+      "SELECT agent_id FROM agent_log WHERE target_id = ? AND action = 'task_completed' ORDER BY timestamp DESC, rowid DESC LIMIT 1",
+    )
+    .get(taskId) as { agent_id: string } | undefined;
+  if (last && sameAgentFamily(db, actor, last.agent_id)) {
+    throw new SelfApprovalError(taskId, actor, last.agent_id);
+  }
+}
+
+/**
  * The one implementation of every task status change. MCP server, CLI, webhook and the app all
  * call this. Atomic: either the task update, lesson and log row all land, or none do.
  */
@@ -89,6 +110,7 @@ export function transition(
     }
 
     const actor = payload.actor ?? 'operator';
+    if (trigger === 'approve') assertIndependentApproval(db, taskId, actor);
     const now = nowIso();
     const next = {
       status: task.status,

@@ -38,24 +38,30 @@ afterAll(() => {
 describe.each(launches)('over real stdio: %s', (_name, args) => {
   it('lists 25 tools and runs start -> complete -> reject -> complete -> approve', async () => {
     const root = freshRoot(true);
-    const client = new Client({ name: 'stdio-client', version: '1.0.0' });
-    await client.connect(
-      new StdioClientTransport({
-        command: process.execPath,
-        args: [...args],
-        cwd: pkgDir,
-        env: { PROJECT_ROOT: root },
-        stderr: 'pipe',
-      }),
-    );
-    try {
-      const call = async (name: string, a: Record<string, unknown> = {}) => {
-        const r = await client.callTool({ name, arguments: a });
+    const open = async (name: string) => {
+      const c = new Client({ name, version: '1.0.0' });
+      await c.connect(
+        new StdioClientTransport({
+          command: process.execPath,
+          args: [...args],
+          cwd: pkgDir,
+          env: { PROJECT_ROOT: root },
+          stderr: 'pipe',
+        }),
+      );
+      const callOn = async (tool: string, a: Record<string, unknown> = {}) => {
+        const r = await c.callTool({ name: tool, arguments: a });
         return {
           isError: Boolean(r.isError),
           text: (r.content as { text: string }[])[0]?.text ?? '',
         };
       };
+      return { client: c, call: callOn };
+    };
+    // Two separate server processes on one database: the builder, and an independent reviewer.
+    const { client, call } = await open('stdio-client');
+    const { client: reviewer, call: reviewCall } = await open('reviewer-client');
+    try {
       expect((await client.listTools()).tools).toHaveLength(25);
 
       const list = JSON.parse((await call('list_tasks', { status: 'todo', limit: 1 })).text) as {
@@ -74,12 +80,13 @@ describe.each(launches)('over real stdio: %s', (_name, args) => {
       expect(
         (await call('complete_task', { task_id: id, summary: 'added keyboard support' })).isError,
       ).toBe(false);
-      expect((await call('approve_task', { task_id: id })).isError).toBe(false);
+      expect((await call('approve_task', { task_id: id })).isError).toBe(true); // not your own work
+      expect((await reviewCall('approve_task', { task_id: id })).isError).toBe(false);
 
       // An invalid move is an error result, and the server keeps working afterwards.
       const bad = await call('approve_task', { task_id: id });
       expect(bad.isError).toBe(true);
-      expect(bad.text).toMatch(/reset_task/);
+      expect(bad.text).toMatch(/reset_task/); // already done: the state error comes first
       expect((await call('get_project_status')).isError).toBe(false);
 
       // Assert on the database itself, through an independent connection.
@@ -96,8 +103,14 @@ describe.each(launches)('over real stdio: %s', (_name, args) => {
           'task_completed',
           'task_rejected',
           'task_completed',
-          'task_approved',
         ]);
+        expect(
+          db
+            .prepare(
+              "SELECT action FROM agent_log WHERE target_id = ? AND agent_id = 'reviewer-client'",
+            )
+            .all(id),
+        ).toEqual([{ action: 'task_approved' }]);
         expect(
           db.prepare('SELECT rejection_reason FROM lessons_learned WHERE subtask_id = ?').all(id),
         ).toEqual([{ rejection_reason: 'Missing keyboard support' }]);
@@ -109,6 +122,7 @@ describe.each(launches)('over real stdio: %s', (_name, args) => {
       }
     } finally {
       await client.close();
+      await reviewer.close();
     }
   }, 60_000);
 

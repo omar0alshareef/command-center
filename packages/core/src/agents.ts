@@ -114,3 +114,24 @@ export function registerAgent(db: Db, raw: AgentInput): Agent {
     return agent;
   });
 }
+
+/** `id` followed by its ancestors, nearest first. Cycle-safe. */
+export function agentLineage(db: Db, id: string): string[] {
+  const out: string[] = [];
+  for (
+    let cur: string | null = id;
+    cur && !out.includes(cur) && out.length < 32;
+    cur = getAgent(db, cur)?.parent_id ?? null
+  ) {
+    out.push(cur);
+  }
+  return out;
+}
+
+/** True when `id` is `ancestorId` or one of its descendants. */
+export const isSelfOrDescendant = (db: Db, id: string, ancestorId: string): boolean =>
+  agentLineage(db, id).includes(ancestorId);
+
+/** Same agent, or one is an ancestor of the other: they count as one "family" for review independence. */
+export const sameAgentFamily = (db: Db, a: string, b: string): boolean =>
+  isSelfOrDescendant(db, a, b) || isSelfOrDescendant(db, b, a);

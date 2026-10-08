@@ -3,10 +3,12 @@ import {
   AgentNotFoundError,
   CoreError,
   DependenciesIncompleteError,
+  ForeignAgentError,
   IllegalTransitionError,
   MilestoneNotFoundError,
   ReasonRequiredError,
   ReservedAgentError,
+  SelfApprovalError,
   TaskNotFoundError,
   type TaskStatus,
 } from '@command-center/core';
@@ -54,6 +56,10 @@ export function describeError(e: unknown): string {
   }
   if (e instanceof ReservedAgentError)
     return `${e.message} Omit agent_id to act as yourself (the session agent).`;
+  if (e instanceof ForeignAgentError) {
+    return `${e.message} To use a sub-agent, call register_agent with type "sub-agent" (it becomes your child), then pass its id as agent_id.`;
+  }
+  if (e instanceof SelfApprovalError) return e.message;
   if (e instanceof ZodError) {
     return `Invalid input: ${e.issues.map((i) => `${i.path.join('.') || 'input'}: ${i.message}`).join('; ')}.`;
   }

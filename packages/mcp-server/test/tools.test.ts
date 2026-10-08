@@ -184,7 +184,7 @@ describe('read tools', () => {
 });
 
 describe('task lifecycle through the tools', () => {
-  it('start -> complete -> reject -> complete -> approve, recorded under the session agent', async () => {
+  it('start -> complete -> reject -> complete -> approve; the approval comes from an independent reviewer', async () => {
     const id = todoId();
     expect((await h.call('start_task', { task_id: id })).json()).toMatchObject({
       id,
@@ -193,9 +193,10 @@ describe('task lifecycle through the tools', () => {
     expect(
       (await h.call('complete_task', { task_id: id, summary: 'first pass' })).json(),
     ).toMatchObject({ status: 'review' });
+    const reviewer = await h.another('reviewer-client');
     expect(
       (
-        await h.call('reject_task', {
+        await reviewer.call('reject_task', {
           task_id: id,
           reason: 'Modal did not close on backdrop click',
         })
@@ -204,27 +205,68 @@ describe('task lifecycle through the tools', () => {
     expect(
       (await h.call('complete_task', { task_id: id, summary: 'fixed backdrop' })).json(),
     ).toMatchObject({ status: 'review' });
-    expect((await h.call('approve_task', { task_id: id })).json()).toMatchObject({
+    expect((await reviewer.call('approve_task', { task_id: id })).json()).toMatchObject({
       status: 'done',
     });
 
     expect(getTask(h.db, id)).toMatchObject({ status: 'done', done: true });
     const log = h.db
       .prepare(
-        "SELECT agent_id, action FROM agent_log WHERE target_id = ? AND agent_id = 'test-client' ORDER BY rowid",
+        'SELECT agent_id, action FROM agent_log WHERE target_id = ? AND agent_id IN (?, ?) ORDER BY rowid',
       )
-      .all(id);
+      .all(id, 'test-client', 'reviewer-client');
     expect(log).toEqual([
       { agent_id: 'test-client', action: 'task_started' },
       { agent_id: 'test-client', action: 'task_completed' },
-      { agent_id: 'test-client', action: 'task_rejected' },
+      { agent_id: 'reviewer-client', action: 'task_rejected' },
       { agent_id: 'test-client', action: 'task_completed' },
-      { agent_id: 'test-client', action: 'task_approved' },
+      { agent_id: 'reviewer-client', action: 'task_approved' },
     ]);
     const lesson = (await h.call('get_lessons_learned', { task_id: id })).json<
       { rejection_reason: string }[]
     >();
     expect(lesson[0]?.rejection_reason).toContain('backdrop');
+  });
+
+  it('an agent cannot approve its own work, nor via a sub-agent it registered, nor via a puppet', async () => {
+    const id = todoId();
+    await h.call('start_task', { task_id: id });
+    await h.call('complete_task', { task_id: id, summary: 'done' });
+
+    const self = await h.call('approve_task', { task_id: id });
+    expect(self.isError).toBe(true);
+    expect(self.text).toMatch(
+      /cannot approve .*submitted it for review.*operator or a different agent/,
+    );
+
+    await h.call('register_agent', { id: 'my-reviewer', name: 'My reviewer', type: 'sub-agent' });
+    const viaChild = await h.call('approve_task', { task_id: id, agent_id: 'my-reviewer' });
+    expect(viaChild.isError).toBe(true);
+    expect(viaChild.text).toMatch(/same agent family/);
+
+    await h.call('register_agent', { id: 'puppet', name: 'Puppet', type: 'orchestrator' });
+    const viaPuppet = await h.call('approve_task', { task_id: id, agent_id: 'puppet' });
+    expect(viaPuppet.isError).toBe(true);
+    expect(viaPuppet.text).toMatch(/only as yourself .* or as agents registered under you/);
+
+    expect(getTask(h.db, id)?.status).toBe('review'); // never moved
+    const other = await h.another('someone-else');
+    expect((await other.call('approve_task', { task_id: id })).json()).toMatchObject({
+      status: 'done',
+    });
+  });
+
+  it('a session may act only as itself or its own sub-agents, not as seeded unrelated agents', async () => {
+    await h.call('register_agent', { id: 'kid', name: 'Kid', type: 'sub-agent' });
+    expect((await h.call('log_action', { action: 'x', agent_id: 'kid' })).isError).toBe(false);
+    expect((await h.call('log_action', { action: 'x', agent_id: 'deepseek-r1' })).isError).toBe(
+      true,
+    ); // top-level seed agent
+    const mine = await h.another('claude-code'); // adopts the seeded orchestrator
+    expect(
+      (await mine.call('log_action', { action: 'x', agent_id: 'research-explorer' })).isError,
+    ).toBe(false); // its seeded child
+    expect((await mine.call('log_action', { action: 'x', agent_id: 'kid' })).isError).toBe(true); // someone else's child
   });
 
   it('block / unblock restores the previous status; reset clears', async () => {

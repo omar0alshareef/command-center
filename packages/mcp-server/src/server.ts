@@ -15,7 +15,7 @@ const INSTRUCTIONS = `Command Center is the shared project board for the human o
 Typical loop:
 1. get_project_status, then list_tasks (status="todo") to pick work.
 2. get_task_context for the task (get_task_summary for a quick look; get_lessons_learned to avoid past mistakes).
-3. start_task -> do the work -> log_action as you go -> complete_task with a summary. The task then waits in Review for a human; do not approve your own work.
+3. start_task -> do the work -> log_action as you go -> complete_task with a summary. The task then waits in Review for the operator or an unrelated agent: you cannot approve work submitted by you or your own sub-agents.
 4. If stuck, block_task with a reason. If rejected, read get_task_history, fix it, and complete_task again.
 
 You are registered automatically as the calling agent. To act for a sub-agent, register_agent it first and pass its id as agent_id. Errors say which tool to call next.`;

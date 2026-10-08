@@ -78,3 +78,32 @@ export class InvalidInputError extends CoreError {
     super('INVALID_INPUT', message);
   }
 }
+
+/** An agent tried to approve work that it (or its own sub-agent / parent) submitted for review. */
+export class SelfApprovalError extends CoreError {
+  constructor(
+    readonly taskId: string,
+    readonly actor: string,
+    readonly submitter: string,
+  ) {
+    super(
+      'SELF_APPROVAL',
+      actor === submitter
+        ? `${actor} cannot approve ${taskId}: ${actor} submitted it for review. Ask the operator or a different agent to approve.`
+        : `${actor} cannot approve ${taskId}: it was submitted by ${submitter}, which is in the same agent family as ${actor}. Ask the operator or an unrelated agent to approve.`,
+    );
+  }
+}
+
+/** A session tried to act as an agent that is neither itself nor one of its own sub-agents. */
+export class ForeignAgentError extends CoreError {
+  constructor(
+    readonly agentId: string,
+    readonly sessionAgent: string,
+  ) {
+    super(
+      'FOREIGN_AGENT',
+      `You can act only as yourself (${sessionAgent}) or as agents registered under you; '${agentId}' is neither.`,
+    );
+  }
+}

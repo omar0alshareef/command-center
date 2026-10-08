@@ -72,7 +72,7 @@ export function registerTaskTools(server: McpServer, { db, session }: Ctx): void
   run(
     'approve_task',
     'Approve task',
-    'Accept reviewed work: review -> done. This is a reviewer action; do not approve your own work unless you were asked to.',
+    'Accept reviewed work: review -> done. This is a reviewer action and the server ENFORCES independence: you cannot approve work that you, your sub-agents or your parent agent submitted for review. Ask the operator or an unrelated agent.',
     {},
     (a, actor) => transition(db, tid(a), 'approve', { actor }),
   );

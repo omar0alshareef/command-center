@@ -1,8 +1,10 @@
 import {
   AgentNotFoundError,
+  ForeignAgentError,
   RESERVED_AGENT_IDS,
   ReservedAgentError,
   getAgent,
+  isSelfOrDescendant,
   registerAgent,
   type Db,
 } from '@command-center/core';
@@ -66,6 +68,9 @@ export function createSession(
       const agent = getAgent(db, agentId);
       if (!agent) throw new AgentNotFoundError(agentId);
       if (agent.type === 'human') throw new ReservedAgentError(agentId);
+      // Acting as an unrelated agent would let a session impersonate a reviewer (or register a puppet to approve its own work).
+      const me = self();
+      if (!isSelfOrDescendant(db, agentId, me)) throw new ForeignAgentError(agentId, me);
       return agentId;
     },
   };
