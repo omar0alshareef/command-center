@@ -30,7 +30,7 @@ export function buildMcpConfig(projectRoot: string, launch: McpLaunch): McpConfi
   const cli = [
     'claude mcp add',
     SERVER_NAME,
-    '-e',
+    '--env',
     quote(`PROJECT_ROOT=${projectRoot}`),
     '--',
     quote(launch.command),
