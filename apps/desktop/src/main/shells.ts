@@ -36,8 +36,14 @@ export function detectShells(
     const root = env['SystemRoot'] ?? 'C:\\Windows';
     const ps5 = join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     add('pwsh', 'PowerShell 7', onPath(['pwsh.exe'], env, exists), ['-NoLogo']);
-    add('powershell', 'PowerShell', exists(ps5) ? ps5 : onPath(['powershell.exe'], env, exists), ['-NoLogo']);
-    add('cmd', 'Command Prompt', env['ComSpec'] && exists(env['ComSpec']) ? env['ComSpec'] : join(root, 'System32', 'cmd.exe'));
+    add('powershell', 'PowerShell', exists(ps5) ? ps5 : onPath(['powershell.exe'], env, exists), [
+      '-NoLogo',
+    ]);
+    add(
+      'cmd',
+      'Command Prompt',
+      env['ComSpec'] && exists(env['ComSpec']) ? env['ComSpec'] : join(root, 'System32', 'cmd.exe'),
+    );
     const gitBash = ['ProgramFiles', 'ProgramFiles(x86)']
       .map((k) => env[k])
       .filter((p): p is string => Boolean(p))
@@ -50,8 +56,21 @@ export function detectShells(
   }
   const login = env['SHELL'];
   if (login && exists(login)) add(basename(login), basename(login), login, ['-l']);
-  for (const [id, path] of [['zsh', '/bin/zsh'], ['bash', '/bin/bash'], ['bash', '/usr/bin/bash'], ['fish', '/usr/bin/fish'], ['sh', '/bin/sh']] as const) {
+  for (const [id, path] of [
+    ['zsh', '/bin/zsh'],
+    ['bash', '/bin/bash'],
+    ['bash', '/usr/bin/bash'],
+    ['fish', '/usr/bin/fish'],
+    ['sh', '/bin/sh'],
+  ] as const) {
     if (exists(path)) add(id, id, path, id === 'sh' ? [] : ['-l']);
   }
   return out;
+}
+
+/** `env` with `dir` first on PATH (whatever case the platform spells the variable). */
+export function withPath(env: NodeJS.ProcessEnv, dir: string | null): NodeJS.ProcessEnv {
+  if (!dir) return env;
+  const key = Object.keys(env).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
+  return { ...env, [key]: `${dir}${delimiter}${env[key] ?? ''}` };
 }

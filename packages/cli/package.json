@@ -1,0 +1,27 @@
+{
+  "name": "@command-center/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Operator CLI for Command Center: status, agents, log, and the prepare / start / audit sub-agent pipeline.",
+  "bin": {
+    "command-center": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@command-center/core": "^0.0.0",
+    "esbuild": "0.28.2",
+    "zod": "4.6.5"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "commander": "^14.0.0"
+  }
+}

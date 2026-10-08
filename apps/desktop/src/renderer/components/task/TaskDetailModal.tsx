@@ -363,7 +363,10 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
           ))}
         </select>
         <Tooltip content="Types the command into the Terminal; you press Enter">
-          <Button onClick={() => void typeInTerminal(`command-center prepare ${task.id}`)} data-run-prepare>
+          <Button
+            onClick={() => void typeInTerminal(`command-center prepare --id ${task.id}`)}
+            data-run-prepare
+          >
             <SquareTerminal size={14} aria-hidden /> Run prepare here
           </Button>
         </Tooltip>

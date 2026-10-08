@@ -28,7 +28,8 @@ export function terminalApi(pty: PtyManager) {
     },
     resize: (id: unknown, cols: unknown, rows: unknown) => {
       const i = Id.safeParse(id);
-      if (i.success && typeof cols === 'number' && typeof rows === 'number') pty.resize(i.data, cols, rows);
+      if (i.success && typeof cols === 'number' && typeof rows === 'number')
+        pty.resize(i.data, cols, rows);
     },
     kill: (id: unknown) => {
       const i = Id.safeParse(id);

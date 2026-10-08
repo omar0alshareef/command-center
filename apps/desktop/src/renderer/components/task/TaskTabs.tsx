@@ -1,5 +1,7 @@
+import { SquareTerminal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { AgentLogEntry, Lesson, TaskHistory } from '@command-center/core';
+import { typeInTerminal } from '../../lib/terminal-actions';
 import { relativeTime } from '../../lib/time';
 import { useApp } from '../../store';
 import { AgentAvatar } from '../ui/agent';
@@ -130,9 +132,17 @@ export function ContextTab({ taskId, version }: { taskId: string; version: strin
         <Button disabled={!value} onClick={() => value && copyText(value, 'TASK_CONTEXT')}>
           Copy
         </Button>
-        <Tooltip content="Arrives with the embedded terminal (M8)">
-          <Button disabled>Open in terminal</Button>
-        </Tooltip>
+        {(['prepare', 'start', 'audit'] as const).map((cmd) => (
+          <Tooltip key={cmd} content="Types the command into the Terminal; you press Enter">
+            <Button
+              onClick={() => void typeInTerminal(`command-center ${cmd} --id ${taskId}`)}
+              data-run-cli={cmd}
+            >
+              <SquareTerminal size={14} aria-hidden /> {cmd[0]?.toUpperCase()}
+              {cmd.slice(1)}
+            </Button>
+          </Tooltip>
+        ))}
         <span className="text-[11px] text-muted">
           Preview of .claude/TASK_CONTEXT.md as an agent would receive it.
         </span>

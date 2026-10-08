@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { CH, type SyncStatus } from '../shared/ipc';
 import type { ProjectService } from './project';
 import { activityApi } from './activity-api';
+import { ensureShimDir } from './cli-shim';
 import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
 import { milestoneApi } from './milestone-api';
@@ -22,6 +23,7 @@ export const pty = new PtyManager(
     exit: (id, exitCode) => broadcast(CH.termExit, { id, exitCode }),
   },
   () => projectRoot(),
+  () => ensureShimDir(),
 );
 let projectRoot: () => string | null = () => null;
 
@@ -54,7 +56,9 @@ export function registerIpc(project: ProjectService): void {
   ipcMain.handle(CH.termShells, () => term.shells());
   ipcMain.handle(CH.termCreate, (_e, req: unknown) => term.create(req));
   ipcMain.on(CH.termWrite, (_e, id: unknown, data: unknown) => term.write(id, data));
-  ipcMain.on(CH.termResize, (_e, id: unknown, cols: unknown, rows: unknown) => term.resize(id, cols, rows));
+  ipcMain.on(CH.termResize, (_e, id: unknown, cols: unknown, rows: unknown) =>
+    term.resize(id, cols, rows),
+  );
   ipcMain.handle(CH.termKill, (_e, id: unknown) => term.kill(id));
 
   const activity = activityApi(() => project.db());

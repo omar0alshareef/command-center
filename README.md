@@ -67,6 +67,29 @@ The server registers the calling agent automatically on its first call, named af
 
 Typical loop: `get_project_status` → `list_tasks` → `get_task_context` → `start_task` → work (`log_action`) → `complete_task`. The task then waits in **Review** for the human. Errors name the tool to call next, and unknown parameters are rejected rather than ignored.
 
+## Operator CLI
+
+`command-center` works on the same board as the app and the MCP server. It finds the project from `--root`, `$PROJECT_ROOT`, or the nearest parent folder with a `command-center.db` (it never creates a board).
+
+```bash
+npm run build -w packages/cli                     # builds packages/cli/dist/index.js
+npm install -g ./packages/cli                     # optional: puts `command-center` on your PATH
+# The app's Terminal tab already has `command-center` on PATH (no install needed).
+
+command-center status                  # week, phase, progress, what needs review / is blocked   (--json)
+command-center agents                  # agents, nesting, ACTIVE / IDLE                           (--json)
+command-center log --task TASK-001     # a task's history, newest first (--agent, --limit, --json)
+command-center prepare --id TASK-001   # Research Explorer -> Token Compressor -> Prompt Optimizer -> .claude/TASK_CONTEXT.md
+command-center start   --id TASK-001   # start_task, dispatch the agent with the context, run checks, complete_task
+command-center audit   --id TASK-001   # Code Quality -> Security -> Final Validator; FAIL sends a reviewed task back
+```
+
+- Every stage is a sub-agent (`research_explorer`, `token_compressor`, `prompt_optimizer`, `code_quality`, `security_auditor`, `final_validator`, under `operator-cli`) and writes its result to the Agent Hub activity feed.
+- `--dry-run` prints each stage's prompt and what would happen, and changes nothing.
+- `--runner claude` shells out to the Claude Code CLI (`claude -p`, prompt on stdin, read-only tools for analysis stages, edit tools only for the build stage); it needs `claude` on PATH (or `COMMAND_CENTER_CLAUDE`) and a logged-in session. `--runner local` is an offline fallback with real file search, check runs and secret scanning but no model; `auto` (default) picks `claude` when it finds it. `--timeout <minutes>` bounds one stage.
+- `start` and `audit` run `npm run typecheck` and `npm run lint` when the project defines them; use `--check "<command>"` (repeatable) to choose your own. `start --no-dispatch` skips the agent (work already built) and only checks and completes.
+- An audit **FAIL** on a task in Review moves it back to In Progress, records the reason and a lesson. A PASS leaves it in Review for you to approve in the app. Exit codes: 0 ok, 1 failed/refused, 2 a stage could not run.
+
 ## Scripts
 
 | Command | What it does |

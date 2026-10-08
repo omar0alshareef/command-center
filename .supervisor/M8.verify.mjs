@@ -512,7 +512,7 @@ await run('T', async () => {
   await waitDom(`document.querySelector('[data-terminal]')?.offsetParent !== null && !document.querySelector('dialog[open]')`, 8000);
   await sleep(1200);
   const t = await termText();
-  check('T1 "Run prepare here" opens the Terminal and types the command (not executed)', new RegExp(`PS [^\\n]*>\\s*command-center prepare ${tid}\\s*$`, 'm').test(t), t.split('\n').filter((l) => l.includes('prepare')).join('|'));
+  check('T1 "Run prepare here" opens the Terminal and types the command (not executed)', new RegExp(`PS [^\\n]*>\\s*command-center prepare --id ${tid}\\s*$`, 'm').test(t), t.split('\n').filter((l) => l.includes('prepare')).join('|'));
   await key('Escape', 'Escape', 27);
   // theme
   await ev(`document.querySelector('button[aria-label="Switch to light theme"]')?.click()`);

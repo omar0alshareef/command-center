@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import * as nodePty from 'node-pty';
 import type { ShellInfo } from './shells';
-import { detectShells } from './shells';
+import { detectShells, withPath } from './shells';
 
 export interface PtyEvents {
   data(id: string, data: string): void;
@@ -27,7 +27,8 @@ interface Live {
 
 const FLUSH_MS = 6;
 const FLUSH_BYTES = 64 * 1024;
-const clampDim = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.floor(n) || lo));
+const clampDim = (n: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, Math.floor(n) || lo));
 
 /**
  * Owns every PTY. Output is coalesced per session (6 ms / 64 KB) before it crosses IPC. No backpressure:
@@ -41,6 +42,8 @@ export class PtyManager {
   constructor(
     private readonly events: PtyEvents,
     private readonly cwd: () => string | null,
+    /** A folder to put first on PATH in every session (the `command-center` launcher). */
+    private readonly extraPath: () => string | null = () => null,
   ) {}
 
   listShells(): ShellInfo[] {
@@ -59,7 +62,10 @@ export class PtyManager {
       cols: clampDim(cols, 2, 500),
       rows: clampDim(rows, 1, 200),
       cwd,
-      env: { ...process.env, ...(root ? { PROJECT_ROOT: root } : {}), TERM_PROGRAM: 'command-center' } as Record<string, string>,
+      env: withPath(
+        { ...process.env, ...(root ? { PROJECT_ROOT: root } : {}), TERM_PROGRAM: 'command-center' },
+        this.extraPath(),
+      ) as Record<string, string>,
     });
     const info: SessionInfo = { id, pid: proc.pid, shellId: shell.id, name: shell.name, cwd };
     const live: Live = { pty: proc, info, buffer: '', timer: null, exited: false };
@@ -127,7 +133,10 @@ export class PtyManager {
     // Closing the pseudo console does not always take grandchildren with it on Windows: kill the tree.
     if (process.platform === 'win32') {
       try {
-        execFileSync('taskkill', ['/PID', String(s.info.pid), '/T', '/F'], { stdio: 'ignore', timeout: 3000 });
+        execFileSync('taskkill', ['/PID', String(s.info.pid), '/T', '/F'], {
+          stdio: 'ignore',
+          timeout: 3000,
+        });
       } catch {
         /* nothing left to kill */
       }
