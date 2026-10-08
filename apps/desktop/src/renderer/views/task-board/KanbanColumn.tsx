@@ -36,7 +36,7 @@ export function KanbanColumn({
   return (
     <section
       aria-label={`${meta.label}, ${count} tasks`}
-      className="flex min-h-0 min-w-[240px] flex-1 flex-col rounded-lg border border-border bg-surface"
+      className="flex min-h-0 min-w-[216px] flex-1 flex-col rounded-lg border border-border bg-surface"
     >
       <header className="sticky top-0 flex h-9 shrink-0 items-center gap-2 px-3">
         <StatusDot color={meta.color} />
@@ -71,7 +71,7 @@ export function KanbanColumn({
         data-column={status}
         data-drop-state={dropState}
         className={cn(
-          'flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto rounded-b-lg border-2 border-transparent p-2',
+          'flex min-h-24 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-b-lg border-2 border-transparent p-2',
           dropState === 'allowed' && 'border-dashed',
           dropState === 'illegal' && 'cursor-not-allowed border-dashed',
         )}

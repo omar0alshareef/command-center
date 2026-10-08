@@ -56,3 +56,25 @@ export class DependenciesIncompleteError extends CoreError {
     );
   }
 }
+
+export class AgentNotFoundError extends CoreError {
+  constructor(readonly agentId: string) {
+    super('AGENT_NOT_FOUND', `Agent '${agentId}' is not registered.`);
+  }
+}
+
+/** `operator` (the human) and `system` are built in and cannot be registered or impersonated. */
+export class ReservedAgentError extends CoreError {
+  constructor(readonly agentId: string) {
+    super(
+      'RESERVED_AGENT',
+      `'${agentId}' is a reserved agent id and cannot be used by a tool call.`,
+    );
+  }
+}
+
+export class InvalidInputError extends CoreError {
+  constructor(message: string) {
+    super('INVALID_INPUT', message);
+  }
+}

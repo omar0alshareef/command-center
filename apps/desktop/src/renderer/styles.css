@@ -66,10 +66,13 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* Visible focus ring on every interactive element (UI/UX §7.7). */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* Visible focus ring on every interactive element (UI/UX §7.7). In the base layer so utilities such as
+   outline-none can still opt out (unlayered CSS would always beat them). */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 @keyframes pulse-dot {

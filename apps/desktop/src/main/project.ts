@@ -7,6 +7,7 @@ import {
   type TrackerState,
 } from '@command-center/core';
 import type { ProjectInfo, SyncStatus } from '../shared/ipc';
+import { mcpLaunch } from './mcp-path';
 import { saveRoot } from './settings';
 import { startWatcher } from './watcher';
 
@@ -49,6 +50,7 @@ export class ProjectService {
       dbPath: this.root ? dbPath(this.root) : null,
       error: this.error,
       appVersion: app.getVersion(),
+      mcp: mcpLaunch(),
     };
   }
 

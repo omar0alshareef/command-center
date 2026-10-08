@@ -49,7 +49,7 @@ export function AssigneeChip({
     );
   }
   return (
-    <span className="inline-flex max-w-full items-center gap-1.5 text-[11px]">
+    <span className="inline-flex max-w-full min-w-0 items-center gap-1.5 text-[11px]">
       <AgentAvatar agent={agent} size={20} />
       <span className="truncate">{agent.name}</span>
     </span>

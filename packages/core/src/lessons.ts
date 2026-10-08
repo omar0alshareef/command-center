@@ -61,3 +61,20 @@ export function getRelevantLessons(
       .all(...params, limit),
   );
 }
+
+/**
+ * Lessons for a task: its own rejections first (newest first), then lessons relevant to its topic
+ * (FTS on the label), de-duplicated, up to `limit`.
+ */
+export function getLessonsForTask(db: Db, taskId: string, taskLabel: string, limit = 5): Lesson[] {
+  const own = LessonSchema.array().parse(
+    db
+      .prepare(
+        'SELECT * FROM lessons_learned WHERE subtask_id = ? ORDER BY created_at DESC, id DESC',
+      )
+      .all(taskId),
+  );
+  const seen = new Set(own.map((l) => l.id));
+  const related = getRelevantLessons(db, taskLabel, [], limit).filter((l) => !seen.has(l.id));
+  return [...own, ...related].slice(0, limit);
+}

@@ -79,6 +79,11 @@ export function listTasks(db: Db, f: TaskFilters = {}): Task[] {
   return TaskSchema.array().parse(db.prepare(sql).all(...params));
 }
 
+export function getAgent(db: Db, id: string): Agent | null {
+  const row = db.prepare('SELECT * FROM agents WHERE id = ?').get(id);
+  return row ? AgentSchema.parse(row) : null;
+}
+
 export function listAgents(db: Db): Agent[] {
   return AgentSchema.array().parse(
     db.prepare('SELECT * FROM agents ORDER BY created_at, id').all(),

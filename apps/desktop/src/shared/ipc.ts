@@ -23,12 +23,21 @@ export const CH = {
   dbStatus: 'db:status',
 } as const;
 
+/** How an agent launches the MCP server: the built bundle if present, else the global command. */
+export interface McpLaunch {
+  command: string;
+  args: string[];
+  /** True when the bundled server file was found next to the app; false means a global install is assumed. */
+  bundled: boolean;
+}
+
 export interface ProjectInfo {
   root: string | null;
   dbPath: string | null;
   /** Set when the DB could not be opened (missing, locked, corrupt). */
   error: string | null;
   appVersion: string;
+  mcp: McpLaunch;
 }
 
 export type SyncStatus = { state: 'live' } | { state: 'disconnected'; error: string };

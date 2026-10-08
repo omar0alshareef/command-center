@@ -1,7 +1,10 @@
+import { Cpu } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { TrackerState } from '@command-center/core';
 import { HydrationEmptyState } from '../components/HydrationEmptyState';
+import { McpConnect } from '../components/McpConnect';
 import { StatusDot } from '../components/ui/badges';
+import { EmptyState } from '../components/ui/feedback';
 import { activeAgentCount, completedThisWeek } from '../lib/derive';
 import type { TabId } from '../store';
 import { TaskBoard } from './task-board/TaskBoard';
@@ -19,11 +22,13 @@ function Placeholder({
   note,
   stats,
   empty,
+  children,
 }: {
   title: string;
   note: string;
   stats: Stat[];
   empty?: boolean;
+  children?: ReactNode;
 }) {
   return (
     <section className="flex h-full flex-col gap-4 overflow-auto p-6">
@@ -45,6 +50,7 @@ function Placeholder({
         </dl>
       ) : null}
       {empty ? <HydrationEmptyState /> : null}
+      {children}
     </section>
   );
 }
@@ -66,18 +72,43 @@ const VIEWS: Record<TabId, (t: TrackerState) => ReactNode> = {
     />
   ),
   'task-board': (t) => <TaskBoard tracker={t} />,
-  'agent-hub': (t) => (
-    <Placeholder
-      title="Agent Hub"
-      note="Agent tree and activity feed arrive in M6."
-      empty={noMilestones(t)}
-      stats={[
-        { label: 'Agents', value: t.agents.length },
-        { label: 'Active', value: activeAgentCount(t.agents), color: 'var(--success)' },
-        { label: 'Log entries', value: t.agent_log.length },
-      ]}
-    />
-  ),
+  'agent-hub': (t) => {
+    // The built-in operator and system agents don't count as connected agents.
+    const connected = t.agents.filter((a) => a.id !== 'operator' && a.id !== 'system');
+    return (
+      <Placeholder
+        title="Agent Hub"
+        note="Agent tree and activity feed arrive in M6."
+        // One big empty state at a time: with no agents, connecting one comes first.
+        empty={noMilestones(t) && connected.length > 0}
+        stats={[
+          { label: 'Agents', value: connected.length },
+          { label: 'Active', value: activeAgentCount(t.agents), color: 'var(--success)' },
+          { label: 'Log entries', value: t.agent_log.length },
+        ]}
+      >
+        {connected.length === 0 ? (
+          <>
+            <EmptyState
+              icon={Cpu}
+              title="No agents connected"
+              help="Add the MCP server to Claude Code and it registers itself on its first call."
+            />
+            <McpConnect />
+          </>
+        ) : (
+          <details className="max-w-3xl">
+            <summary className="cursor-pointer text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+              Connect another agent
+            </summary>
+            <div className="mt-3">
+              <McpConnect />
+            </div>
+          </details>
+        )}
+      </Placeholder>
+    );
+  },
   calendar: (t) => (
     <Placeholder
       title="Calendar"

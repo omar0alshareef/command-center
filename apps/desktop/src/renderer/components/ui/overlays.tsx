@@ -39,6 +39,9 @@ export function Modal({
       aria-label={label}
       onCancel={(e) => {
         e.preventDefault();
+        // The DOM `cancel` event does not bubble, but React bubbles it through the component tree.
+        // Without this, Esc in a dialog nested in another (confirm inside the task modal) closes both.
+        e.stopPropagation();
         onClose();
       }}
       onClick={(e) => {
