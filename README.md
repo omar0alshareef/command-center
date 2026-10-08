@@ -33,7 +33,7 @@ Agents drive the board through the `command-center` MCP server (stdio). The app'
 3. **Add it to Claude Code** (one line; use your own paths):
 
    ```bash
-   claude mcp add command-center --env PROJECT_ROOT=/path/to/project -- node /path/to/command-center/packages/mcp-server/dist/index.js
+   claude mcp add command-center node /path/to/command-center/packages/mcp-server/dist/index.js -e PROJECT_ROOT=/path/to/project
    ```
 
    or paste this into `.mcp.json` / your client's MCP config:

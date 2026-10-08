@@ -27,14 +27,14 @@ export function buildMcpConfig(projectRoot: string, launch: McpLaunch): McpConfi
     null,
     2,
   );
+  // Command first, `-e` last, no `--`: PowerShell drops the `--` separator, which broke the old form.
   const cli = [
     'claude mcp add',
     SERVER_NAME,
-    '--env',
-    quote(`PROJECT_ROOT=${projectRoot}`),
-    '--',
     quote(launch.command),
     ...launch.args.map(quote),
+    '-e',
+    quote(`PROJECT_ROOT=${projectRoot}`),
   ].join(' ');
   return { json, cli };
 }

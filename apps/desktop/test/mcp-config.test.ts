@@ -20,7 +20,7 @@ describe('buildMcpConfig', () => {
       bundled: true,
     });
     expect(cli).toBe(
-      'claude mcp add command-center --env PROJECT_ROOT=/home/me/proj -- node /opt/cc/dist/index.js',
+      'claude mcp add command-center node /opt/cc/dist/index.js -e PROJECT_ROOT=/home/me/proj',
     );
 
     const spaced = buildMcpConfig('C:\\Users\\me\\My Project', {
@@ -29,7 +29,7 @@ describe('buildMcpConfig', () => {
       bundled: true,
     });
     expect(spaced.cli).toBe(
-      'claude mcp add command-center --env "PROJECT_ROOT=C:\\Users\\me\\My Project" -- node "C:\\cc\\dist\\index.js"',
+      'claude mcp add command-center node "C:\\cc\\dist\\index.js" -e "PROJECT_ROOT=C:\\Users\\me\\My Project"',
     );
   });
 
@@ -43,6 +43,6 @@ describe('buildMcpConfig', () => {
       command: 'command-center-mcp',
       env: { PROJECT_ROOT: '/p' },
     });
-    expect(cli).toBe('claude mcp add command-center --env PROJECT_ROOT=/p -- command-center-mcp');
+    expect(cli).toBe('claude mcp add command-center command-center-mcp -e PROJECT_ROOT=/p');
   });
 });
