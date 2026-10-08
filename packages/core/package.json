@@ -1,0 +1,20 @@
+{
+  "name": "@command-center/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx src/seed.ts"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.0.3",
+    "zod": "4.6.5"
+  }
+}
