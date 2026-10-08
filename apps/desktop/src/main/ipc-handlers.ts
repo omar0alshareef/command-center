@@ -36,6 +36,7 @@ export function registerIpc(project: ProjectService): void {
   ipcMain.handle(CH.projectChoose, async () => {
     const result = await dialog.showOpenDialog({
       title: 'Choose project folder',
+      defaultPath: project.info().root ?? process.cwd(),
       properties: ['openDirectory', 'createDirectory'],
     });
     const picked = result.filePaths[0];
