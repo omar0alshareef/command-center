@@ -1,5 +1,6 @@
 import type {
   AgentLogEntry,
+  Lesson,
   Milestone,
   NewTask,
   Task,
@@ -24,6 +25,8 @@ export const CH = {
   milestoneNote: 'milestones:note',
   milestoneDates: 'milestones:dates',
   activityOlder: 'activity:older',
+  lessonUpdate: 'lessons:update',
+  lessonRemove: 'lessons:remove',
   termShells: 'terminal:shells',
   termCreate: 'terminal:create',
   termWrite: 'terminal:write',
@@ -118,9 +121,20 @@ export interface Api {
       limit?: number;
     }): Promise<Result<AgentLogEntry[]>>;
   };
+  lessons: {
+    update(req: {
+      id: number;
+      patch: { rejection_reason?: string; fix_applied?: string; prevention?: string };
+    }): Promise<Result<Lesson>>;
+    remove(id: number): Promise<Result<null>>;
+  };
   terminal: {
     shells(): Promise<ShellInfo[]>;
-    create(req: { shellId?: string; cols: number; rows: number }): Promise<Result<TerminalSessionInfo>>;
+    create(req: {
+      shellId?: string;
+      cols: number;
+      rows: number;
+    }): Promise<Result<TerminalSessionInfo>>;
     /** Fire-and-forget: keystrokes must not wait for a round trip. */
     write(id: string, data: string): void;
     resize(id: string, cols: number, rows: number): void;

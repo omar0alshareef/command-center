@@ -472,3 +472,35 @@ describe('start', () => {
     expect(listTasks(db).length).toBe(2);
   });
 });
+
+describe('memory', () => {
+  it('an audit FAIL stores what would have prevented it, and LESSONS_LEARNED.md matches the table', async () => {
+    addTask('TASK-001', 'review', { criteria: [{ text: 'Form validates input', done: false }] });
+    await audit(h(), 'TASK-001', { runner: localRunner, dryRun: false, checks: [BAD], out });
+    const lesson = db.prepare('SELECT * FROM lessons_learned').get() as {
+      prevention: string;
+      rejection_reason: string;
+    };
+    expect(lesson.prevention).toMatch(/Verify before review: Form validates input/);
+    expect(lesson.prevention).toMatch(/Run node -e .* until it passes/);
+    const md = readFileSync(join(root, '.claude', 'LESSONS_LEARNED.md'), 'utf8');
+    expect(md).toContain('## TASK-001 Rejection');
+    expect(md).toContain(lesson.rejection_reason);
+    expect(md).toContain('Verify before review: Form validates input');
+  });
+
+  it('prepare hands the lessons from an earlier rejection to a similar task', async () => {
+    addTask('TASK-001', 'review', { label: 'Modal backdrop close' });
+    db.prepare(
+      "INSERT INTO lessons_learned (subtask_id, rejection_reason, fix_applied, prevention) VALUES ('TASK-001', 'The modal did not close on backdrop click', 'added a handler', 'test every dismiss path')",
+    ).run();
+    addTask('TASK-002', 'todo', { label: 'Settings modal dismiss' });
+    await prepare(h(), 'TASK-002', { runner: localRunner, dryRun: false, budget: 500, out });
+    const md = readFileSync(contextPath(root), 'utf8');
+    const lessons = md.slice(md.indexOf('## Relevant lessons'));
+    expect(lessons).toContain('modal did not close on backdrop click');
+    expect(lessons).toContain('prevention: test every dismiss path');
+    expect(md).toContain('Do not repeat: The modal did not close'); // the optimizer repeated it as a rule
+    expect(existsSync(join(root, '.claude', 'LESSONS_LEARNED.md'))).toBe(true);
+  });
+});

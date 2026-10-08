@@ -50,7 +50,11 @@ function AgentRow({
           aria-expanded={collapsible ? !collapsed : undefined}
           className={`mt-2.5 grid size-5 shrink-0 place-items-center rounded text-muted hover:text-text ${collapsible ? '' : 'invisible'}`}
         >
-          {collapsed ? <ChevronRight size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+          {collapsed ? (
+            <ChevronRight size={14} aria-hidden />
+          ) : (
+            <ChevronDown size={14} aria-hidden />
+          )}
         </button>
       ) : null}
       <button
@@ -75,18 +79,26 @@ function AgentRow({
             </Tag>
           </span>
           <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted">
-            <span>{agent.last_action_at ? relativeTime(agent.last_action_at, now) : 'no actions yet'}</span>
+            <span>
+              {agent.last_action_at ? relativeTime(agent.last_action_at, now) : 'no actions yet'}
+            </span>
             <span className="font-mono" title="Actions this session">
               · {agent.session_action_count}
             </span>
           </span>
-          {agent.source_model ? <span className="block truncate text-[11px] text-muted">{agent.source_model}</span> : null}
+          {agent.source_model ? (
+            <span className="block truncate text-[11px] text-muted">{agent.source_model}</span>
+          ) : null}
           {perms.length > 0 ? (
             <span className="mt-1 flex flex-wrap gap-1">
               {perms.slice(0, 3).map((p) => (
                 <Tag key={p}>{p}</Tag>
               ))}
-              {perms.length > 3 ? <span title={perms.slice(3).join(", ")}><Tag>+{perms.length - 3}</Tag></span> : null}
+              {perms.length > 3 ? (
+                <span title={perms.slice(3).join(', ')}>
+                  <Tag>+{perms.length - 3}</Tag>
+                </span>
+              ) : null}
             </span>
           ) : null}
         </span>
@@ -105,8 +117,13 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
   const [menu, setMenu] = useState<{ agent: Agent; x: number; y: number } | null>(null);
 
   return (
-    <section aria-label="Connected agents" className="rounded-lg border border-border bg-surface p-3">
-      <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">Connected agents</h2>
+    <section
+      aria-label="Connected agents"
+      className="rounded-lg border border-border bg-surface p-3"
+    >
+      <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+        Connected agents
+      </h2>
       <div className="flex flex-col gap-0.5" data-agent-tree>
         {tree.map(({ agent, children }) => {
           const collapsed = collapsedIds.includes(agent.id);

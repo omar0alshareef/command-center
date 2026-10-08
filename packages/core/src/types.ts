@@ -141,6 +141,7 @@ export const LessonSchema = z.object({
   subtask_id: z.string(),
   rejection_reason: z.string(),
   fix_applied: z.string(),
+  prevention: z.string(),
   created_at: z.string(),
 });
 export type Lesson = z.infer<typeof LessonSchema>;

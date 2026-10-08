@@ -8,6 +8,7 @@ import { isConnectedAgent, mergeLog, weekStart } from '../../lib/agent-hub';
 import { useApp } from '../../store';
 import { ActivityFeed } from './ActivityFeed';
 import { AgentTree } from './AgentTree';
+import { Lessons } from './Lessons';
 import { Performance } from './Performance';
 import { ContextPreview, SharedState, TodaySummary } from './SideCards';
 
@@ -20,7 +21,10 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
   const log = useMemo(() => mergeLog(tracker.agent_log, olderLog), [tracker.agent_log, olderLog]);
   // The week's counts are complete only once the loaded log reaches back past Monday (or the log is exhausted).
   const oldest = log[log.length - 1]?.timestamp;
-  const truncated = !olderDone.includes('all') && oldest !== undefined && Date.parse(oldest) >= weekStart(new Date()).getTime();
+  const truncated =
+    !olderDone.includes('all') &&
+    oldest !== undefined &&
+    Date.parse(oldest) >= weekStart(new Date()).getTime();
 
   if (connected.length === 0) {
     return (
@@ -40,7 +44,10 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
   return (
     <section aria-label="Agent Hub" className="grid h-full min-h-0 grid-cols-[340px_minmax(0,1fr)]">
       <h1 className="sr-only">Agent Hub</h1>
-      <div className="flex min-h-0 flex-col gap-3 overflow-auto border-r border-border p-3" data-hub-left>
+      <div
+        className="flex min-h-0 flex-col gap-3 overflow-auto border-r border-border p-3"
+        data-hub-left
+      >
         <AgentTree agents={tracker.agents} />
         <SharedState tracker={tracker} />
         <ContextPreview tracker={tracker} />
@@ -56,6 +63,7 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
       </div>
       <div className="flex min-h-0 flex-col gap-3 overflow-auto p-3" data-hub-right>
         <ActivityFeed tracker={tracker} />
+        <Lessons lessons={tracker.lessons_learned} />
         <Performance log={log} agents={agentsById} truncated={truncated} />
       </div>
     </section>

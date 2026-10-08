@@ -33,7 +33,10 @@ export function buildTree(agents: readonly Agent[]): TreeNode[] {
 }
 
 /** Feed rows: the loaded 500 plus any older pages, newest first, no duplicates. */
-export function mergeLog(base: readonly AgentLogEntry[], older: readonly AgentLogEntry[]): AgentLogEntry[] {
+export function mergeLog(
+  base: readonly AgentLogEntry[],
+  older: readonly AgentLogEntry[],
+): AgentLogEntry[] {
   if (older.length === 0) return base as AgentLogEntry[];
   const seen = new Set(base.map((e) => e.id));
   return [...base, ...older.filter((e) => !seen.has(e.id))];
@@ -46,14 +49,21 @@ export function matchesFilter(e: AgentLogEntry, filter: string): boolean {
   return e.agent_id === filter;
 }
 
-export function matchesSearch(e: AgentLogEntry, query: string, agents: ReadonlyMap<string, Agent>): boolean {
+export function matchesSearch(
+  e: AgentLogEntry,
+  query: string,
+  agents: ReadonlyMap<string, Agent>,
+): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return [e.description, e.target_id, e.action, agents.get(e.agent_id)?.name].some((f) => f?.toLowerCase().includes(q));
+  return [e.description, e.target_id, e.action, agents.get(e.agent_id)?.name].some((f) =>
+    f?.toLowerCase().includes(q),
+  );
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
-export const localDay = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const localDay = (d: Date): string =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -77,8 +87,7 @@ export const HEADER_H = 30;
 export const ENTRY_H = 56;
 
 export type FeedItem =
-  | { kind: 'header'; key: string; label: string }
-  | { kind: 'entry'; entry: AgentLogEntry };
+  { kind: 'header'; key: string; label: string } | { kind: 'entry'; entry: AgentLogEntry };
 
 /** Entries (newest first) with a day header before each day's first entry. Fixed heights keep scroll math exact. */
 export function flattenFeed(entries: readonly AgentLogEntry[], now = new Date()): FeedItem[] {
@@ -124,10 +133,14 @@ export function todaySummary(t: TrackerState, now = new Date()): TodaySummary {
     counts.set(e.agent_id, (counts.get(e.agent_id) ?? 0) + 1);
   }
   return {
-    completed: t.subtasks.filter((s) => s.completed_at && localDay(new Date(s.completed_at)) === today).length,
+    completed: t.subtasks.filter(
+      (s) => s.completed_at && localDay(new Date(s.completed_at)) === today,
+    ).length,
     inProgress: t.subtasks.filter((s) => s.status === 'in_progress').length,
     blocked: t.subtasks.filter((s) => s.status === 'blocked').length,
-    contributions: [...counts].map(([agentId, count]) => ({ agentId, count })).sort((a, b) => b.count - a.count),
+    contributions: [...counts]
+      .map(([agentId, count]) => ({ agentId, count }))
+      .sort((a, b) => b.count - a.count),
   };
 }
 
@@ -157,7 +170,10 @@ export function weeklyPerformance(log: readonly AgentLogEntry[], now = new Date(
     .map(([agentId, r]) => ({
       agentId,
       total: r.total,
-      tags: [...r.tags].map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, 4),
+      tags: [...r.tags]
+        .map(([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+        .slice(0, 4),
     }))
     .sort((a, b) => b.total - a.total || a.agentId.localeCompare(b.agentId));
 }

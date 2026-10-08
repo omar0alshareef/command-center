@@ -61,6 +61,9 @@ function HistoryEntry({ entry, lesson }: { entry: AgentLogEntry; lesson: Lesson 
         </div>
         <p className="mt-2 font-medium">{lesson.rejection_reason}</p>
         {lesson.fix_applied ? <p className="mt-1 text-muted">Fix: {lesson.fix_applied}</p> : null}
+        {lesson.prevention ? (
+          <p className="mt-1 text-muted">Prevention: {lesson.prevention}</p>
+        ) : null}
       </li>
     );
   }

@@ -27,6 +27,10 @@ const api: Api = {
     setDates: (req) => ipcRenderer.invoke(CH.milestoneDates, req),
   },
   activity: { older: (req) => ipcRenderer.invoke(CH.activityOlder, req) },
+  lessons: {
+    update: (req) => ipcRenderer.invoke(CH.lessonUpdate, req),
+    remove: (id) => ipcRenderer.invoke(CH.lessonRemove, id),
+  },
   terminal: {
     shells: () => ipcRenderer.invoke(CH.termShells),
     create: (req) => ipcRenderer.invoke(CH.termCreate, req),

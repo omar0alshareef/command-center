@@ -4,6 +4,8 @@ import {
   enrichTask,
   estimateTokens,
   getLessonsForTask,
+  lessonLine,
+  syncLessonsFile,
   getTask,
   logAction,
 } from '@command-center/core';
@@ -77,6 +79,7 @@ export async function prepare(
   }
 
   ensurePipelineAgents(db);
+  syncLessonsFile(db); // LESSONS_LEARNED.md exists and matches the table before agents read it
   const fail = (what: string, error: string | undefined): never => {
     throw new CliError(`${what} failed: ${error ?? 'no output'}. The task was not changed.`, 2);
   };
@@ -115,9 +118,13 @@ export async function prepare(
   if (!compress.result.ok) fail(STAGES.compressor.title, compress.result.error);
 
   o.out(`[3/3] ${STAGES.optimizer.title}…`);
-  const lessons = getLessonsForTask(db, taskId, task.label).map(
-    (l) => `${l.rejection_reason}${l.fix_applied ? ` (fix: ${l.fix_applied})` : ''}`,
-  );
+  const lessons = getLessonsForTask(
+    db,
+    taskId,
+    task.label,
+    5,
+    task.acceptance_criteria.map((c) => c.text),
+  ).map(lessonLine);
   const optimized = await runStage(
     db,
     o.runner,

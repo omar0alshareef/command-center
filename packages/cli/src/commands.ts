@@ -1,10 +1,13 @@
 import {
   getActivityFeed,
+  getLessonsForTask,
+  getRelevantLessons,
   getProjectStatus,
   getTask,
   getTaskHistory,
   isAgentActive,
   listAgents,
+  listLessons,
 } from '@command-center/core';
 import { CliError, type Handle } from './context';
 import { ago, clip, table } from './format';
@@ -67,5 +70,32 @@ export function logCommand(
     out(
       `${when}  ${e.agent_id}  ${e.action}${e.target_id ? `  ${e.target_id}` : ''}${e.description ? `  ${clip(e.description, 90)}` : ''}`,
     );
+  }
+}
+
+export function lessonsCommand(
+  { db }: Handle,
+  o: { task?: string; query?: string; limit: number; json: boolean },
+  out: Out,
+): void {
+  let lessons;
+  if (o.task) {
+    const t = getTask(db, o.task);
+    if (!t) throw new CliError(`No task ${o.task}. Try \`command-center status\`.`);
+    lessons = getLessonsForTask(
+      db,
+      t.id,
+      t.label,
+      o.limit,
+      t.acceptance_criteria.map((c) => c.text),
+    );
+  } else if (o.query) lessons = getRelevantLessons(db, o.query, [], o.limit);
+  else lessons = listLessons(db).slice(0, o.limit);
+  if (o.json) return out(JSON.stringify(lessons, null, 2));
+  if (lessons.length === 0) return out('No lessons recorded yet. A rejected task adds one.');
+  for (const l of lessons) {
+    out(`${l.subtask_id}  ${l.created_at.slice(0, 10)}  ${l.rejection_reason}`);
+    if (l.fix_applied) out(`    fix: ${l.fix_applied}`);
+    if (l.prevention) out(`    prevention: ${l.prevention}`);
   }
 }

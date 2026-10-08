@@ -92,15 +92,32 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
   const [panning, setPanning] = useState(false);
 
   const byId = useMemo(() => new Map(model.nodes.map((n) => [n.id, n])), [model.nodes]);
-  const chain = useMemo(() => (hoverId ? dependencyChain(hoverId, model.edges) : null), [hoverId, model.edges]);
-  const hotNodes = useMemo(() => (hoverId && chain ? new Set([hoverId, ...chain.upstream, ...chain.downstream]) : null), [hoverId, chain]);
-  const hotEdges = useMemo(() => new Set((chain?.edges ?? []).map((e) => `${e.from}>${e.to}`)), [chain]);
+  const chain = useMemo(
+    () => (hoverId ? dependencyChain(hoverId, model.edges) : null),
+    [hoverId, model.edges],
+  );
+  const hotNodes = useMemo(
+    () => (hoverId && chain ? new Set([hoverId, ...chain.upstream, ...chain.downstream]) : null),
+    [hoverId, chain],
+  );
+  const hotEdges = useMemo(
+    () => new Set((chain?.edges ?? []).map((e) => `${e.from}>${e.to}`)),
+    [chain],
+  );
 
   // Nodes that appear after the first paint (e.g. an agent calls create_milestone) animate in.
-  const [seen, setSeen] = useState<{ nodes: SwimNode[]; ids: Set<string>; fresh: Set<string> } | null>(null);
+  const [seen, setSeen] = useState<{
+    nodes: SwimNode[];
+    ids: Set<string>;
+    fresh: Set<string>;
+  } | null>(null);
   if (seen?.nodes !== model.nodes) {
     const ids = new Set(model.nodes.map((n) => n.id));
-    setSeen({ nodes: model.nodes, ids, fresh: seen ? new Set([...ids].filter((id) => !seen.ids.has(id))) : new Set() });
+    setSeen({
+      nodes: model.nodes,
+      ids,
+      fresh: seen ? new Set([...ids].filter((id) => !seen.ids.has(id))) : new Set(),
+    });
   }
   const entering = { fresh: seen?.fresh ?? new Set<string>() };
 
@@ -158,15 +175,13 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
     return () => el.removeEventListener('wheel', onWheel);
   }, [requestZoom]);
 
-  const revealX = useCallback(
-    (x: number) => {
-      const el = scroller.current;
-      if (!el) return;
-      const w = viewWidth();
-      if (x < el.scrollLeft + 80 || x > el.scrollLeft + w - 80) el.scrollLeft = Math.max(0, x - w / 2);
-    },
-    [],
-  );
+  const revealX = useCallback((x: number) => {
+    const el = scroller.current;
+    if (!el) return;
+    const w = viewWidth();
+    if (x < el.scrollLeft + 80 || x > el.scrollLeft + w - 80)
+      el.scrollLeft = Math.max(0, x - w / 2);
+  }, []);
   useEffect(() => {
     if (!scrollToId) return;
     const n = byId.get(scrollToId);
@@ -203,7 +218,11 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
       })
     : model.edges;
   const keyNodes = windowed ? model.keyNodes.filter((n) => near(n.x)) : model.keyNodes;
-  const adjacent = windowed ? model.adjacent.filter((e) => near(byId.get(e.from)?.x ?? Infinity) || near(byId.get(e.to)?.x ?? Infinity)) : model.adjacent;
+  const adjacent = windowed
+    ? model.adjacent.filter(
+        (e) => near(byId.get(e.from)?.x ?? Infinity) || near(byId.get(e.to)?.x ?? Infinity),
+      )
+    : model.adjacent;
 
   // ----- interactions -----
   const open = useCallback((id: string) => openMilestone(id), [openMilestone]);
@@ -228,7 +247,8 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
     setHoverId(id); // keyboard focus highlights the chain too
   }, []);
 
-  const lane = (n: SwimNode) => model.nodes.filter((x) => x.lane === n.lane).sort((a, b) => a.x - b.x);
+  const lane = (n: SwimNode) =>
+    model.nodes.filter((x) => x.lane === n.lane).sort((a, b) => a.x - b.x);
   const onKey = useCallback(
     (e: KeyboardEvent, id: string) => {
       const n = byId.get(id);
@@ -241,7 +261,9 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
       else if (e.key === 'Home') target = row[0];
       else if (e.key === 'End') target = row[row.length - 1];
       else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        const other = model.nodes.filter((x) => x.lane === n.lane + (e.key === 'ArrowDown' ? 1 : -1));
+        const other = model.nodes.filter(
+          (x) => x.lane === n.lane + (e.key === 'ArrowDown' ? 1 : -1),
+        );
         target = other.sort((a, b) => Math.abs(a.x - n.x) - Math.abs(b.x - n.x))[0];
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -259,19 +281,33 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
   );
   useEffect(() => {
     if (!focusRequest) return;
-    const el = scroller.current?.querySelector<SVGGElement>(`[data-milestone-id="${focusRequest}"]`);
+    const el = scroller.current?.querySelector<SVGGElement>(
+      `[data-milestone-id="${focusRequest}"]`,
+    );
     if (el) {
       el.focus({ preventScroll: true });
       setFocusRequest(null);
     }
   }, [focusRequest, nodes, view]);
 
-  const handlers: NodeHandlers = { onOpen: open, onJump: jump, onHover: hover, onMenu: showMenu, onKey, onFocusNode: focusNode };
+  const handlers: NodeHandlers = {
+    onOpen: open,
+    onJump: jump,
+    onHover: hover,
+    onMenu: showMenu,
+    onKey,
+    onFocusNode: focusNode,
+  };
 
   const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
     const el = scroller.current;
-    if (e.button !== 0 || !el || (e.target as Element).closest('[data-milestone-id],[data-key-milestone-id]')) return;
+    if (
+      e.button !== 0 ||
+      !el ||
+      (e.target as Element).closest('[data-milestone-id],[data-key-milestone-id]')
+    )
+      return;
     pan.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
     e.currentTarget.setPointerCapture(e.pointerId);
     setPanning(true);
@@ -316,25 +352,55 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
           <CalendarClock size={14} aria-hidden /> Today
         </Button>
         <span className="ml-2 inline-flex items-center gap-1" role="group" aria-label="Zoom">
-          <Button variant="ghost" onClick={() => requestZoom(-1)} disabled={weekW <= ZOOM_MIN} aria-label="Zoom out" title="Zoom out (Ctrl+scroll)">
+          <Button
+            variant="ghost"
+            onClick={() => requestZoom(-1)}
+            disabled={weekW <= ZOOM_MIN}
+            aria-label="Zoom out"
+            title="Zoom out (Ctrl+scroll)"
+          >
             <Minus size={14} aria-hidden />
           </Button>
-          <span className="w-12 text-center font-mono text-[12px]" data-zoom={weekW} aria-live="polite">
+          <span
+            className="w-12 text-center font-mono text-[12px]"
+            data-zoom={weekW}
+            aria-live="polite"
+          >
             {Math.round((weekW / WEEK_W_DEFAULT) * 100)}%
           </span>
-          <Button variant="ghost" onClick={() => requestZoom(1)} disabled={weekW >= ZOOM_MAX} aria-label="Zoom in" title="Zoom in (Ctrl+scroll)">
+          <Button
+            variant="ghost"
+            onClick={() => requestZoom(1)}
+            disabled={weekW >= ZOOM_MAX}
+            aria-label="Zoom in"
+            title="Zoom in (Ctrl+scroll)"
+          >
             <Plus size={14} aria-hidden />
           </Button>
         </span>
         <span className="flex-1" />
-        <span className="hidden text-[11px] text-muted lg:inline">Drag to pan · Ctrl+scroll to zoom · double-click a milestone for its tasks</span>
+        <span className="hidden text-[11px] text-muted lg:inline">
+          Drag to pan · Ctrl+scroll to zoom · double-click a milestone for its tasks
+        </span>
       </div>
 
-      <div ref={scroller} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-auto bg-bg" data-swim-scroller>
+      <div
+        ref={scroller}
+        onScroll={onScroll}
+        className="relative min-h-0 flex-1 overflow-auto bg-bg"
+        data-swim-scroller
+      >
         <div style={{ width: LABEL_W + model.totalW, minWidth: '100%' }}>
           {/* Sticky header: weeks, phases and the NOW flag */}
-          <div className="sticky top-0 z-20 flex border-b border-border bg-bg" style={{ height: HEADER_H + PHASE_H }} data-swim-header>
-            <div className="sticky left-0 z-10 shrink-0 border-r border-border bg-bg" style={{ width: LABEL_W }} />
+          <div
+            className="sticky top-0 z-20 flex border-b border-border bg-bg"
+            style={{ height: HEADER_H + PHASE_H }}
+            data-swim-header
+          >
+            <div
+              className="sticky left-0 z-10 shrink-0 border-r border-border bg-bg"
+              style={{ width: LABEL_W }}
+            />
             <div className="relative" style={{ width: model.totalW }}>
               <div className="relative" style={{ height: HEADER_H }}>
                 {model.weeks.map((w) => (
@@ -380,13 +446,25 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
 
           <div className="flex" style={{ height: model.bodyH }}>
             {/* Sticky label column: Key row + one row per domain */}
-            <div className="sticky left-0 z-10 shrink-0 border-r border-border bg-bg" style={{ width: LABEL_W, height: model.bodyH }} data-swim-labels>
-              <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase" style={{ height: KEY_ROW_H }}>
+            <div
+              className="sticky left-0 z-10 shrink-0 border-r border-border bg-bg"
+              style={{ width: LABEL_W, height: model.bodyH }}
+              data-swim-labels
+            >
+              <div
+                className="absolute inset-x-0 top-0 flex items-center gap-2 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase"
+                style={{ height: KEY_ROW_H }}
+              >
                 <span className="inline-block size-2 rotate-45 border border-muted" aria-hidden />
                 Key
               </div>
               {model.lanes.map((l) => (
-                <div key={l.domain} className="absolute inset-x-0 flex border-t border-border" style={{ top: l.top, height: l.height }} data-lane-label={l.domain}>
+                <div
+                  key={l.domain}
+                  className="absolute inset-x-0 flex border-t border-border"
+                  style={{ top: l.top, height: l.height }}
+                  data-lane-label={l.domain}
+                >
                   <div className="w-1.5 shrink-0" style={{ background: l.color }} />
                   <div className="min-w-0 px-2.5 py-2">
                     <div className="truncate text-[12px] font-semibold">{l.domain}</div>
@@ -410,26 +488,81 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
             >
               <ArrowDefs />
               {model.phases.map((p) => (
-                <rect key={p.id} x={p.x} y={0} width={p.w} height={model.bodyH} fill={p.color} opacity={0.06} data-phase-band={p.id} />
+                <rect
+                  key={p.id}
+                  x={p.x}
+                  y={0}
+                  width={p.w}
+                  height={model.bodyH}
+                  fill={p.color}
+                  opacity={0.06}
+                  data-phase-band={p.id}
+                />
               ))}
               {model.weeks.map((w) => (
-                <line key={w.n} x1={w.x} x2={w.x} y1={0} y2={model.bodyH} stroke="var(--border)" strokeWidth={1} opacity={0.7} />
+                <line
+                  key={w.n}
+                  x1={w.x}
+                  x2={w.x}
+                  y1={0}
+                  y2={model.bodyH}
+                  stroke="var(--border)"
+                  strokeWidth={1}
+                  opacity={0.7}
+                />
               ))}
-              <line x1={0} x2={model.totalW} y1={KEY_ROW_H} y2={KEY_ROW_H} stroke="var(--border-strong)" />
+              <line
+                x1={0}
+                x2={model.totalW}
+                y1={KEY_ROW_H}
+                y2={KEY_ROW_H}
+                stroke="var(--border-strong)"
+              />
               {model.lanes.map((l) => (
-                <rect key={l.domain} x={0} y={l.top} width={model.totalW} height={l.height} fill={l.color} opacity={0.025} data-lane={l.domain} />
+                <rect
+                  key={l.domain}
+                  x={0}
+                  y={l.top}
+                  width={model.totalW}
+                  height={l.height}
+                  fill={l.color}
+                  opacity={0.025}
+                  data-lane={l.domain}
+                />
               ))}
               {model.lanes.map((l) => (
-                <line key={`s-${l.domain}`} x1={0} x2={model.totalW} y1={l.top + l.height} y2={l.top + l.height} stroke="var(--border)" />
+                <line
+                  key={`s-${l.domain}`}
+                  x1={0}
+                  x2={model.totalW}
+                  y1={l.top + l.height}
+                  y2={l.top + l.height}
+                  stroke="var(--border)"
+                />
               ))}
 
-              <line x1={model.nowX} x2={model.nowX} y1={0} y2={model.bodyH} stroke="var(--accent)" strokeWidth={1.5} data-now-line data-now-x={model.nowX} />
+              <line
+                x1={model.nowX}
+                x2={model.nowX}
+                y1={0}
+                y2={model.bodyH}
+                stroke="var(--accent)"
+                strokeWidth={1.5}
+                data-now-line
+                data-now-x={model.nowX}
+              />
 
               <AdjacentLines edges={adjacent} byId={byId} />
               <Connectors edges={edges} byId={byId} hot={hotEdges} hasHover={hotNodes !== null} />
-              {nodes.filter((n) => n.drift !== 0).map((n) => (
-                <DriftGhost key={n.id} node={n} color={model.lanes[n.lane]?.color ?? 'var(--muted)'} />
-              ))}
+              {nodes
+                .filter((n) => n.drift !== 0)
+                .map((n) => (
+                  <DriftGhost
+                    key={n.id}
+                    node={n}
+                    color={model.lanes[n.lane]?.color ?? 'var(--muted)'}
+                  />
+                ))}
               {nodes.map((n) => (
                 <MilestoneNode
                   key={n.id}
@@ -473,7 +606,15 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
         </div>
       ) : null}
 
-      {menu ? <ContextMenu x={menu.x} y={menu.y} label={`Actions for ${menu.id}`} items={menuItems(menu.id)} onClose={() => setMenu(null)} /> : null}
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={`Actions for ${menu.id}`}
+          items={menuItems(menu.id)}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
       <span className="sr-only" aria-live="polite">
         Today is {localIsoDate(today)}
       </span>

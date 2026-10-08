@@ -1,5 +1,5 @@
 import type { Db } from './db';
-import { getRelevantLessons } from './lessons';
+import { getLessonsForTask, lessonLine } from './lessons';
 import { getProject, getTask, listPhases, listTasks } from './queries';
 
 const DAY_MS = 86_400_000;
@@ -29,9 +29,13 @@ const list = (items: string[]): string =>
 export function buildTaskContextMd(db: Db, taskId: string, now = new Date()): string | null {
   const task = getTask(db, taskId);
   if (!task) return null;
-  const lessons = getRelevantLessons(db, task.label).map(
-    (l) => `${l.rejection_reason}${l.fix_applied ? ` — fix: ${l.fix_applied}` : ''}`,
-  );
+  const lessons = getLessonsForTask(
+    db,
+    task.id,
+    task.label,
+    5,
+    task.acceptance_criteria.map((c) => c.text),
+  ).map(lessonLine);
   const description = [task.notes, task.prompt].filter(Boolean).join('\n\n') || '_None._';
   const criteria = task.acceptance_criteria.map((c) => `[${c.done ? 'x' : ' '}] ${c.text}`);
   return [

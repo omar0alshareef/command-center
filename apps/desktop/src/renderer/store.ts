@@ -126,7 +126,9 @@ export const useApp = create<AppState>()(
         });
         set((cur) => {
           if (!res.ok) return { olderLoading: false };
-          const have = new Set([...cur.olderLog, ...(cur.tracker?.agent_log ?? [])].map((e) => e.id));
+          const have = new Set(
+            [...cur.olderLog, ...(cur.tracker?.agent_log ?? [])].map((e) => e.id),
+          );
           const fresh = res.value.filter((e) => !have.has(e.id));
           return {
             olderLoading: false,

@@ -50,10 +50,19 @@ const Entry = memo(function Entry({
   onMilestone: (id: string) => void;
 }) {
   const target = entry.target_id;
-  const open = target && entry.target_type === 'subtask' ? onTask : target && entry.target_type === 'milestone' ? onMilestone : null;
+  const open =
+    target && entry.target_type === 'subtask'
+      ? onTask
+      : target && entry.target_type === 'milestone'
+        ? onMilestone
+        : null;
   const link =
     target && open ? (
-      <button type="button" onClick={() => open(target)} className="font-mono text-[11px] text-accent hover:underline">
+      <button
+        type="button"
+        onClick={() => open(target)}
+        className="font-mono text-[11px] text-accent hover:underline"
+      >
         {target}
       </button>
     ) : target ? (
@@ -78,12 +87,18 @@ const Entry = memo(function Entry({
           ))}
           <span className="flex-1" />
           {link}
-          <span className="font-mono text-[11px] text-muted" title={new Date(entry.timestamp).toLocaleString()}>
+          <span
+            className="font-mono text-[11px] text-muted"
+            title={new Date(entry.timestamp).toLocaleString()}
+          >
             {clockTime(entry.timestamp)}
           </span>
         </div>
         {/* Agent-written text: rendered as plain text only. */}
-        <p className="mt-0.5 truncate text-[12px] text-muted" title={entry.description ?? undefined}>
+        <p
+          className="mt-0.5 truncate text-[12px] text-muted"
+          title={entry.description ?? undefined}
+        >
           {entry.description ?? ''}
         </p>
       </div>
@@ -104,13 +119,22 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
 
   const [query, setQuery] = useState('');
   const agentsById = useMemo(() => new Map(tracker.agents.map((a) => [a.id, a])), [tracker.agents]);
-  const connected = useMemo(() => tracker.agents.filter(isConnectedAgent).sort((a, b) => a.name.localeCompare(b.name)), [tracker.agents]);
+  const connected = useMemo(
+    () => tracker.agents.filter(isConnectedAgent).sort((a, b) => a.name.localeCompare(b.name)),
+    [tracker.agents],
+  );
 
   const all = useMemo(() => mergeLog(tracker.agent_log, olderLog), [tracker.agent_log, olderLog]);
-  const rows = useMemo(() => all.filter((e) => matchesFilter(e, filter) && matchesSearch(e, query, agentsById)), [all, filter, query, agentsById]);
+  const rows = useMemo(
+    () => all.filter((e) => matchesFilter(e, filter) && matchesSearch(e, query, agentsById)),
+    [all, filter, query, agentsById],
+  );
   const today = localDay(new Date(useNow(60_000)));
   const items = useMemo<FeedItem[]>(() => flattenFeed(rows, new Date()), [rows, today]); // eslint-disable-line react-hooks/exhaustive-deps -- `today` re-labels the day headers at midnight
-  const headers = useMemo(() => items.flatMap((it, i) => (it.kind === 'header' ? [i] : [])), [items]);
+  const headers = useMemo(
+    () => items.flatMap((it, i) => (it.kind === 'header' ? [i] : [])),
+    [items],
+  );
 
   // ----- new-entry pill and scroll anchoring -----
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -124,7 +148,13 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
     setAtTop(true);
     setTopSeen(newest);
   } else if (atTop && topSeen !== newest) setTopSeen(newest);
-  const newCount = !atTop && topSeen ? Math.max(0, rows.findIndex((e) => e.id === topSeen)) : 0;
+  const newCount =
+    !atTop && topSeen
+      ? Math.max(
+          0,
+          rows.findIndex((e) => e.id === topSeen),
+        )
+      : 0;
 
   const prev = useRef({ items, key: viewKey });
   useLayoutEffect(() => {
@@ -154,11 +184,21 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
   }, [items, viewKey]);
 
   // ----- flash for entries that arrive while the hub is open -----
-  const [seen, setSeen] = useState<{ all: AgentLogEntry[]; ids: Set<string>; fresh: Set<string> } | null>(null);
+  const [seen, setSeen] = useState<{
+    all: AgentLogEntry[];
+    ids: Set<string>;
+    fresh: Set<string>;
+  } | null>(null);
   if (seen?.all !== all) {
     const ids = new Set(all.map((e) => e.id));
     // Older pages are not "new": only rows newer than anything seen before count.
-    const fresh = seen ? new Set(all.filter((e) => !seen.ids.has(e.id) && e.timestamp >= (seen.all[0]?.timestamp ?? '')).map((e) => e.id)) : new Set<string>();
+    const fresh = seen
+      ? new Set(
+          all
+            .filter((e) => !seen.ids.has(e.id) && e.timestamp >= (seen.all[0]?.timestamp ?? ''))
+            .map((e) => e.id),
+        )
+      : new Set<string>();
     setSeen({ all, ids, fresh });
   }
   const freshIds = seen?.fresh;
@@ -196,9 +236,17 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
   const done = olderDone.includes(filter);
 
   return (
-    <section aria-label="Activity feed" className="flex min-h-[360px] flex-1 flex-col rounded-lg border border-border bg-surface" data-activity-feed>
+    <section
+      aria-label="Activity feed"
+      className="flex min-h-[360px] flex-1 flex-col rounded-lg border border-border bg-surface"
+      data-activity-feed
+    >
       <div className="flex items-center gap-2 border-b border-border p-2">
-        <div role="tablist" aria-label="Feed filter" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+        <div
+          role="tablist"
+          aria-label="Feed filter"
+          className="flex min-w-0 flex-1 gap-1 overflow-x-auto"
+        >
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -214,7 +262,11 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
           ))}
         </div>
         <label className="relative">
-          <Search size={13} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted" />
+          <Search
+            size={13}
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted"
+          />
           <input
             type="search"
             value={query}
@@ -228,14 +280,19 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
 
       <div className="relative min-h-0 flex-1">
         {all.length === 0 ? (
-          <div className="grid h-full place-items-center p-6 text-center text-muted" data-feed-empty>
+          <div
+            className="grid h-full place-items-center p-6 text-center text-muted"
+            data-feed-empty
+          >
             <div>
               <StatusDot color="var(--accent)" pulse className="mb-2 size-3" />
               <p>Waiting for the first agent action…</p>
             </div>
           </div>
         ) : rows.length === 0 ? (
-          <div className="grid h-full place-items-center p-6 text-center text-muted">No activity matches this filter.</div>
+          <div className="grid h-full place-items-center p-6 text-center text-muted">
+            No activity matches this filter.
+          </div>
         ) : (
           <div
             ref={scrollRef}
@@ -252,11 +309,25 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
                 const sticky = v.index === stickyIdx;
                 const style = sticky
                   ? { position: 'sticky' as const, top: 0, zIndex: 2, height: v.size }
-                  : { position: 'absolute' as const, top: 0, left: 0, width: '100%', height: v.size, transform: `translateY(${v.start}px)` };
+                  : {
+                      position: 'absolute' as const,
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: v.size,
+                      transform: `translateY(${v.start}px)`,
+                    };
                 return (
-                  <div key={v.key} style={style} role={it.kind === 'entry' ? 'listitem' : undefined}>
+                  <div
+                    key={v.key}
+                    style={style}
+                    role={it.kind === 'entry' ? 'listitem' : undefined}
+                  >
                     {it.kind === 'header' ? (
-                      <div className="flex h-full items-center border-b border-border bg-surface-2 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted" data-day-header>
+                      <div
+                        className="flex h-full items-center border-b border-border bg-surface-2 px-3 text-[11px] font-semibold tracking-[0.06em] text-muted"
+                        data-day-header
+                      >
                         {it.label}
                       </div>
                     ) : (
@@ -294,7 +365,11 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
         {done ? (
           <span>Start of log</span>
         ) : (
-          <Button variant="ghost" onClick={() => void loadOlder()} disabled={olderLoading || all.length === 0}>
+          <Button
+            variant="ghost"
+            onClick={() => void loadOlder()}
+            disabled={olderLoading || all.length === 0}
+          >
             {olderLoading ? 'Loading…' : 'Load older'}
           </Button>
         )}

@@ -33,15 +33,44 @@ export const FONT_MIN = 9;
 export const FONT_MAX = 24;
 const FONT_FAMILY = "'JetBrains Mono', Consolas, 'Courier New', monospace";
 
-const cssVar = (name: string): string => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const cssVar = (name: string): string =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 const DARK_ANSI: ITheme = {
-  black: '#1c1c28', red: '#ef4444', green: '#22c55e', yellow: '#f59e0b', blue: '#6d71ff', magenta: '#ec4899', cyan: '#14b8a6', white: '#d4d4e0',
-  brightBlack: '#6b6b7b', brightRed: '#f87171', brightGreen: '#4ade80', brightYellow: '#fbbf24', brightBlue: '#8286ff', brightMagenta: '#f472b6', brightCyan: '#2dd4bf', brightWhite: '#ffffff',
+  black: '#1c1c28',
+  red: '#ef4444',
+  green: '#22c55e',
+  yellow: '#f59e0b',
+  blue: '#6d71ff',
+  magenta: '#ec4899',
+  cyan: '#14b8a6',
+  white: '#d4d4e0',
+  brightBlack: '#6b6b7b',
+  brightRed: '#f87171',
+  brightGreen: '#4ade80',
+  brightYellow: '#fbbf24',
+  brightBlue: '#8286ff',
+  brightMagenta: '#f472b6',
+  brightCyan: '#2dd4bf',
+  brightWhite: '#ffffff',
 };
 const LIGHT_ANSI: ITheme = {
-  black: '#0f0f18', red: '#c62828', green: '#15803d', yellow: '#a16207', blue: '#3438c8', magenta: '#a21caf', cyan: '#0e7490', white: '#6b6b7b',
-  brightBlack: '#52525f', brightRed: '#dc2626', brightGreen: '#16a34a', brightYellow: '#b45309', brightBlue: '#4549d6', brightMagenta: '#c026d3', brightCyan: '#0891b2', brightWhite: '#0f0f18',
+  black: '#0f0f18',
+  red: '#c62828',
+  green: '#15803d',
+  yellow: '#a16207',
+  blue: '#3438c8',
+  magenta: '#a21caf',
+  cyan: '#0e7490',
+  white: '#6b6b7b',
+  brightBlack: '#52525f',
+  brightRed: '#dc2626',
+  brightGreen: '#16a34a',
+  brightYellow: '#b45309',
+  brightBlue: '#4549d6',
+  brightMagenta: '#c026d3',
+  brightCyan: '#0891b2',
+  brightWhite: '#0f0f18',
 };
 
 /** xterm colours from the design tokens, so the terminal follows the theme. */
@@ -110,15 +139,21 @@ function build(id: string, fontSize: number, theme: 'dark' | 'light'): Instance 
     const mod = navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey && e.shiftKey;
     const k = e.key.toLowerCase();
     if (mod && k === 'c' && term.hasSelection()) {
-      void navigator.clipboard.writeText(term.getSelection()).catch(() => toast.error('Could not copy to the clipboard'));
+      void navigator.clipboard
+        .writeText(term.getSelection())
+        .catch(() => toast.error('Could not copy to the clipboard'));
       return false;
     }
     if (mod && k === 'v') {
-      void navigator.clipboard.readText().then((t) => term.paste(t)).catch(() => toast.error('Could not read the clipboard'));
+      void navigator.clipboard
+        .readText()
+        .then((t) => term.paste(t))
+        .catch(() => toast.error('Could not read the clipboard'));
       return false;
     }
     // App shortcuts bubble to the window handler instead of reaching the shell.
-    if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && k === 't') || (!e.shiftKey && k === 'w'))) return false;
+    if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && k === 't') || (!e.shiftKey && k === 'w')))
+      return false;
     return true;
   });
   return { term, fit, el };
@@ -146,7 +181,9 @@ export const useTerminal = create<TerminalState>()(
         });
         window.api.terminal.onExit(({ id, exitCode }) =>
           set((s) => ({
-            sessions: s.sessions.map((x) => (x.id === id ? { ...x, status: 'exited', exitCode } : x)),
+            sessions: s.sessions.map((x) =>
+              x.id === id ? { ...x, status: 'exited', exitCode } : x,
+            ),
           })),
         );
         set({ shells: await window.api.terminal.shells() });
@@ -170,7 +207,17 @@ export const useTerminal = create<TerminalState>()(
           for (const chunk of pending.get(info.id) ?? []) inst.term.write(chunk);
           pending.delete(info.id);
           set((s) => ({
-            sessions: [...s.sessions, { id: info.id, name: info.name, shellId: info.shellId, pid: info.pid, status: 'running', exitCode: null }],
+            sessions: [
+              ...s.sessions,
+              {
+                id: info.id,
+                name: info.name,
+                shellId: info.shellId,
+                pid: info.pid,
+                status: 'running',
+                exitCode: null,
+              },
+            ],
             activeId: info.id,
           }));
           return info.id;
@@ -192,7 +239,10 @@ export const useTerminal = create<TerminalState>()(
         set((s) => {
           const i = s.sessions.findIndex((x) => x.id === id);
           const sessions = s.sessions.filter((x) => x.id !== id);
-          const activeId = s.activeId === id ? (sessions[Math.min(i, sessions.length - 1)]?.id ?? null) : s.activeId;
+          const activeId =
+            s.activeId === id
+              ? (sessions[Math.min(i, sessions.length - 1)]?.id ?? null)
+              : s.activeId;
           return { sessions, activeId };
         });
       },
@@ -234,7 +284,10 @@ export const useTerminal = create<TerminalState>()(
         }
       },
     }),
-    { name: 'cc-terminal', partialize: (s) => ({ fontSize: s.fontSize, quickActionsOpen: s.quickActionsOpen }) },
+    {
+      name: 'cc-terminal',
+      partialize: (s) => ({ fontSize: s.fontSize, quickActionsOpen: s.quickActionsOpen }),
+    },
   ),
 );
 

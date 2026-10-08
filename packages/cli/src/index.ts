@@ -1,6 +1,6 @@
 import { CoreError } from '@command-center/core';
 import { Command, InvalidArgumentError } from 'commander';
-import { agentsCommand, logCommand, statusCommand } from './commands';
+import { agentsCommand, lessonsCommand, logCommand, statusCommand } from './commands';
 import { CliError, openProject, type Handle } from './context';
 import { audit } from './pipeline/audit';
 import { prepare } from './pipeline/prepare';
@@ -90,6 +90,24 @@ program
     action(
       (h, o: { task?: string; agent?: string; limit: number; json?: boolean }) => (
         logCommand(h, { ...o, json: Boolean(o.json) }, out),
+        undefined
+      ),
+    ),
+  );
+
+program
+  .command('lessons')
+  .description(
+    'Lessons learned from rejections: those that apply to --task, a --query search, or the latest',
+  )
+  .option('--task <id>', 'lessons that apply to this task')
+  .option('--query <text>', 'search past rejection reasons, fixes and preventions')
+  .option('--limit <n>', 'how many lessons', int(1, 50), 10)
+  .option('--json', 'machine-readable output')
+  .action(
+    action(
+      (h, o: { task?: string; query?: string; limit: number; json?: boolean }) => (
+        lessonsCommand(h, { ...o, json: Boolean(o.json) }, out),
         undefined
       ),
     ),

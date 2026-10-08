@@ -11,7 +11,8 @@ import { domainColor } from '../../lib/status';
 import { useApp } from '../../store';
 
 const isTyping = (t: EventTarget | null) =>
-  t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+  t instanceof HTMLElement &&
+  (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
 function Chip({
   task,
@@ -60,17 +61,33 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // `todayKey` is the only part of "now" the grid needs: it moves the today marker at local midnight.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const week = useMemo(() => buildWeek(tracker.subtasks, anchor, new Date()), [tracker.subtasks, anchor, todayKey]);
-  const milestones = useMemo(() => new Map(tracker.milestones.map((m) => [m.id, m])), [tracker.milestones]);
-  const domains = useMemo(() => [...new Set(tracker.milestones.map((m) => m.domain))], [tracker.milestones]);
+  const week = useMemo(
+    () => buildWeek(tracker.subtasks, anchor, new Date()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- todayKey re-evaluates "today" at local midnight
+    [tracker.subtasks, anchor, todayKey],
+  );
+  const milestones = useMemo(
+    () => new Map(tracker.milestones.map((m) => [m.id, m])),
+    [tracker.milestones],
+  );
+  const domains = useMemo(
+    () => [...new Set(tracker.milestones.map((m) => m.domain))],
+    [tracker.milestones],
+  );
   const agents = useMemo(() => new Map(tracker.agents.map((a) => [a.id, a])), [tracker.agents]);
 
   const go = (days: number) => setAnchor((a) => addDays(a, days));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target) || document.querySelector('dialog[open]')) return;
+      if (
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        isTyping(e.target) ||
+        document.querySelector('dialog[open]')
+      )
+        return;
       if (e.key === 'ArrowLeft') setAnchor((a) => addDays(a, -7));
       else if (e.key === 'ArrowRight') setAnchor((a) => addDays(a, 7));
       else if (e.key === 't' || e.key === 'T') setAnchor(new Date());
@@ -83,7 +100,8 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
 
   useEffect(() => {
     if (!pickerOpen) return;
-    const onDown = (e: MouseEvent) => !pickerRef.current?.contains(e.target as Node) && setPickerOpen(false);
+    const onDown = (e: MouseEvent) =>
+      !pickerRef.current?.contains(e.target as Node) && setPickerOpen(false);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -111,7 +129,12 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
     <section className="flex h-full flex-col" aria-label="Calendar">
       <h1 className="sr-only">Calendar</h1>
       <header className="relative flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-        <Button variant="ghost" onClick={() => go(-7)} aria-label="Previous week" title="Previous week (←)">
+        <Button
+          variant="ghost"
+          onClick={() => go(-7)}
+          aria-label="Previous week"
+          title="Previous week (←)"
+        >
           <ChevronLeft size={16} aria-hidden />
         </Button>
         <button
@@ -176,11 +199,17 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
                 className={`sticky top-0 z-10 border-b border-border bg-bg px-3 py-2 ${d.isToday ? 'border-t-2 border-t-accent' : 'border-t-2 border-t-transparent'}`}
                 data-day-header
               >
-                <span className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">{d.dow}</span>
-                <span className={`ml-1.5 font-mono text-[16px] ${d.isToday ? 'text-accent' : ''}`}>{d.date.getDate()}</span>
+                <span className="text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+                  {d.dow}
+                </span>
+                <span className={`ml-1.5 font-mono text-[16px] ${d.isToday ? 'text-accent' : ''}`}>
+                  {d.date.getDate()}
+                </span>
               </div>
               <div className="flex flex-1 flex-col gap-1.5 p-2">
-                {d.tasks.length === 0 ? <span className="py-2 text-center text-muted">—</span> : null}
+                {d.tasks.length === 0 ? (
+                  <span className="py-2 text-center text-muted">—</span>
+                ) : null}
                 {d.tasks.map((t) => {
                   const domain = milestones.get(t.milestone_id)?.domain ?? 'general';
                   return (
@@ -195,14 +224,20 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
                   );
                 })}
               </div>
-              <div className="border-t border-border px-3 py-1.5 text-[11px] text-muted" data-day-count>
+              <div
+                className="border-t border-border px-3 py-1.5 text-[11px] text-muted"
+                data-day-count
+              >
                 {d.tasks.length} done
               </div>
             </div>
           ))}
         </div>
         {week.total === 0 ? (
-          <div className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 text-center" data-calendar-empty>
+          <div
+            className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 text-center"
+            data-calendar-empty
+          >
             <p className="text-[14px] font-semibold">Nothing completed this week</p>
             <Button className="pointer-events-auto" onClick={() => go(-7)}>
               <ChevronLeft size={14} aria-hidden /> Previous week

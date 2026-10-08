@@ -82,6 +82,7 @@ command-center log --task TASK-001     # a task's history, newest first (--agent
 command-center prepare --id TASK-001   # Research Explorer -> Token Compressor -> Prompt Optimizer -> .claude/TASK_CONTEXT.md
 command-center start   --id TASK-001   # start_task, dispatch the agent with the context, run checks, complete_task
 command-center audit   --id TASK-001   # Code Quality -> Security -> Final Validator; FAIL sends a reviewed task back
+command-center lessons --task TASK-001 # lessons from past rejections that apply (or --query text; no flag = latest)
 ```
 
 - Every stage is a sub-agent (`research_explorer`, `token_compressor`, `prompt_optimizer`, `code_quality`, `security_auditor`, `final_validator`, under `operator-cli`) and writes its result to the Agent Hub activity feed.
@@ -89,6 +90,10 @@ command-center audit   --id TASK-001   # Code Quality -> Security -> Final Valid
 - `--runner claude` shells out to the Claude Code CLI (`claude -p`, prompt on stdin, read-only tools for analysis stages, edit tools only for the build stage); it needs `claude` on PATH (or `COMMAND_CENTER_CLAUDE`) and a logged-in session. `--runner local` is an offline fallback with real file search, check runs and secret scanning but no model; `auto` (default) picks `claude` when it finds it. `--timeout <minutes>` bounds one stage.
 - `start` and `audit` run `npm run typecheck` and `npm run lint` when the project defines them; use `--check "<command>"` (repeatable) to choose your own. `start --no-dispatch` skips the agent (work already built) and only checks and completes.
 - An audit **FAIL** on a task in Review moves it back to In Progress, records the reason and a lesson. A PASS leaves it in Review for you to approve in the app. Exit codes: 0 ok, 1 failed/refused, 2 a stage could not run.
+
+## Lessons learned
+
+Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves **what went wrong** in the `lessons_learned` table and rewrites `.claude/LESSONS_LEARNED.md` (a generated view: edit lessons in the app's Agent Hub, not in the file). When the task is completed again, the `complete_task` summary is recorded as **the fix**; a rejection may also carry a **prevention** note. Similar new tasks are handed the most relevant lessons (FTS5 search over reason, fix and prevention) in `get_task_context`, in the `enrich_task` reply, in `TASK_CONTEXT.md` (`## Relevant lessons`) and in `command-center prepare`. The Agent Hub's Lessons list lets you search, edit and delete them.
 
 ## Scripts
 

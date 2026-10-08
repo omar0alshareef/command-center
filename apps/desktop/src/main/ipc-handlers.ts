@@ -5,6 +5,7 @@ import { activityApi } from './activity-api';
 import { ensureShimDir } from './cli-shim';
 import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
+import { lessonsApi } from './lessons-api';
 import { milestoneApi } from './milestone-api';
 import { taskApi } from './task-api';
 
@@ -51,6 +52,10 @@ export function registerIpc(project: ProjectService): void {
   const milestones = milestoneApi(() => project.db());
   ipcMain.handle(CH.milestoneNote, (_e, req: unknown) => milestones.addNote(req));
   ipcMain.handle(CH.milestoneDates, (_e, req: unknown) => milestones.setDates(req));
+
+  const lessons = lessonsApi(() => project.db());
+  ipcMain.handle(CH.lessonUpdate, (_e, req: unknown) => lessons.update(req));
+  ipcMain.handle(CH.lessonRemove, (_e, id: unknown) => lessons.remove(id));
 
   const term = terminalApi(pty);
   ipcMain.handle(CH.termShells, () => term.shells());

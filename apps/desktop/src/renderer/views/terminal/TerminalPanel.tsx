@@ -5,7 +5,14 @@ import { Button } from '../../components/ui/button';
 import { StatusDot } from '../../components/ui/badges';
 import { EmptyState } from '../../components/ui/feedback';
 import { ContextMenu } from '../../components/ui/menu';
-import { allInstances, FONT_MAX, FONT_MIN, getInstance, useTerminal, xtermTheme } from '../../lib/terminal';
+import {
+  allInstances,
+  FONT_MAX,
+  FONT_MIN,
+  getInstance,
+  useTerminal,
+  xtermTheme,
+} from '../../lib/terminal';
 import { useApp } from '../../store';
 
 const QUICK_ACTIONS = ['command-center status', 'command-center agents', 'claude'];
@@ -60,7 +67,13 @@ function Viewport({ activeId, visible }: { activeId: string | null; visible: boo
     };
   }, [fit]);
 
-  return <div ref={host} className="term-viewport relative min-h-0 flex-1 overflow-hidden px-2 py-1" data-term-viewport />;
+  return (
+    <div
+      ref={host}
+      className="term-viewport relative min-h-0 flex-1 overflow-hidden px-2 py-1"
+      data-term-viewport
+    />
+  );
 }
 
 /** UI/UX §6.5. Always mounted once visited, so shells and scrollback survive tab switches. */
@@ -117,7 +130,11 @@ export function TerminalPanel({ visible }: { visible: boolean }) {
     <section aria-label="Terminal" className="flex h-full flex-col" data-terminal>
       <h1 className="sr-only">Terminal</h1>
       <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border px-2">
-        <div role="tablist" aria-label="Terminal sessions" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+        <div
+          role="tablist"
+          aria-label="Terminal sessions"
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+        >
           {t.sessions.map((s) => (
             <div
               key={s.id}
@@ -136,16 +153,29 @@ export function TerminalPanel({ visible }: { visible: boolean }) {
                 <TerminalIcon size={12} aria-hidden />
                 {s.name}
                 <StatusDot color={s.status === 'running' ? 'var(--success)' : 'var(--muted)'} />
-                <span className="text-[10px] text-muted">{s.status === 'running' ? 'running' : 'exited'}</span>
+                <span className="text-[10px] text-muted">
+                  {s.status === 'running' ? 'running' : 'exited'}
+                </span>
               </button>
-              <button type="button" aria-label={`Close ${s.name} session`} onClick={() => t.closeSession(s.id)} className="grid size-4 place-items-center rounded text-muted hover:text-text">
+              <button
+                type="button"
+                aria-label={`Close ${s.name} session`}
+                onClick={() => t.closeSession(s.id)}
+                className="grid size-4 place-items-center rounded text-muted hover:text-text"
+              >
                 <X size={12} aria-hidden />
               </button>
             </div>
           ))}
         </div>
         <span className="inline-flex shrink-0">
-          <Button onClick={() => void t.newSession()} disabled={t.creating} aria-label="New terminal session" title="New session (Ctrl+Shift+T)" className="rounded-r-none">
+          <Button
+            onClick={() => void t.newSession()}
+            disabled={t.creating}
+            aria-label="New terminal session"
+            title="New session (Ctrl+Shift+T)"
+            className="rounded-r-none"
+          >
             <Plus size={14} aria-hidden />
           </Button>
           <Button
@@ -164,20 +194,35 @@ export function TerminalPanel({ visible }: { visible: boolean }) {
           <Eraser size={14} aria-hidden /> Clear
         </Button>
         <span className="inline-flex items-center" role="group" aria-label="Font size">
-          <Button variant="ghost" onClick={() => t.changeFont(-1)} disabled={t.fontSize <= FONT_MIN} aria-label="Smaller font">
+          <Button
+            variant="ghost"
+            onClick={() => t.changeFont(-1)}
+            disabled={t.fontSize <= FONT_MIN}
+            aria-label="Smaller font"
+          >
             <Minus size={14} aria-hidden />
           </Button>
           <span className="w-7 text-center font-mono text-[11px]" data-font-size={t.fontSize}>
             {t.fontSize}
           </span>
-          <Button variant="ghost" onClick={() => t.changeFont(1)} disabled={t.fontSize >= FONT_MAX} aria-label="Larger font">
+          <Button
+            variant="ghost"
+            onClick={() => t.changeFont(1)}
+            disabled={t.fontSize >= FONT_MAX}
+            aria-label="Larger font"
+          >
             <Plus size={14} aria-hidden />
           </Button>
         </span>
       </div>
 
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1 text-[11px]">
-        <button type="button" onClick={t.toggleQuickActions} aria-expanded={t.quickActionsOpen} className="font-semibold tracking-[0.06em] text-muted uppercase hover:text-text">
+        <button
+          type="button"
+          onClick={t.toggleQuickActions}
+          aria-expanded={t.quickActionsOpen}
+          className="font-semibold tracking-[0.06em] text-muted uppercase hover:text-text"
+        >
           Quick actions {t.quickActionsOpen ? '▾' : '▸'}
         </button>
         {t.quickActionsOpen
@@ -199,8 +244,10 @@ export function TerminalPanel({ visible }: { visible: boolean }) {
 
       {t.error ? (
         <div role="alert" className="border-b border-danger px-4 py-2 text-danger">
-          Could not start a shell: {t.error}. If the native <code className="font-mono">node-pty</code> module failed to load, run{' '}
-          <code className="font-mono">npm rebuild node-pty</code> (Windows needs the Visual Studio Build Tools; see the README).
+          Could not start a shell: {t.error}. If the native{' '}
+          <code className="font-mono">node-pty</code> module failed to load, run{' '}
+          <code className="font-mono">npm rebuild node-pty</code> (Windows needs the Visual Studio
+          Build Tools; see the README).
         </div>
       ) : null}
 
@@ -221,7 +268,10 @@ export function TerminalPanel({ visible }: { visible: boolean }) {
         <div className="relative flex min-h-0 flex-1 flex-col bg-bg">
           <Viewport activeId={t.activeId} visible={visible} />
           {active?.status === 'exited' ? (
-            <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 border-t border-border-strong bg-surface-2 px-4 py-2" data-exited-banner>
+            <div
+              className="absolute inset-x-0 bottom-0 flex items-center gap-3 border-t border-border-strong bg-surface-2 px-4 py-2"
+              data-exited-banner
+            >
               <span className="flex-1">Process exited (code {active.exitCode ?? '?'}).</span>
               <Button variant="primary" onClick={() => void t.restartSession(active.id)}>
                 Restart

@@ -22,6 +22,12 @@ export class MilestoneNotFoundError extends CoreError {
   }
 }
 
+export class LessonNotFoundError extends CoreError {
+  constructor(readonly lessonId: number) {
+    super('LESSON_NOT_FOUND', `Lesson ${lessonId} does not exist.`);
+  }
+}
+
 export class IllegalTransitionError extends CoreError {
   constructor(
     readonly taskId: string,

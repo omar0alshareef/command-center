@@ -198,6 +198,7 @@ export function registerReadTools(server: McpServer, { db, now }: Ctx): void {
             at: l.created_at,
             rejection_reason: l.rejection_reason,
             fix_applied: l.fix_applied,
+            prevention: l.prevention,
           })),
         });
       }),
@@ -324,6 +325,7 @@ export function registerReadTools(server: McpServer, { db, now }: Ctx): void {
             at: l.created_at,
             rejection_reason: l.rejection_reason,
             fix_applied: l.fix_applied,
+            prevention: l.prevention,
           })),
         );
       }),

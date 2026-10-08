@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   TaskNotFoundError,
   enrichTask,
+  getLessonsForTask,
   getTask,
   logAction,
   transition,
@@ -55,7 +56,7 @@ export function registerTaskTools(server: McpServer, { db, session }: Ctx): void
   run(
     'complete_task',
     'Complete task',
-    'Submit finished work for review: in_progress -> review. The task then waits for the human operator (or a reviewer) to approve or reject it. Only call it after build, typecheck and tests pass.',
+    'Submit finished work for review: in_progress -> review. The task then waits for the human operator (or a reviewer) to approve or reject it. Only call it after build, typecheck and tests pass. If the task was rejected before, your summary is recorded as the fix for that rejection, so say what you changed.',
     {
       summary: z
         .string()
@@ -86,8 +87,26 @@ export function registerTaskTools(server: McpServer, { db, session }: Ctx): void
         .string()
         .min(1)
         .describe('What was wrong and what must change. Saved as a lesson learned.'),
+      prevention: z
+        .string()
+        .optional()
+        .describe(
+          'How to avoid this next time (a check to run, a case to test). Saved with the lesson.',
+        ),
+      fix_applied: z
+        .string()
+        .optional()
+        .describe(
+          'The fix, if already known. Otherwise the next complete_task summary becomes it.',
+        ),
     },
-    (a, actor) => transition(db, tid(a), 'reject', { actor, reason: str(a, 'reason') as string }),
+    (a, actor) =>
+      transition(db, tid(a), 'reject', {
+        actor,
+        reason: str(a, 'reason') as string,
+        ...(str(a, 'prevention') ? { prevention: str(a, 'prevention') as string } : {}),
+        ...(str(a, 'fix_applied') ? { fixApplied: str(a, 'fix_applied') as string } : {}),
+      }),
   );
 
   run(
@@ -248,7 +267,24 @@ export function registerTaskTools(server: McpServer, { db, session }: Ctx): void
     ({ task_id, agent_id, ...input }) =>
       guard(() => {
         const fields = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
-        return ok(taskBrief(enrichTask(db, task_id, fields, session.resolveActor(agent_id))));
+        const task = enrichTask(db, task_id, fields, session.resolveActor(agent_id));
+        // Preparation is when past mistakes matter most: hand back the lessons that fit this task.
+        const lessons = getLessonsForTask(
+          db,
+          task.id,
+          task.label,
+          5,
+          task.acceptance_criteria.map((c) => c.text),
+        );
+        return ok({
+          ...taskBrief(task),
+          relevant_lessons: lessons.map((l) => ({
+            task_id: l.subtask_id,
+            rejection_reason: l.rejection_reason,
+            fix_applied: l.fix_applied,
+            prevention: l.prevention,
+          })),
+        });
       }),
   );
 }

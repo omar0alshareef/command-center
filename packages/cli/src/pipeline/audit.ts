@@ -152,7 +152,19 @@ export async function audit(
   if (!pass) {
     const reason = `Audit failed. ${failed.map((s) => s.summary).join(' ')}`.slice(0, 600);
     if (task.status === 'review') {
-      transition(db, taskId, 'reject', { actor: STAGES.validator.agentId, reason });
+      // What would have prevented it: the failed checks, the unmet criteria, any secret found.
+      const prevention = [
+        ...unmet.slice(0, 3).map((c) => `Verify before review: ${c.text}.`),
+        ...(bad.length
+          ? [`Run ${bad.map((r) => r.command).join(', ')} until it passes before submitting.`]
+          : []),
+        ...(findings.length ? ['Never commit credentials; read them from the environment.'] : []),
+      ].join(' ');
+      transition(db, taskId, 'reject', {
+        actor: STAGES.validator.agentId,
+        reason,
+        ...(prevention ? { prevention } : {}),
+      });
       rejected = true;
       o.out(`\nFAIL. ${taskId} -> In Progress. Reason recorded: ${reason}`);
     } else {

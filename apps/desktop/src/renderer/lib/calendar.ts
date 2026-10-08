@@ -4,10 +4,12 @@ import type { Task } from '@command-center/core';
 // Weeks start on Monday (UI/UX §6.4; a setting can change it later).
 
 const pad = (n: number) => String(n).padStart(2, '0');
-export const dayKey = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const dayKey = (d: Date): string =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 /** Local midnight `n` days from `d` (calendar arithmetic, safe across DST changes). */
-export const addDays = (d: Date, n: number): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+export const addDays = (d: Date, n: number): Date =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
 export const mondayOf = (d: Date): Date => addDays(d, -((d.getDay() + 6) % 7));
 
@@ -55,7 +57,14 @@ export function buildWeek(tasks: readonly Task[], anchor: Date, now = new Date()
   const today = dayKey(now);
   const days: CalendarDay[] = DOW.map((dow, i) => {
     const date = addDays(monday, i);
-    return { date, key: dayKey(date), dow, isToday: dayKey(date) === today, isWeekend: i >= 5, tasks: [] };
+    return {
+      date,
+      key: dayKey(date),
+      dow,
+      isToday: dayKey(date) === today,
+      isWeekend: i >= 5,
+      tasks: [],
+    };
   });
   const byKey = new Map(days.map((d) => [d.key, d]));
   for (const t of tasks) {
@@ -64,7 +73,12 @@ export function buildWeek(tasks: readonly Task[], anchor: Date, now = new Date()
     if (Number.isNaN(when.getTime())) continue;
     byKey.get(dayKey(when))?.tasks.push(t);
   }
-  for (const d of days) d.tasks.sort((a, b) => Date.parse(a.completed_at ?? '') - Date.parse(b.completed_at ?? '') || a.id.localeCompare(b.id));
+  for (const d of days)
+    d.tasks.sort(
+      (a, b) =>
+        Date.parse(a.completed_at ?? '') - Date.parse(b.completed_at ?? '') ||
+        a.id.localeCompare(b.id),
+    );
   const sunday = addDays(monday, 6);
   return {
     monday,

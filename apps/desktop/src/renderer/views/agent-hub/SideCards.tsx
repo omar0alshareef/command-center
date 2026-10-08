@@ -19,7 +19,9 @@ function copy(text: string, what: string) {
 function Card({ title, children, label }: { title: string; children: ReactNode; label: string }) {
   return (
     <section aria-label={label} className="rounded-lg border border-border bg-surface p-3">
-      <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">{title}</h2>
+      <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -31,16 +33,30 @@ export function SharedState({ tracker }: { tracker: TrackerState }) {
   const sync = useApp((s) => s.sync);
   const now = useNow(5_000);
   const last = lastChangeAt(tracker);
-  const color = sync.state === 'live' ? 'var(--success)' : sync.state === 'syncing' ? 'var(--warning)' : 'var(--danger)';
-  const label = sync.state === 'live' ? 'Live' : sync.state === 'syncing' ? 'Syncing…' : 'Disconnected';
+  const color =
+    sync.state === 'live'
+      ? 'var(--success)'
+      : sync.state === 'syncing'
+        ? 'var(--warning)'
+        : 'var(--danger)';
+  const label =
+    sync.state === 'live' ? 'Live' : sync.state === 'syncing' ? 'Syncing…' : 'Disconnected';
   return (
     <Card title="Shared state" label="Shared state">
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px]" title={dbPath ?? undefined} data-db-path>
+        <span
+          className="min-w-0 flex-1 truncate font-mono text-[11px]"
+          title={dbPath ?? undefined}
+          data-db-path
+        >
           {dbPath ? middleTruncate(dbPath, 34) : 'No database'}
         </span>
         {dbPath ? (
-          <Button variant="ghost" aria-label="Copy database path" onClick={() => copy(dbPath, 'Path')}>
+          <Button
+            variant="ghost"
+            aria-label="Copy database path"
+            onClick={() => copy(dbPath, 'Path')}
+          >
             <Copy size={12} aria-hidden />
           </Button>
         ) : null}
@@ -61,7 +77,9 @@ export function SharedState({ tracker }: { tracker: TrackerState }) {
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-[11px] text-muted">Last change {last ? relativeTime(new Date(last).toISOString(), now) : 'never'}</p>
+      <p className="mt-2 text-[11px] text-muted">
+        Last change {last ? relativeTime(new Date(last).toISOString(), now) : 'never'}
+      </p>
     </Card>
   );
 }
@@ -71,7 +89,10 @@ export function ContextPreview({ tracker }: { tracker: TrackerState }) {
   const text = useMemo(() => contextString(tracker), [tracker]);
   return (
     <Card title="Context injection preview" label="Context injection preview">
-      <pre className="rounded-md border border-border bg-surface-2 p-2 font-mono text-[11px] break-words whitespace-pre-wrap" data-context-preview>
+      <pre
+        className="rounded-md border border-border bg-surface-2 p-2 font-mono text-[11px] break-words whitespace-pre-wrap"
+        data-context-preview
+      >
         {text}
       </pre>
       <Button className="mt-2" onClick={() => copy(text, 'Context')}>
@@ -81,7 +102,13 @@ export function ContextPreview({ tracker }: { tracker: TrackerState }) {
   );
 }
 
-export function TodaySummary({ tracker, agents }: { tracker: TrackerState; agents: ReadonlyMap<string, Agent> }) {
+export function TodaySummary({
+  tracker,
+  agents,
+}: {
+  tracker: TrackerState;
+  agents: ReadonlyMap<string, Agent>;
+}) {
   const s = useMemo(() => todaySummary(tracker), [tracker]);
   const total = s.contributions.reduce((n, c) => n + c.count, 0);
   return (
@@ -104,9 +131,21 @@ export function TodaySummary({ tracker, agents }: { tracker: TrackerState; agent
         <p className="mt-2 text-[11px] text-muted">No agent actions yet today.</p>
       ) : (
         <>
-          <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`Actions today by agent: ${s.contributions.map((c) => `${agents.get(c.agentId)?.name ?? c.agentId} ${c.count}`).join(', ')}`} data-contribution-bar>
+          <div
+            className="mt-3 flex h-2 overflow-hidden rounded-full bg-surface-2"
+            role="img"
+            aria-label={`Actions today by agent: ${s.contributions.map((c) => `${agents.get(c.agentId)?.name ?? c.agentId} ${c.count}`).join(', ')}`}
+            data-contribution-bar
+          >
             {s.contributions.map((c) => (
-              <span key={c.agentId} style={{ width: `${(c.count / total) * 100}%`, background: agents.get(c.agentId)?.color ?? 'var(--muted)' }} data-contribution={c.agentId} />
+              <span
+                key={c.agentId}
+                style={{
+                  width: `${(c.count / total) * 100}%`,
+                  background: agents.get(c.agentId)?.color ?? 'var(--muted)',
+                }}
+                data-contribution={c.agentId}
+              />
             ))}
           </div>
           <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">

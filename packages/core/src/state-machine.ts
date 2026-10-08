@@ -8,7 +8,7 @@ import {
   TaskNotFoundError,
 } from './errors';
 import { sameAgentFamily } from './agents';
-import { addLesson } from './lessons';
+import { addLesson, recordFixForTask, syncLessonsFile } from './lessons';
 import { getAgent, getTask, logAction } from './queries';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';
 
@@ -39,6 +39,10 @@ export interface TransitionPayload {
   actor?: string;
   /** Required for `block` and `reject`. Becomes blocked_reason / the lessons_learned entry. */
   reason?: string;
+  /** `reject` only: what would have prevented this (stored on the lesson). */
+  prevention?: string;
+  /** `reject` only: the fix, when it is already known (otherwise the next `complete` summary becomes it). */
+  fixApplied?: string;
   /** Free-text summary, logged with `complete`. */
   summary?: string;
   /** What blocks the task: another task id, or 'manual' (default). */
@@ -88,7 +92,20 @@ export function transition(
   trigger: Trigger,
   payload: TransitionPayload = {},
 ): Task {
+  const { task, lessonsChanged } = transitionTx(db, taskId, trigger, payload);
+  // The markdown view of the lessons table is rewritten after the commit, never inside it.
+  if (lessonsChanged) syncLessonsFile(db);
+  return task;
+}
+
+function transitionTx(
+  db: Db,
+  taskId: string,
+  trigger: Trigger,
+  payload: TransitionPayload,
+): { task: Task; lessonsChanged: boolean } {
   return write(db, () => {
+    let lessonsChanged = false;
     const task = getTask(db, taskId);
     if (!task) throw new TaskNotFoundError(taskId);
 
@@ -132,6 +149,7 @@ export function transition(
         break;
       case 'complete':
         next.status = 'review';
+        if (payload.summary) lessonsChanged = recordFixForTask(db, taskId, payload.summary);
         break;
       case 'approve':
         next.status = 'done';
@@ -141,7 +159,15 @@ export function transition(
         break;
       case 'reject':
         next.status = 'in_progress';
-        addLesson(db, taskId, reason ?? '', '', now);
+        addLesson(
+          db,
+          taskId,
+          reason ?? '',
+          payload.fixApplied?.trim() ?? '',
+          now,
+          payload.prevention?.trim() ?? '',
+        );
+        lessonsChanged = true;
         break;
       case 'block':
         next.status = 'blocked';
@@ -189,6 +215,6 @@ export function transition(
 
     const updated = getTask(db, taskId);
     if (!updated) throw new TaskNotFoundError(taskId);
-    return updated;
+    return { task: updated, lessonsChanged };
   });
 }
