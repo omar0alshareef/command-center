@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { CH, type SyncStatus } from '../shared/ipc';
 import type { ProjectService } from './project';
+import { activityApi } from './activity-api';
 import { milestoneApi } from './milestone-api';
 import { taskApi } from './task-api';
 
@@ -36,4 +37,7 @@ export function registerIpc(project: ProjectService): void {
   const milestones = milestoneApi(() => project.db());
   ipcMain.handle(CH.milestoneNote, (_e, req: unknown) => milestones.addNote(req));
   ipcMain.handle(CH.milestoneDates, (_e, req: unknown) => milestones.setDates(req));
+
+  const activity = activityApi(() => project.db());
+  ipcMain.handle(CH.activityOlder, (_e, req: unknown) => activity.older(req));
 }

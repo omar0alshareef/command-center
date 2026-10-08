@@ -52,7 +52,13 @@ export function TaskBoard({ tracker }: { tracker: TrackerState }) {
   const holdSync = useApp((s) => s.holdSync);
   const releaseSync = useApp((s) => s.releaseSync);
 
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  // The Agent Hub's "View tasks" lands here already filtered to that agent.
+  const [filters, setFilters] = useState<Filters>(() => {
+    const id = useApp.getState().boardAssignee;
+    return id ? { ...NO_FILTERS, assignees: [id] } : NO_FILTERS;
+  });
+  const clearBoardAssignee = useApp((s) => s.clearBoardAssignee);
+  useEffect(() => clearBoardAssignee(), [clearBoardAssignee]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);

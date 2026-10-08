@@ -1,4 +1,5 @@
 import type {
+  AgentLogEntry,
   Milestone,
   NewTask,
   Task,
@@ -22,6 +23,7 @@ export const CH = {
   taskContext: 'tasks:context',
   milestoneNote: 'milestones:note',
   milestoneDates: 'milestones:dates',
+  activityOlder: 'activity:older',
   dbChanged: 'db:changed',
   dbStatus: 'db:status',
 } as const;
@@ -87,6 +89,14 @@ export interface Api {
       milestoneId: string;
       dates: Record<string, string | null>;
     }): Promise<Result<Milestone>>;
+  };
+  activity: {
+    /** Log rows older than `before` (newest first), optionally for one agent. Read-only. */
+    older(req: {
+      before: { id: string; timestamp: string };
+      agentId?: string;
+      limit?: number;
+    }): Promise<Result<AgentLogEntry[]>>;
   };
   onDbChanged(cb: () => void): () => void;
   onDbStatus(cb: (status: SyncStatus) => void): () => void;

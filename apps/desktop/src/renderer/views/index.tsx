@@ -1,16 +1,14 @@
-import { Cpu } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { TrackerState } from '@command-center/core';
 import { HydrationEmptyState } from '../components/HydrationEmptyState';
-import { McpConnect } from '../components/McpConnect';
 import { StatusDot } from '../components/ui/badges';
-import { EmptyState } from '../components/ui/feedback';
-import { activeAgentCount, completedThisWeek } from '../lib/derive';
+import { completedThisWeek } from '../lib/derive';
 import type { TabId } from '../store';
 import { SwimLane } from './swim-lane/SwimLane';
+import { AgentHub } from './agent-hub/AgentHub';
 import { TaskBoard } from './task-board/TaskBoard';
 
-// Placeholders show real counts until each view lands (M6 Agent Hub, M7 Calendar, M8 Terminal).
+// Placeholders show real counts until each view lands (M7 Calendar, M8 Terminal).
 
 interface Stat {
   label: string;
@@ -61,43 +59,7 @@ const noMilestones = (t: TrackerState) => t.milestones.length === 0;
 const VIEWS: Record<TabId, (t: TrackerState) => ReactNode> = {
   'swim-lane': (t) => <SwimLane tracker={t} />,
   'task-board': (t) => <TaskBoard tracker={t} />,
-  'agent-hub': (t) => {
-    // The built-in operator and system agents don't count as connected agents.
-    const connected = t.agents.filter((a) => a.id !== 'operator' && a.id !== 'system');
-    return (
-      <Placeholder
-        title="Agent Hub"
-        note="Agent tree and activity feed arrive in M6."
-        // One big empty state at a time: with no agents, connecting one comes first.
-        empty={noMilestones(t) && connected.length > 0}
-        stats={[
-          { label: 'Agents', value: connected.length },
-          { label: 'Active', value: activeAgentCount(t.agents), color: 'var(--success)' },
-          { label: 'Log entries', value: t.agent_log.length },
-        ]}
-      >
-        {connected.length === 0 ? (
-          <>
-            <EmptyState
-              icon={Cpu}
-              title="No agents connected"
-              help="Add the MCP server to Claude Code and it registers itself on its first call."
-            />
-            <McpConnect />
-          </>
-        ) : (
-          <details className="max-w-3xl">
-            <summary className="cursor-pointer text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
-              Connect another agent
-            </summary>
-            <div className="mt-3">
-              <McpConnect />
-            </div>
-          </details>
-        )}
-      </Placeholder>
-    );
-  },
+  'agent-hub': (t) => <AgentHub tracker={t} />,
   calendar: (t) => (
     <Placeholder
       title="Calendar"

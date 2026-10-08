@@ -103,6 +103,16 @@ body {
   animation: node-enter 400ms ease-out;
 }
 
+/* New Agent Hub feed entries flash once. */
+@keyframes feed-flash {
+  from {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+}
+.feed-flash {
+  animation: feed-flash 2.2s ease-out;
+}
+
 @keyframes shimmer {
   from {
     background-position: 200% 0;
@@ -151,6 +161,7 @@ dialog.modal::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .pulse-dot,
   .node-enter,
+  .feed-flash,
   .skeleton {
     animation: none;
   }

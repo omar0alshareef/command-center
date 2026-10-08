@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Agent, Task } from '@command-center/core';
 import { useApp } from '../store';
 
@@ -15,4 +15,14 @@ export function useTasksById(): ReadonlyMap<string, Task> {
 
 export function useAgents(): readonly Agent[] {
   return useApp((s) => s.tracker?.agents) ?? NO_AGENTS;
+}
+
+/** `Date.now()` that re-renders its component every `ms` (live "2m ago" labels). */
+export function useNow(ms = 15_000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(id);
+  }, [ms]);
+  return now;
 }

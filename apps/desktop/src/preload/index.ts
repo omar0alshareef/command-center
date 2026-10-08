@@ -26,6 +26,7 @@ const api: Api = {
     addNote: (req) => ipcRenderer.invoke(CH.milestoneNote, req),
     setDates: (req) => ipcRenderer.invoke(CH.milestoneDates, req),
   },
+  activity: { older: (req) => ipcRenderer.invoke(CH.activityOlder, req) },
   onDbChanged: (cb) => subscribe<undefined>(CH.dbChanged, () => cb()),
   onDbStatus: (cb) => subscribe<SyncStatus>(CH.dbStatus, cb),
 };

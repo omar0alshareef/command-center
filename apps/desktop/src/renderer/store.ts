@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Task, TrackerState } from '@command-center/core';
+import type { AgentLogEntry, Task, TrackerState } from '@command-center/core';
 import type { ProjectInfo } from '../shared/ipc';
+import { matchesFilter } from './lib/agent-hub';
 import { mergeTracker } from './lib/share';
 
 export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal';
@@ -30,7 +31,23 @@ interface AppState {
   /** One-shot request for the swim lane to scroll a milestone into view. */
   scrollToMilestoneId: string | null;
   theme: Theme;
+  /** Agent Hub feed filter: 'all' | 'manual' | 'system' | an agent id. */
+  hubFilter: string;
+  /** Orchestrator ids whose sub-agents are collapsed in the Agent Hub tree (persisted). */
+  hubCollapsed: string[];
+  /** Log rows loaded beyond the 500 the tracker carries ("Load older"), newest first. */
+  olderLog: AgentLogEntry[];
+  /** Filters ('all' or an agent id) for which the log has no more older rows. */
+  olderDone: string[];
+  olderLoading: boolean;
+  /** One-shot: the Task Board starts filtered to this assignee (Agent Hub "View tasks"). */
+  boardAssignee: string | null;
 
+  setHubFilter: (filter: string) => void;
+  toggleHubCollapsed: (id: string) => void;
+  loadOlder: () => Promise<void>;
+  viewAgentTasks: (agentId: string) => void;
+  clearBoardAssignee: () => void;
   setActiveTab: (tab: TabId) => void;
   setSelectedMilestoneId: (id: string | null) => void;
   setOpenTaskId: (id: string | null) => void;
@@ -74,6 +91,52 @@ export const useApp = create<AppState>()(
       error: null,
       sync: { state: 'live', lastSyncAt: null },
       activeTab: 'swim-lane',
+      hubFilter: 'all',
+      hubCollapsed: [],
+      olderLog: [],
+      olderDone: [],
+      olderLoading: false,
+      boardAssignee: null,
+      setHubFilter: (hubFilter) => set({ hubFilter }),
+      toggleHubCollapsed: (id) =>
+        set((s) => ({
+          hubCollapsed: s.hubCollapsed.includes(id)
+            ? s.hubCollapsed.filter((x) => x !== id)
+            : [...s.hubCollapsed, id],
+        })),
+      loadOlder: async () => {
+        const s = get();
+        const key = s.hubFilter;
+        if (s.olderLoading || !s.tracker) return;
+        // Page back from the oldest row we hold for this filter; agent filters query that agent only.
+        const mine = (e: AgentLogEntry) => matchesFilter(e, key);
+        const loaded = [...s.tracker.agent_log, ...s.olderLog].filter(mine);
+        const oldest = loaded.reduce<AgentLogEntry | null>(
+          (a, e) => (!a || e.timestamp < a.timestamp ? e : a),
+          null,
+        );
+        if (!oldest) return;
+        const agentId = key === 'all' ? undefined : key === 'manual' ? 'operator' : key;
+        set({ olderLoading: true });
+        const limit = 500;
+        const res = await window.api.activity.older({
+          before: { id: oldest.id, timestamp: oldest.timestamp },
+          agentId,
+          limit,
+        });
+        set((cur) => {
+          if (!res.ok) return { olderLoading: false };
+          const have = new Set([...cur.olderLog, ...(cur.tracker?.agent_log ?? [])].map((e) => e.id));
+          const fresh = res.value.filter((e) => !have.has(e.id));
+          return {
+            olderLoading: false,
+            olderLog: [...cur.olderLog, ...fresh],
+            olderDone: res.value.length < limit ? [...cur.olderDone, key] : cur.olderDone,
+          };
+        });
+      },
+      viewAgentTasks: (agentId) => set({ boardAssignee: agentId, activeTab: 'task-board' }),
+      clearBoardAssignee: () => set({ boardAssignee: null }),
       selectedMilestoneId: null,
       openTaskId: null,
       openMilestoneId: null,
@@ -160,6 +223,9 @@ export const useApp = create<AppState>()(
           error: null,
           openTaskId: null,
           openMilestoneId: null,
+          olderLog: [],
+          olderDone: [],
+          hubFilter: 'all',
         });
         if (project.root && !project.error) await get().refresh();
         else set({ loading: false });
@@ -174,7 +240,7 @@ export const useApp = create<AppState>()(
     }),
     {
       name: 'cc-ui',
-      partialize: (s) => ({ activeTab: s.activeTab, theme: s.theme }),
+      partialize: (s) => ({ activeTab: s.activeTab, theme: s.theme, hubCollapsed: s.hubCollapsed }),
     },
   ),
 );
