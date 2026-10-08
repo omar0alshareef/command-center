@@ -7,7 +7,8 @@ import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
 import { lessonsApi } from './lessons-api';
 import { milestoneApi } from './milestone-api';
-import { taskApi } from './task-api';
+import { run, taskApi } from './task-api';
+import { WebhookServer } from './webhook';
 
 function broadcast(channel: string, payload?: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload);
@@ -26,10 +27,15 @@ export const pty = new PtyManager(
   () => projectRoot(),
   () => ensureShimDir(),
 );
+export let webhook: WebhookServer;
 let projectRoot: () => string | null = () => null;
 
 export function registerIpc(project: ProjectService): void {
   projectRoot = () => project.info().root;
+  webhook = new WebhookServer(() => project.db());
+  webhook.start();
+  ipcMain.handle(CH.webhookStatus, () => webhook.status());
+  ipcMain.handle(CH.webhookRegenerate, () => run(() => webhook.regenerate()));
   ipcMain.handle(CH.projectGet, () => project.info());
   ipcMain.handle(CH.projectRetry, () => project.retry());
   ipcMain.handle(CH.getAll, () => project.getAll());

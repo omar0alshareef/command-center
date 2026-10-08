@@ -3,8 +3,9 @@ import { buildMcpConfig } from '../lib/mcp-config';
 import { useApp } from '../store';
 import { toast } from '../toast';
 import { Button } from './ui/button';
+import { WebhookCard } from './WebhookCard';
 
-function CopyBlock({ label, text }: { label: string; text: string }) {
+export function CopyBlock({ label, text }: { label: string; text: string }) {
   const copy = () =>
     void navigator.clipboard
       .writeText(text)
@@ -41,6 +42,7 @@ export function McpConnect() {
       </div>
       <CopyBlock label="Claude Code command" text={cli} />
       <CopyBlock label="MCP config" text={json} />
+      <WebhookCard />
       {!project.mcp.bundled ? (
         <p className="text-warning">
           The MCP server bundle was not found next to the app. Build it with{' '}

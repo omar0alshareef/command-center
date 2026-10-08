@@ -40,6 +40,10 @@ const api: Api = {
     onData: (cb) => subscribe(CH.termData, cb),
     onExit: (cb) => subscribe(CH.termExit, cb),
   },
+  webhook: {
+    status: () => ipcRenderer.invoke(CH.webhookStatus),
+    regenerate: () => ipcRenderer.invoke(CH.webhookRegenerate),
+  },
   onDbChanged: (cb) => subscribe<undefined>(CH.dbChanged, () => cb()),
   onDbStatus: (cb) => subscribe<SyncStatus>(CH.dbStatus, cb),
 };

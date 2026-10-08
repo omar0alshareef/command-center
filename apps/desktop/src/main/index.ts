@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { resolveProjectRoot } from './config';
-import { projectEvents, pty, registerIpc } from './ipc-handlers';
+import { projectEvents, pty, registerIpc, webhook } from './ipc-handlers';
 import { ProjectService } from './project';
 import { loadSavedRoot } from './settings';
 import { buildWindowOptions } from './window-options';
@@ -54,6 +54,7 @@ void app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   pty.killAll();
+  webhook.stop();
   project.close();
 });
 

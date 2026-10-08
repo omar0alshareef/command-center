@@ -32,6 +32,8 @@ export const CH = {
   termWrite: 'terminal:write',
   termResize: 'terminal:resize',
   termKill: 'terminal:kill',
+  webhookStatus: 'webhook:status',
+  webhookRegenerate: 'webhook:regenerate',
   termData: 'terminal:data',
   termExit: 'terminal:exit',
   dbChanged: 'db:changed',
@@ -53,6 +55,14 @@ export interface ProjectInfo {
   error: string | null;
   appVersion: string;
   mcp: McpLaunch;
+}
+
+export interface WebhookStatus {
+  port: number;
+  running: boolean;
+  error: string | null;
+  /** Bearer token; null while no project is open. */
+  token: string | null;
 }
 
 export type SyncStatus = { state: 'live' } | { state: 'disconnected'; error: string };
@@ -141,6 +151,11 @@ export interface Api {
     kill(id: string): Promise<void>;
     onData(cb: (e: { id: string; data: string }) => void): () => void;
     onExit(cb: (e: { id: string; exitCode: number }) => void): () => void;
+  };
+  webhook: {
+    status(): Promise<WebhookStatus>;
+    /** Replaces the token; the old one stops working immediately. */
+    regenerate(): Promise<Result<WebhookStatus>>;
   };
   onDbChanged(cb: () => void): () => void;
   onDbStatus(cb: (status: SyncStatus) => void): () => void;
