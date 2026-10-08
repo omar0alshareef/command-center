@@ -23,6 +23,15 @@ export const TRANSITION_RULES = {
 
 export type Trigger = keyof typeof TRANSITION_RULES;
 
+/**
+ * Extra starting statuses allowed when the caller confirms skipping workflow steps
+ * (UI/UX §6.2: todo→review, todo→done, in_progress→done). Only with `skipSteps: true`.
+ */
+const SKIP_FROM: Partial<Record<Trigger, readonly TaskStatus[]>> = {
+  complete: ['todo', 'in_progress'],
+  approve: ['todo', 'in_progress', 'review'],
+};
+
 export interface TransitionPayload {
   /** Agent id doing this. Must be a registered agent. Defaults to the human operator. */
   actor?: string;
@@ -34,6 +43,8 @@ export interface TransitionPayload {
   blockedBy?: string;
   /** `start` only: skip the unfinished-dependencies check. */
   force?: boolean;
+  /** `complete` / `approve` only: the caller confirmed skipping steps (e.g. todo → done). */
+  skipSteps?: boolean;
 }
 
 const LOG_ACTION: Record<Trigger, string> = {
@@ -60,10 +71,12 @@ export function transition(
     const task = getTask(db, taskId);
     if (!task) throw new TaskNotFoundError(taskId);
 
-    const allowedFrom: readonly TaskStatus[] = TRANSITION_RULES[trigger];
+    const baseFrom: readonly TaskStatus[] = TRANSITION_RULES[trigger];
+    const allowedFrom = payload.skipSteps ? (SKIP_FROM[trigger] ?? baseFrom) : baseFrom;
     if (!allowedFrom.includes(task.status)) {
       throw new IllegalTransitionError(taskId, task.status, trigger, allowedFrom);
     }
+    const skipped = !baseFrom.includes(task.status);
 
     const reason = payload.reason?.trim();
     if ((trigger === 'block' || trigger === 'reject') && !reason) {
@@ -86,12 +99,14 @@ export function transition(
       blocked_reason: task.blocked_reason,
       blocked_from: task.blocked_from,
       last_run_id: task.last_run_id,
+      started_at: task.started_at,
     };
 
     switch (trigger) {
       case 'start':
         next.status = 'in_progress';
         next.last_run_id = randomUUID();
+        next.started_at = now; // kept through review/reject so the board's timer is total elapsed
         break;
       case 'complete':
         next.status = 'review';
@@ -127,13 +142,15 @@ export function transition(
         next.blocked_by = null;
         next.blocked_reason = null;
         next.last_run_id = null;
+        next.started_at = null;
         break;
     }
 
     db.prepare(
       `UPDATE subtasks SET status = @status, done = @done, completed_at = @completed_at,
          completed_by = @completed_by, blocked_by = @blocked_by, blocked_reason = @blocked_reason,
-         blocked_from = @blocked_from, last_run_id = @last_run_id, updated_at = @now
+         blocked_from = @blocked_from, last_run_id = @last_run_id, started_at = @started_at,
+         updated_at = @now
        WHERE id = @id`,
     ).run({ ...next, done: next.done ? 1 : 0, now, id: taskId });
 
@@ -143,7 +160,7 @@ export function transition(
       action: LOG_ACTION[trigger],
       targetType: 'subtask',
       targetId: taskId,
-      description: `${taskId}: ${task.status} → ${next.status}${detail ? ` — ${detail}` : ''}`,
+      description: `${taskId}: ${task.status} → ${next.status}${skipped ? ' (steps skipped)' : ''}${detail ? ` — ${detail}` : ''}`,
       tags: [trigger],
       at: now,
     });

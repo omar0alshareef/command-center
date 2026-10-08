@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { CH, type SyncStatus } from '../shared/ipc';
 import type { ProjectService } from './project';
+import { taskApi } from './task-api';
 
 function broadcast(channel: string, payload?: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload);
@@ -23,4 +24,11 @@ export function registerIpc(project: ProjectService): void {
     const picked = result.filePaths[0];
     return result.canceled || !picked ? project.info() : project.open(picked, true);
   });
+
+  const tasks = taskApi(() => project.db());
+  ipcMain.handle(CH.taskTransition, (_e, req: unknown) => tasks.transition(req));
+  ipcMain.handle(CH.taskUpdate, (_e, req: unknown) => tasks.update(req));
+  ipcMain.handle(CH.taskCreate, (_e, req: unknown) => tasks.create(req));
+  ipcMain.handle(CH.taskHistory, (_e, id: unknown) => tasks.history(id));
+  ipcMain.handle(CH.taskContext, (_e, id: unknown) => tasks.contextMd(id));
 }

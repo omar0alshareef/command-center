@@ -13,20 +13,26 @@ export function Modal({
   label,
   children,
   className,
+  focusContainer = false,
 }: {
   open: boolean;
   onClose: () => void;
   label: string;
   children: ReactNode;
   className?: string;
+  /** Start focus on the dialog body instead of its first control (avoids a stuck first-button tooltip). */
+  focusContainer?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      if (focusContainer) d.querySelector<HTMLElement>('.modal-body')?.focus();
+    }
     if (!open && d.open) d.close();
-  }, [open]);
+  }, [open, focusContainer]);
   return (
     <dialog
       ref={ref}
@@ -40,7 +46,14 @@ export function Modal({
       }}
       className="modal"
     >
-      {open ? <div className={cn('modal-body', className)}>{children}</div> : null}
+      {open ? (
+        <div
+          tabIndex={focusContainer ? -1 : undefined}
+          className={cn('modal-body outline-none', className)}
+        >
+          {children}
+        </div>
+      ) : null}
     </dialog>
   );
 }

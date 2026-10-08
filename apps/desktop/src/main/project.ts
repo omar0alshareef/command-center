@@ -18,7 +18,7 @@ export interface ProjectEvents {
 /** Owns the writer DB connection and the change watcher for the currently open project. */
 export class ProjectService {
   private root: string | null = null;
-  private db: Db | null = null;
+  private conn: Db | null = null;
   private error: string | null = null;
   private stopWatcher: (() => void) | null = null;
 
@@ -28,12 +28,12 @@ export class ProjectService {
     this.close();
     this.root = root;
     try {
-      this.db = openDb(root);
+      this.conn = openDb(root);
       this.error = null;
       this.stopWatcher = startWatcher(root, this.events);
       if (persist) saveRoot(root);
     } catch (e) {
-      this.db = null;
+      this.conn = null;
       this.error = e instanceof Error ? e.message : String(e);
     }
     return this.info();
@@ -52,15 +52,20 @@ export class ProjectService {
     };
   }
 
+  /** The open writer connection. Throws if no project is open (callers map it to an error). */
+  db(): Db {
+    if (!this.conn) throw new Error(this.error ?? 'No project is open.');
+    return this.conn;
+  }
+
   getAll(): TrackerState {
-    if (!this.db) throw new Error(this.error ?? 'No project is open.');
-    return getAllTrackerState(this.db);
+    return getAllTrackerState(this.db());
   }
 
   close(): void {
     this.stopWatcher?.();
     this.stopWatcher = null;
-    this.db?.close();
-    this.db = null;
+    this.conn?.close();
+    this.conn = null;
   }
 }

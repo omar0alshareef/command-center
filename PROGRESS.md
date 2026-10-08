@@ -5,7 +5,7 @@
 | M0 Foundation & tooling | done | Monorepo root + `apps/desktop` (electron-vite, React 19, Tailwind v4). Exit: `npm run dev` opens dark window; typecheck, lint, test pass. |
 | M1 Core: schema, DB, state machine | done | `packages/core`: migrations 001/002, zod row schemas, queries, `transition()`, lessons (FTS5), context builders, seed. 66 tests incl. a 3-process concurrent-writer test. |
 | M2 Shell, IPC, store, live sync | done | Typed IPC (no SQL), watcher on `data_version`, Zustand store, shell (title/tab/status bars), shared UI components, 5 placeholder views with real counts. Verified in the built Electron app over CDP: external DB write reaches the UI in 109–610 ms. |
-| M3 Task Board | not started | |
+| M3 Task Board | done | Board (ContextBar, FilterBar, 5 columns, cards), dnd-kit drag + keyboard, all §6.2 transitions via one `planMove`, reason/summary/confirm dialogs, task modal (Details/History/Context, autosave). 56/56 live checks over CDP in the built app. |
 | M4 MCP server (core loop) | not started | |
 | M5 Swim Lane | not started | |
 | M6 Agent Hub | not started | |
@@ -50,4 +50,17 @@
 - M1 exit check: `tsx packages/core/src/seed.ts <dir>` made a DB (8 milestones, 60 tasks, 6 agents, 200 log rows) that a second process opened read-only. No `sqlite3` CLI on this machine, so not opened in a SQLite GUI.
 - ESLint now applies Node globals to `*.js/*.mjs` (was TS only).
 - Observed mid-M1, not made by me: `CLAUDE.md` gained a "Supervisor handoff" section (replaces "STOP and wait for continue" with writing `.supervisor/Mx.handoff.md` and polling `scripts/await-approval.mjs`), and `scripts/await-approval.mjs` + empty `.supervisor/` appeared. Not acted on or committed; waiting on the user to confirm they want this workflow.
+- M3 schema: migration 003 adds `subtasks.started_at` (the in-progress timer needs it; `last_run_id` can't give elapsed time) and `idx_agent_log_target` (History tab). `started_at` is set on `start`, kept through review/reject, cleared on `reset`.
+- M3 core: `transition()` takes `skipSteps` (todo→review, todo→done, in_progress→done; logged "(steps skipped)"). New `tasks.ts`: `updateTask` (strict zod whitelist; status can't be edited), `createTask` (next `TASK-###`), `getTaskHistory`. `getActivityFeed` gained `targetId`.
+- M3 fixed a real M1 bug: log rows written in the same millisecond tied on `timestamp` and then sorted by their random UUID, so History order could be wrong. Feed order is now `(timestamp, rowid)`; the cursor still takes `{timestamp, id}`.
+- M3 IPC: mutations return `Result<T>` (`{ok, value}` | `{ok:false, error:{code,message}}`) because Electron IPC loses error classes. New channels `tasks:transition|update|create|history|context`. The renderer cannot choose the actor: main always uses `operator`. Payloads are zod-validated in `main/task-api.ts`.
+- M3 UX rules (all in `views/task-board/moves.ts`, unit-tested): blocked tasks can only go back to their previous column (unblock); done tasks can't be moved (use Reset in the modal); moving back to To Do is illegal (Reset); in_progress→review offers an optional summary; todo/in_progress→done and todo→review ask to skip; start with unmet dependencies asks "start anyway?" (`force`).
+- M3 deviation: the Block / Reject / summary prompts are small modal dialogs, not popovers anchored to the card. Same required-reason behaviour; simpler and focus-safe.
+- M3 deviation: no "updated by claude-code" notice in the modal. Instead a field's draft is never overwritten by an outside change while it is focused, and all refetches are held while a drag or mutation is in flight (nothing reorders under the cursor).
+- M3 render performance (per supervisor note): `mergeTracker` keeps unchanged rows by reference, so an external write replaces only the changed row. Found and fixed a dnd-kit pitfall: `useSensor` options / `accessibility` as inline literals gave every draggable a new context each render and defeated `React.memo` (a log-only change re-rendered all 60 cards). They are module constants now. Measured: log-only change → 0 card renders; one task changed → only that card renders.
+- M3 test hook: `window.__ccRenders` (if set to `{}`) counts commits per task card; production builds have no React Profiler. It is inert unless a test sets it.
+- M3 dnd-kit swallows clicks for ~50–100 ms after a drop (by design). Scripted clicks must wait ~400 ms like a person; this cost me several false failures.
+- M3 keyboard: Space lifts/drops, Left/Right jump between columns (custom coordinate getter), Enter opens the task, Esc cancels; live-region announcements for screen readers.
+- M3 not built (deferred): Prepare button and "Open in terminal" are disabled (M9 / M8); copy-prepare-command works. Dependencies editing is a plain list textarea. Light-theme first-frame flash still noted for M12.
+- M3 bundle: renderer is now 1.26 MB (dnd-kit + more UI); still no better-sqlite3/zod in it (checked).
 - Verified in M0: dev window launched (Electron process up), renderer mounted with `rgb(10,10,16)` background. Pixel-level check of the native window not done.

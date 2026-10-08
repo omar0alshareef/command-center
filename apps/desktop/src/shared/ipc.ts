@@ -1,4 +1,12 @@
-import type { TrackerState } from '@command-center/core';
+import type {
+  NewTask,
+  Task,
+  TaskHistory,
+  TaskPatch,
+  TrackerState,
+  TransitionPayload,
+  Trigger,
+} from '@command-center/core';
 
 // The whole renderer <-> main contract. Named, typed methods only: the renderer never sends SQL (D2).
 export const CH = {
@@ -6,6 +14,11 @@ export const CH = {
   projectGet: 'project:get',
   projectChoose: 'project:choose',
   projectRetry: 'project:retry',
+  taskTransition: 'tasks:transition',
+  taskUpdate: 'tasks:update',
+  taskCreate: 'tasks:create',
+  taskHistory: 'tasks:history',
+  taskContext: 'tasks:context',
   dbChanged: 'db:changed',
   dbStatus: 'db:status',
 } as const;
@@ -20,6 +33,22 @@ export interface ProjectInfo {
 
 export type SyncStatus = { state: 'live' } | { state: 'disconnected'; error: string };
 
+/**
+ * Mutations return a Result instead of throwing: errors thrown across Electron IPC lose their class
+ * and code. `code` is a CoreError code (ILLEGAL_TRANSITION, REASON_REQUIRED, ...) or INVALID_INPUT.
+ */
+export type Result<T> =
+  { ok: true; value: T } | { ok: false; error: { code: string; message: string } };
+
+/** The renderer is always the human operator, so `actor` is not accepted from it. */
+export type RendererTransitionPayload = Omit<TransitionPayload, 'actor'>;
+
+export interface TransitionRequest {
+  taskId: string;
+  trigger: Trigger;
+  payload?: RendererTransitionPayload;
+}
+
 export interface Api {
   platform: string;
   project: {
@@ -30,6 +59,14 @@ export interface Api {
   };
   db: {
     getAll(): Promise<TrackerState>;
+  };
+  tasks: {
+    transition(req: TransitionRequest): Promise<Result<Task>>;
+    update(req: { taskId: string; patch: TaskPatch }): Promise<Result<Task>>;
+    create(req: NewTask): Promise<Result<Task>>;
+    history(taskId: string): Promise<Result<TaskHistory>>;
+    /** Rendered TASK_CONTEXT.md for the task, or null if it does not exist. */
+    contextMd(taskId: string): Promise<Result<string | null>>;
   };
   onDbChanged(cb: () => void): () => void;
   onDbStatus(cb: (status: SyncStatus) => void): () => void;

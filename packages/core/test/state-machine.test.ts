@@ -108,11 +108,25 @@ describe('side effects', () => {
     expect(done.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
-  it('start sets last_run_id; reset clears completion and run state', () => {
+  it('start sets last_run_id and started_at; reset clears completion and run state', () => {
     addTask(t.db, 'T1', 'todo');
-    expect(transition(t.db, 'T1', 'start').last_run_id).toBeTruthy();
+    const started = transition(t.db, 'T1', 'start');
+    expect(started.last_run_id).toBeTruthy();
+    expect(started.started_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     const reset = transition(t.db, 'T1', 'reset');
-    expect(reset).toMatchObject({ status: 'todo', last_run_id: null, done: false });
+    expect(reset).toMatchObject({
+      status: 'todo',
+      last_run_id: null,
+      started_at: null,
+      done: false,
+    });
+  });
+
+  it('keeps started_at through review and reject (timer is total elapsed)', () => {
+    addTask(t.db, 'T1', 'todo');
+    const startedAt = transition(t.db, 'T1', 'start').started_at;
+    transition(t.db, 'T1', 'complete');
+    expect(transition(t.db, 'T1', 'reject', { reason: 'nope' }).started_at).toBe(startedAt);
   });
 
   it('reject writes a lessons_learned row that FTS can find', () => {

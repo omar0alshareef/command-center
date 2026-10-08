@@ -1,15 +1,12 @@
-import { Inbox } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { TrackerState } from '@command-center/core';
-import { Button } from '../components/ui/button';
+import { HydrationEmptyState } from '../components/HydrationEmptyState';
 import { StatusDot } from '../components/ui/badges';
-import { EmptyState } from '../components/ui/feedback';
-import { activeAgentCount, completedThisWeek, taskCounts } from '../lib/derive';
-import { HYDRATION_PROMPT, STATUS_META, STATUS_ORDER } from '../lib/status';
+import { activeAgentCount, completedThisWeek } from '../lib/derive';
 import type { TabId } from '../store';
-import { toast } from '../toast';
+import { TaskBoard } from './task-board/TaskBoard';
 
-// M2 placeholders: real counts from the store, replaced view by view in M3, M5-M8.
+// Placeholders show real counts until each view lands (M5 Swim Lane, M6 Agent Hub, M7 Calendar, M8 Terminal).
 
 interface Stat {
   label: string;
@@ -28,12 +25,6 @@ function Placeholder({
   stats: Stat[];
   empty?: boolean;
 }) {
-  const copyPrompt = () => {
-    void navigator.clipboard
-      .writeText(HYDRATION_PROMPT)
-      .then(() => toast.info('Hydration prompt copied'))
-      .catch(() => toast.error('Could not copy to the clipboard'));
-  };
   return (
     <section className="flex h-full flex-col gap-4 overflow-auto p-6">
       <div>
@@ -53,14 +44,7 @@ function Placeholder({
           ))}
         </dl>
       ) : null}
-      {empty ? (
-        <EmptyState
-          icon={Inbox}
-          title="No milestones yet"
-          help="Hydrate this project with a manifesto and roadmap, or ask an agent to call create_milestone."
-          action={<Button onClick={copyPrompt}>Copy hydration prompt</Button>}
-        />
-      ) : null}
+      {empty ? <HydrationEmptyState /> : null}
     </section>
   );
 }
@@ -81,21 +65,7 @@ const VIEWS: Record<TabId, (t: TrackerState) => ReactNode> = {
       ]}
     />
   ),
-  'task-board': (t) => {
-    const c = taskCounts(t.subtasks);
-    return (
-      <Placeholder
-        title="Task Board"
-        note="Kanban arrives in M3."
-        empty={noMilestones(t)}
-        stats={STATUS_ORDER.map((s) => ({
-          label: STATUS_META[s].label,
-          value: c[s],
-          color: STATUS_META[s].color,
-        }))}
-      />
-    );
-  },
+  'task-board': (t) => <TaskBoard tracker={t} />,
   'agent-hub': (t) => (
     <Placeholder
       title="Agent Hub"

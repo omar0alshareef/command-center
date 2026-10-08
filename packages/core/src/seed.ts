@@ -172,10 +172,10 @@ export function seedDb(db: Db, opts: SeedOptions = {}): SeedSummary {
     );
     const insTask = db.prepare(
       `INSERT INTO subtasks (id, milestone_id, label, status, done, assignee, blocked_by, blocked_reason,
-         blocked_from, completed_at, completed_by, priority, notes, context_files, acceptance_criteria,
-         constraints, depends_on, last_run_id, created_at, updated_at)
+         blocked_from, started_at, completed_at, completed_by, priority, notes, context_files,
+         acceptance_criteria, constraints, depends_on, last_run_id, created_at, updated_at)
        VALUES (@id, @milestone_id, @label, @status, @done, @assignee, @blocked_by, @blocked_reason,
-         @blocked_from, @completed_at, @completed_by, @priority, @notes, @context_files,
+         @blocked_from, @started_at, @completed_at, @completed_by, @priority, @notes, @context_files,
          @acceptance_criteria, @constraints, @depends_on, @last_run_id, @created_at, @updated_at)`,
     );
 
@@ -225,6 +225,12 @@ export function seedDb(db: Db, opts: SeedOptions = {}): SeedSummary {
           status === 'done' ? new Date(now.getTime() - rand() * 13 * DAY_MS).toISOString() : null;
         const blocked = status === 'blocked';
         const created = new Date(plannedStart).toISOString();
+        const startedAt =
+          status === 'todo'
+            ? null
+            : completedAt
+              ? new Date(Date.parse(completedAt) - 6 * 3_600_000).toISOString()
+              : new Date(now.getTime() - (0.1 + rand() * 2.9) * DAY_MS).toISOString();
         insTask.run({
           id: taskId,
           milestone_id: id,
@@ -235,6 +241,7 @@ export function seedDb(db: Db, opts: SeedOptions = {}): SeedSummary {
           blocked_by: blocked ? 'manual' : null,
           blocked_reason: blocked ? 'Waiting on API contract sign-off' : null,
           blocked_from: blocked ? 'in_progress' : null,
+          started_at: startedAt,
           completed_at: completedAt,
           completed_by: completedAt ? (assignee ?? 'operator') : null,
           priority: pick(['P0', 'P1', 'P1', 'P2', 'P2', 'P3']),

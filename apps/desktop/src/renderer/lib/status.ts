@@ -19,6 +19,15 @@ export const STATUS_META: Record<TaskStatus, { label: string; color: string }> =
   blocked: { label: 'BLOCKED', color: 'var(--danger)' },
 };
 
+/** Sentence-case names for messages ("returns it to In Progress"). */
+export const STATUS_NAME: Record<TaskStatus, string> = {
+  todo: 'To Do',
+  in_progress: 'In Progress',
+  review: 'Review',
+  done: 'Done',
+  blocked: 'Blocked',
+};
+
 export const PRIORITY_COLOR: Record<string, string> = {
   P0: 'var(--danger)',
   P1: 'var(--warning)',

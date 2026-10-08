@@ -80,6 +80,7 @@ export const TaskSchema = z.object({
   blocked_by: z.string().nullable(),
   blocked_reason: z.string().nullable(),
   blocked_from: z.enum(TASK_STATUSES).nullable(),
+  started_at: z.string().nullable(),
   completed_at: z.string().nullable(),
   completed_by: z.string().nullable(),
   priority: z.enum(PRIORITIES),

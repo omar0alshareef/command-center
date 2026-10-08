@@ -16,6 +16,12 @@ export class TaskNotFoundError extends CoreError {
   }
 }
 
+export class MilestoneNotFoundError extends CoreError {
+  constructor(readonly milestoneId: string) {
+    super('MILESTONE_NOT_FOUND', `Milestone ${milestoneId} does not exist.`);
+  }
+}
+
 export class IllegalTransitionError extends CoreError {
   constructor(
     readonly taskId: string,

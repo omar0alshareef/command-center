@@ -138,3 +138,26 @@ dialog.modal::backdrop {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Live-update flash: surface-3 -> transparent over 600ms (UI/UX §4.7). */
+@keyframes flash {
+  from {
+    background-color: var(--surface-3);
+  }
+}
+.flash {
+  animation: flash 600ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation: none;
+  }
+}
+
+/* Native scrollbars, checkboxes and selects follow the theme instead of staying light. */
+:root {
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}

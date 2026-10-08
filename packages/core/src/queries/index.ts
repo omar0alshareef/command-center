@@ -105,20 +105,27 @@ export interface ActivityFeedOptions {
   /** Return entries strictly older than this cursor (the last row of the previous page). */
   before?: FeedCursor;
   agentId?: string;
+  /** Only entries about this target (e.g. a task id). */
+  targetId?: string;
 }
 
 export function getActivityFeed(db: Db, o: ActivityFeedOptions = {}): AgentLogEntry[] {
   const where: string[] = [];
   const params: unknown[] = [];
   if (o.before) {
-    where.push('(timestamp, id) < (?, ?)');
+    // Order is (timestamp, insertion order): same-millisecond rows must keep their write order.
+    where.push('(timestamp, rowid) < (?, (SELECT rowid FROM agent_log WHERE id = ?))');
     params.push(o.before.timestamp, o.before.id);
   }
   if (o.agentId) {
     where.push('agent_id = ?');
     params.push(o.agentId);
   }
-  const sql = `SELECT * FROM agent_log ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY timestamp DESC, id DESC LIMIT ?`;
+  if (o.targetId) {
+    where.push('target_id = ?');
+    params.push(o.targetId);
+  }
+  const sql = `SELECT * FROM agent_log ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY timestamp DESC, rowid DESC LIMIT ?`;
   params.push(o.limit ?? ACTIVITY_FEED_DEFAULT_LIMIT);
   return AgentLogSchema.array().parse(db.prepare(sql).all(...params));
 }

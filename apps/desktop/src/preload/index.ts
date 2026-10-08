@@ -15,6 +15,13 @@ const api: Api = {
     retry: () => ipcRenderer.invoke(CH.projectRetry),
   },
   db: { getAll: () => ipcRenderer.invoke(CH.getAll) },
+  tasks: {
+    transition: (req) => ipcRenderer.invoke(CH.taskTransition, req),
+    update: (req) => ipcRenderer.invoke(CH.taskUpdate, req),
+    create: (req) => ipcRenderer.invoke(CH.taskCreate, req),
+    history: (taskId) => ipcRenderer.invoke(CH.taskHistory, taskId),
+    contextMd: (taskId) => ipcRenderer.invoke(CH.taskContext, taskId),
+  },
   onDbChanged: (cb) => subscribe<undefined>(CH.dbChanged, () => cb()),
   onDbStatus: (cb) => subscribe<SyncStatus>(CH.dbStatus, cb),
 };

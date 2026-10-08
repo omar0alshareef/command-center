@@ -4,6 +4,7 @@ import { StatusBar } from './components/shell/StatusBar';
 import { TabBar } from './components/shell/TabBar';
 import { TitleBar } from './components/shell/TitleBar';
 import { useHotkeys } from './components/shell/useHotkeys';
+import { TaskDetailModal } from './components/task/TaskDetailModal';
 import { Button } from './components/ui/button';
 import { ToastHost } from './components/ui/feedback';
 import { FatalError, ViewSkeleton, Welcome } from './screens';
@@ -72,6 +73,7 @@ export function App() {
             )}
           </main>
           <StatusBar />
+          <TaskDetailModal />
           <ToastHost />
         </div>
       </MotionConfig>
