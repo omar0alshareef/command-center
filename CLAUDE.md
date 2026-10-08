@@ -26,3 +26,6 @@ A reviewer (Claude in Cowork) checks each milestone. After finishing milestone M
    - `VERDICT: APPROVED`: start the next milestone in ROADMAP order.
    - `VERDICT: CHANGES_REQUESTED`: fix every listed item, rerun the checks, rewrite the handoff, delete nothing from `.supervisor/`, then call `await-approval` again. If a stale verdict file exists from the previous round, use `node scripts/await-approval.mjs Mx` only after the reviewer has replaced it (the reviewer removes/overwrites it when re-reviewing; if you see the same notes again immediately, wait 60s and retry).
 3. Never write verdict files yourself. After M12 is approved, stop and report.
+
+## Stop flag
+If `.supervisor/STOP` exists, or the verdict notes say "STOP", finish the current milestone, write its handoff, wait for the verdict, then do NOT start the next milestone. Report to the user and end. The user removes `.supervisor/STOP` (or says "continue") to resume.
