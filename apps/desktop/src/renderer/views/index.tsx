@@ -2,13 +2,13 @@ import type { ReactNode } from 'react';
 import type { TrackerState } from '@command-center/core';
 import { HydrationEmptyState } from '../components/HydrationEmptyState';
 import { StatusDot } from '../components/ui/badges';
-import { completedThisWeek } from '../lib/derive';
 import type { TabId } from '../store';
 import { SwimLane } from './swim-lane/SwimLane';
+import { Calendar } from './calendar/Calendar';
 import { AgentHub } from './agent-hub/AgentHub';
 import { TaskBoard } from './task-board/TaskBoard';
 
-// Placeholders show real counts until each view lands (M7 Calendar, M8 Terminal).
+// Placeholders show real counts until each view lands (M8 Terminal).
 
 interface Stat {
   label: string;
@@ -54,23 +54,11 @@ function Placeholder({
   );
 }
 
-const noMilestones = (t: TrackerState) => t.milestones.length === 0;
-
 const VIEWS: Record<TabId, (t: TrackerState) => ReactNode> = {
   'swim-lane': (t) => <SwimLane tracker={t} />,
   'task-board': (t) => <TaskBoard tracker={t} />,
   'agent-hub': (t) => <AgentHub tracker={t} />,
-  calendar: (t) => (
-    <Placeholder
-      title="Calendar"
-      note="Weekly completion history arrives in M7."
-      empty={noMilestones(t)}
-      stats={[
-        { label: 'Done this week', value: completedThisWeek(t.subtasks), color: 'var(--success)' },
-        { label: 'Done total', value: t.subtasks.filter((s) => s.status === 'done').length },
-      ]}
-    />
-  ),
+  calendar: (t) => <Calendar tracker={t} />,
   terminal: () => (
     <Placeholder title="Terminal" note="Embedded terminal arrives in M8." stats={[]} />
   ),

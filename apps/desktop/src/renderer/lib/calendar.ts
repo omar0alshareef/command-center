@@ -1,0 +1,82 @@
+import type { Task } from '@command-center/core';
+
+// Calendar math. Completion times are stored in UTC; every day boundary here is the viewer's local midnight.
+// Weeks start on Monday (UI/UX §6.4; a setting can change it later).
+
+const pad = (n: number) => String(n).padStart(2, '0');
+export const dayKey = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** Local midnight `n` days from `d` (calendar arithmetic, safe across DST changes). */
+export const addDays = (d: Date, n: number): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+
+export const mondayOf = (d: Date): Date => addDays(d, -((d.getDay() + 6) % 7));
+
+/** Parse `YYYY-MM-DD` as a local date, or null if it is not a real date. */
+export function parseDayKey(s: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return dayKey(d) === s ? d : null;
+}
+
+/** ISO-8601 week number (Monday start; week 1 contains the first Thursday). */
+export function isoWeek(d: Date): number {
+  const thursday = addDays(mondayOf(d), 3);
+  const jan1 = new Date(thursday.getFullYear(), 0, 1);
+  const days = Math.round((thursday.getTime() - jan1.getTime()) / 86_400_000);
+  return Math.floor(days / 7) + 1;
+}
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const monthDay = (d: Date): string => `${MON[d.getMonth()]} ${d.getDate()}`;
+
+export interface CalendarDay {
+  date: Date;
+  key: string;
+  dow: (typeof DOW)[number];
+  isToday: boolean;
+  isWeekend: boolean;
+  tasks: Task[];
+}
+
+export interface CalendarWeek {
+  monday: Date;
+  sunday: Date;
+  week: number;
+  label: string;
+  total: number;
+  days: CalendarDay[];
+}
+
+/** Seven Monday-to-Sunday columns holding the done tasks completed on each local day, earliest first. */
+export function buildWeek(tasks: readonly Task[], anchor: Date, now = new Date()): CalendarWeek {
+  const monday = mondayOf(anchor);
+  const today = dayKey(now);
+  const days: CalendarDay[] = DOW.map((dow, i) => {
+    const date = addDays(monday, i);
+    return { date, key: dayKey(date), dow, isToday: dayKey(date) === today, isWeekend: i >= 5, tasks: [] };
+  });
+  const byKey = new Map(days.map((d) => [d.key, d]));
+  for (const t of tasks) {
+    if (t.status !== 'done' || !t.completed_at) continue;
+    const when = new Date(t.completed_at);
+    if (Number.isNaN(when.getTime())) continue;
+    byKey.get(dayKey(when))?.tasks.push(t);
+  }
+  for (const d of days) d.tasks.sort((a, b) => Date.parse(a.completed_at ?? '') - Date.parse(b.completed_at ?? '') || a.id.localeCompare(b.id));
+  const sunday = addDays(monday, 6);
+  return {
+    monday,
+    sunday,
+    week: isoWeek(monday),
+    label: `Week ${isoWeek(monday)} · ${monthDay(monday)} – ${monthDay(sunday)}`,
+    total: days.reduce((n, d) => n + d.tasks.length, 0),
+    days,
+  };
+}
+
+export const clock = (iso: string): string => {
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};

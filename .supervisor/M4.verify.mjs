@@ -279,7 +279,10 @@ if (MODE === 'empty') {
     await waitColumn(id, 'in_progress');
     check('L11 reject_task sends it back to In Progress', task(id).status === 'in_progress');
     await mcp.call('complete_task', { task_id: id, summary: 'keyboard support added' });
-    await mcp.call('approve_task', { task_id: id });
+    // M5: the submitting agent cannot approve its own work; a different agent session reviews it.
+    const reviewer = await connectMcp('reviewer-agent');
+    await reviewer.call('approve_task', { task_id: id });
+    await reviewer.client.close();
     await waitColumn(id, 'done');
     check('L12 approve_task completes it: start→complete→reject→complete→approve all moved the card live', task(id).status === 'done');
   });
@@ -291,7 +294,7 @@ if (MODE === 'empty') {
     await other.call('log_action', { action: 'hello' });
     check('A1 a new client is auto-registered as its own agent', q(`SELECT type FROM agents WHERE id='brand-new-agent'`)[0]?.type === 'orchestrator' && q(`SELECT COUNT(*) n FROM agents`)[0].n === before + 1);
     await ev(`[...document.querySelectorAll('[role=tab]')].find(t => t.textContent.includes('Agent Hub')).click()`);
-    await waitDom(`/AGENTS\\s*\\n?\\s*${before - 2 + 1}\\b/.test(document.querySelector('main').innerText)`, 6000);
+    await waitDom(`!!document.querySelector('[data-agent-row="brand-new-agent"]')`, 6000); // M6: the hub lists agents in its tree
     check('A2 the Agent Hub count updates without a refresh', true);
     await ev(`[...document.querySelectorAll('[role=tab]')].find(t => t.textContent.includes('Task Board')).click()`);
     await other.client.close();
