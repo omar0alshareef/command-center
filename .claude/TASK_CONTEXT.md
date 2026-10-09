@@ -1,65 +1,55 @@
-# TASK-001: Test task
+# TASK-002: delete File
 
-_WEEK 41, Phase: none, Progress: 0%, Schedule: on_track, Blocked: 0_
+_WEEK 41, Phase: none, Progress: 50%, Schedule: on_track, Blocked: 0_
 
 ## Task description
-Created as a test of the Command Center tools.
+delete File
 
-**Goal:** Complete TASK-001 ("Test task") in `command-center/`. The task has no recorded requirements, acceptance criteria, context files or constraints. Do not invent a feature. Find out what is actually required first. If nothing is, report that and stop.
+**Goal**
+
+TASK-002 says "delete File" and names no file, and it has no acceptance criteria. Research found no target. Deleting is irreversible, so first pin down the exact file with the operator. Delete only after they confirm the exact path.
 
 **Steps, in order**
-1. Call `get_task_context` for TASK-001, then `get_task_history` and `get_lessons_learned` with `task_id` TASK-001. If `get_task_context` is denied again, use `get_task_summary` instead.
-2. If graphify-out/graph.json exists, run `graphify query "<question>"` before grepping raw source, as the root CLAUDE.md requires. Read `command-center/CLAUDE.md`, then the sections of `COMMAND_CENTER_BLUEPRINT.md`, `UI_UX_SPEC.md` and `ROADMAP.md` that the task touches. Check `PROGRESS.md` for the current milestone.
-3. Decide whether the task has real work:
-   - If the task, its notes or its history give a concrete change, continue with step 4.
-   - If they give none, call `block_task` on TASK-001 with the reason "No requirements or acceptance criteria recorded; operator must specify." Add a `log_action` entry saying the same. Stop here and make no code changes.
-4. Call `start_task` for TASK-001. State the goal and the files you will change before editing.
-5. Make the smallest change that meets the stated requirement. Put logic in `packages/core`, and keep the MCP server, CLI and desktop app as thin wrappers.
-6. Add or update one focused test for any non-trivial logic.
-7. Run `tsc --noEmit` (strict), lint and the tests. Run `npm run dev` only if the change touches the desktop app. Report the real output.
-8. Run `graphify update .` after code changes.
-9. Log progress with `log_action` as you go. Call `complete_task` with a summary of what changed and the commands you ran. Do not approve your own work.
 
-**Files you may touch** (only the ones the requirement actually needs)
-- `packages/core/src/tasks.ts`: `TaskPatchSchema` (zod, `.strict()`), `applyPatch`
-- `packages/core/src/state-machine.ts`: `transition()`
-- `packages/core/src/types.ts`
-- `packages/core/src/queries/index.ts`
-- `packages/core/src/migrations/`: add a new numbered file after 004 and register it in `index.ts` only if the schema must change
-- `packages/mcp-server/src/tools/task.ts`, `packages/mcp-server/src/tools/shared.ts`, `packages/mcp-server/src/results.ts`
-- `packages/cli/src/commands.ts`
-- `PROGRESS.md`: record any ambiguity you resolved
+1. Run `get_task_context` and `get_task_history` for TASK-002. Check for a path, notes, or a rejection reason that names the file.
+2. Run `start_task` for TASK-002.
+3. If the task names an unambiguous path, go to step 6. Otherwise resolve the ambiguity:
+   - "Desktop" could mean `C:\Users\hasan\Desktop`, the `C:\Users\hasan\Desktop\Claude` project folder, or Google Drive.
+   - "Last file created" could mean newest by creation time or by modification time, and folders may or may not count.
+4. List candidates, sorted by creation time, newest first. For a local path, run this in PowerShell: `Get-ChildItem -Force <dir> | Sort-Object CreationTime -Descending | Select-Object -First 10 Name,CreationTime,LastWriteTime,Length`. For Drive, use `search_files` with `createdTime`, and use `mcp__claude_ai_Google_Drive__get_file_metadata` for details. If read access is denied, say so and ask the operator for the listing or path.
+5. Call `block_task` with the reason "needs the exact path confirmed by the operator". Present the top candidates with their creation and modification times, and ask which one to delete. Stop until the operator answers. Do not guess.
+6. After the operator confirms, inspect the target (name, size, timestamps, whether it is a file or folder) and show it to them. Then delete only that path.
+   - Run `unblock_task` first.
+   - Local files: prefer the Recycle Bin over permanent removal. Use `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile('<path>','OnlyErrorDialogs','SendToRecycleBin')`.
+   - Drive files: use `trash_file`, which is recoverable.
+7. Verify the file is gone with `Test-Path`, or by searching Drive. Run `log_action` with the path and the method used.
+8. Run `complete_task` with a summary of the exact path, the confirmation received, how it was deleted, and the verification result.
+
+**Files to touch**
+
+Only the single confirmed target. Create or edit no other files.
 
 **Constraints**
-- Never write task status directly. Use `transition()` (todo → in_progress → review → done, plus blocked).
-- Validate input with zod. Throw typed errors from `errors.ts`, for example `TaskNotFoundError`.
-- Wrap MCP handlers in `guard(() => ok(...))`. Resolve the actor with `session.resolveActor(agent_id)`. Log every write with `logAction`.
-- No raw SQL over IPC. Keep contextIsolation on and nodeIntegration off. Render agent text as text only.
-- Windows is the primary target, but keep macOS and Linux working.
-- The blueprint wins on data and API conflicts. The UI spec wins on UI conflicts. Where an ambiguity remains, pick the simplest option and record it in `PROGRESS.md`.
-- Do not add dependencies, abstractions or scaffolding the task does not need.
-- Commit with `feat(Mx): ...` only if the work belongs to a roadmap milestone. Never write supervisor verdict files.
+
+- Never delete without the operator's explicit confirmation of the exact path.
+- Do not delete, write, or edit anything in `.supervisor/`. That includes `M12.verdict.json` and `STOP`, which belong to the reviewer.
+- Do not delete `packages/core/test/delete-task.test.ts`. It is in-progress work alongside the modified `packages/core/src/tasks.ts` and the MCP task tools.
+- Do not touch tracked repo files with uncommitted changes (`README.md`, `packages/core/src/tasks.ts`, `packages/mcp-server/**`).
+- Do not use wildcards or recursive deletes. Delete one named file.
+- Do not delete a folder unless the operator says folders count.
+- You cannot approve your own work. After `complete_task`, the operator reviews it.
 
 **Lessons from past rejections**
-- None recorded for similar tasks. Re-check `get_lessons_learned` for TASK-001 in step 1 and add each lesson found there to this list as a rule.
-- Do not guess scope when the task is empty. Block it or ask the operator.
-- Do not claim checks passed without showing the actual command output.
+
+- None recorded. Do not assume the target. If a rejection later appears in the task history, treat its reason as a rule for this task.
 
 ## Acceptance criteria
 _None._
 
 ## Context files
-- command-center/packages/core/src/tasks.ts
-- command-center/packages/core/src/state-machine.ts
-- command-center/packages/core/src/types.ts
-- command-center/packages/core/src/queries/index.ts
-- command-center/packages/core/src/migrations/
-- command-center/packages/mcp-server/src/tools/task.ts
-- command-center/packages/mcp-server/src/tools/shared.ts
-- command-center/packages/mcp-server/src/results.ts
-- command-center/packages/cli/src/commands.ts
-- command-center/CLAUDE.md
-- get_task_context
+- command-center/
+- .supervisor/
+- packages/core/test/delete-task.test.ts
 
 ## Reference docs
 _None._
