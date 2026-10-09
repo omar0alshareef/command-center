@@ -1,4 +1,4 @@
-/* global document */
+/* global document, getComputedStyle */
 // Playwright-for-Electron smoke test: launch, hydrate through the bundled CLI, switch tabs, drag a card,
 // open the task modal, palette, settings, shortcuts, spawn a terminal.
 // usage (from apps/desktop, after `npm run build` and `npm run bundles`):
