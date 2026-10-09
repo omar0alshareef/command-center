@@ -38,7 +38,7 @@ export function KanbanColumn({
       aria-label={`${meta.label}, ${count} tasks`}
       className="flex min-h-0 min-w-[216px] flex-1 flex-col rounded-lg border border-border bg-surface"
     >
-      <header className="sticky top-0 flex h-9 shrink-0 items-center gap-2 px-3">
+      <header className="sticky top-0 z-10 flex h-9 shrink-0 items-center gap-2 px-3 focus-within:z-20 hover:z-20">
         <StatusDot color={meta.color} />
         <h2 className="text-[11px] font-semibold tracking-[0.06em] uppercase">{meta.label}</h2>
         <span

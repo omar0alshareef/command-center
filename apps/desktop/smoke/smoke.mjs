@@ -1,3 +1,4 @@
+/* global document */
 // Playwright-for-Electron smoke test: launch, hydrate through the bundled CLI, switch tabs, drag a card,
 // open the task modal, palette, settings, shortcuts, spawn a terminal.
 // usage (from apps/desktop, after `npm run build` and `npm run bundles`):
@@ -89,6 +90,24 @@ await step('S3 tabs switch with Ctrl+1..5', async () => {
     ok &&= sel.includes(names[i]);
   }
   check('S3 each Ctrl+n selects the matching tab', ok);
+});
+
+await step('S3b the "Add task" tooltip paints above the cards', async () => {
+  await page.keyboard.press('Control+2');
+  await page.locator('[data-column="todo"] [data-task-id]').first().waitFor();
+  await page.locator('section[aria-label^="TO DO"] button[aria-label="Add task"]').hover();
+  const tip = page.locator('[role=tooltip]');
+  await tip.waitFor({ timeout: 3000 });
+  // Whatever is on top at the tooltip's centre must be the tooltip itself, not a card behind it.
+  const onTop = await tip.evaluate((el) => {
+    // The tooltip is pointer-events:none, which hit testing skips: turn it on just for this probe.
+    el.style.pointerEvents = 'auto';
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return Boolean(top && el.contains(top));
+  });
+  check('S3b tooltip is the top element at its own position', onTop);
+  await page.mouse.move(5, 5);
 });
 
 await step('S4 drag a card To Do -> In Progress', async () => {
