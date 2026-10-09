@@ -20,6 +20,7 @@ export const CH = {
   taskTransition: 'tasks:transition',
   taskUpdate: 'tasks:update',
   taskCreate: 'tasks:create',
+  taskDelete: 'tasks:delete',
   taskHistory: 'tasks:history',
   taskContext: 'tasks:context',
   milestoneNote: 'milestones:note',
@@ -113,6 +114,7 @@ export interface Api {
     transition(req: TransitionRequest): Promise<Result<Task>>;
     update(req: { taskId: string; patch: TaskPatch }): Promise<Result<Task>>;
     create(req: NewTask): Promise<Result<Task>>;
+    delete(taskId: string): Promise<Result<Task>>;
     history(taskId: string): Promise<Result<TaskHistory>>;
     /** Rendered TASK_CONTEXT.md for the task, or null if it does not exist. */
     contextMd(taskId: string): Promise<Result<string | null>>;

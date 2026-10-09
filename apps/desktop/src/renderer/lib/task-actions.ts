@@ -58,3 +58,15 @@ export async function createTask(milestoneId: string, label: string): Promise<Ta
   void useApp.getState().refresh(); // the new row is not in the store yet
   return res.value;
 }
+
+/** Permanently delete a task. Resolves true on success; the open modal closes once the refresh drops the row. */
+export async function deleteTask(taskId: string): Promise<boolean> {
+  const res = await window.api.tasks.delete(taskId);
+  if (!res.ok) {
+    toast.error(res.error.message);
+    return false;
+  }
+  toast.info(`${taskId} deleted`);
+  await useApp.getState().refresh();
+  return true;
+}

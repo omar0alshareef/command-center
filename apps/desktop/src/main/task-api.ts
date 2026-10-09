@@ -2,6 +2,7 @@ import {
   buildTaskContextMd,
   CoreError,
   createTask,
+  deleteTask,
   getTaskHistory,
   PRIORITIES,
   TRANSITION_RULES,
@@ -77,6 +78,8 @@ export function taskApi(getDb: () => Db) {
       }),
     create: (req: unknown): Result<Task> =>
       run(() => createTask(getDb(), NewTaskSchema.parse(req), ACTOR)),
+    delete: (taskId: unknown): Result<Task> =>
+      run(() => deleteTask(getDb(), z.string().min(1).parse(taskId), ACTOR)),
     history: (taskId: unknown): Result<TaskHistory> =>
       run(() => getTaskHistory(getDb(), z.string().min(1).parse(taskId))),
     contextMd: (taskId: unknown): Result<string | null> =>

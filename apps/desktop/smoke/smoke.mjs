@@ -123,6 +123,27 @@ await step('S5 clicking a card opens the task modal; Esc closes it', async () =>
   check('S5 modal opens and closes', true);
 });
 
+await step('S5b Delete button removes a task after confirming', async () => {
+  const before = await page.locator('[data-task-id]').count();
+  const card = page.locator('[data-task-id]').first();
+  const id = await card.getAttribute('data-task-id');
+  await card.click();
+  await page.waitForSelector('dialog[open]', { timeout: 4000 });
+  await page.locator('dialog[open] button:has-text("Delete")').first().click();
+  // Cancel first: nothing is deleted.
+  await page.locator('dialog[open] button:has-text("Cancel")').last().click();
+  check('S5b cancel keeps the task', (await page.locator('[data-task-id]').count()) === before);
+  await page.locator('dialog[open] button:has-text("Delete")').first().click();
+  await page.locator('dialog[open] button:has-text("Delete")').last().click();
+  await page.waitForSelector(`[data-task-id="${id}"]`, { state: 'detached', timeout: 5000 });
+  await page.waitForSelector('dialog[open]', { state: 'detached', timeout: 4000 });
+  check(
+    'S5b confirmed delete removes the card and closes the modal',
+    (await page.locator('[data-task-id]').count()) === before - 1,
+    id,
+  );
+});
+
 await step('S6 palette, settings and shortcut sheet', async () => {
   await page.keyboard.press('Control+k');
   await page.waitForSelector('dialog[open] [role=combobox]');

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Task, TaskPatch, TaskStatus } from '@command-center/core';
 import { cn } from '../../lib/cn';
 import { useAgents, useTasksById } from '../../lib/hooks';
-import { saveTaskFields, transitionTask } from '../../lib/task-actions';
+import { deleteTask, saveTaskFields, transitionTask } from '../../lib/task-actions';
 import { typeInTerminal } from '../../lib/terminal-actions';
 import { STATUS_NAME, STATUS_ORDER } from '../../lib/status';
 import { useApp } from '../../store';
@@ -299,6 +299,7 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
   const [tab, setTab] = useState<TabKey>('details');
   const [saved, setSaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!saved) return;
@@ -424,6 +425,9 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
         <Button variant="ghost" onClick={() => setConfirmReset(true)}>
           Reset
         </Button>
+        <Button variant="ghost" className="text-danger" onClick={() => setConfirmDelete(true)}>
+          Delete
+        </Button>
         <span className="flex-1" />
         {task.status === 'todo' ? (
           <>
@@ -459,6 +463,17 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
       </footer>
 
       {flow.dialogs}
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Delete ${task.id}?`}
+        body="The task and its lessons are permanently removed. This cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          setConfirmDelete(false);
+          void deleteTask(task.id);
+        }}
+      />
       <ConfirmDialog
         open={confirmReset}
         title={`Reset ${task.id}?`}

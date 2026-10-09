@@ -36,7 +36,7 @@ afterAll(() => {
 });
 
 describe.each(launches)('over real stdio: %s', (_name, args) => {
-  it('lists 25 tools and runs start -> complete -> reject -> complete -> approve', async () => {
+  it('lists 26 tools and runs start -> complete -> reject -> complete -> approve', async () => {
     const root = freshRoot(true);
     const open = async (name: string) => {
       const c = new Client({ name, version: '1.0.0' });
@@ -62,7 +62,7 @@ describe.each(launches)('over real stdio: %s', (_name, args) => {
     const { client, call } = await open('stdio-client');
     const { client: reviewer, call: reviewCall } = await open('reviewer-client');
     try {
-      expect((await client.listTools()).tools).toHaveLength(25);
+      expect((await client.listTools()).tools).toHaveLength(26);
 
       const list = JSON.parse((await call('list_tasks', { status: 'todo', limit: 1 })).text) as {
         tasks: { id: string }[];

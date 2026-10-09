@@ -53,6 +53,7 @@ export function registerIpc(project: ProjectService): void {
   ipcMain.handle(CH.taskTransition, (_e, req: unknown) => tasks.transition(req));
   ipcMain.handle(CH.taskUpdate, (_e, req: unknown) => tasks.update(req));
   ipcMain.handle(CH.taskCreate, (_e, req: unknown) => tasks.create(req));
+  ipcMain.handle(CH.taskDelete, (_e, taskId: unknown) => tasks.delete(taskId));
   ipcMain.handle(CH.taskHistory, (_e, id: unknown) => tasks.history(id));
   ipcMain.handle(CH.taskContext, (_e, id: unknown) => tasks.contextMd(id));
 

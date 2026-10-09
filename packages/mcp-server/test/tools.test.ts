@@ -13,12 +13,13 @@ const EXPECTED_TOOLS = [
   'list_agents',
   'get_activity_feed',
   'get_lessons_learned',
-  // task write (10)
+  // task write (11)
   'start_task',
   'complete_task',
   'approve_task',
   'reject_task',
   'reset_task',
+  'delete_task',
   'block_task',
   'unblock_task',
   'update_task',
@@ -50,11 +51,11 @@ const todoId = () =>
   ).id;
 
 describe('tool surface', () => {
-  it('exposes exactly the 25 tools, each described, each parameter described', async () => {
+  it('exposes exactly the 26 tools, each described, each parameter described', async () => {
     const { tools } = await h.client.listTools();
     const undocumented: string[] = [];
     expect(tools.map((t) => t.name).sort()).toEqual([...EXPECTED_TOOLS].sort());
-    expect(tools).toHaveLength(25);
+    expect(tools).toHaveLength(26);
     for (const t of tools) {
       expect(t.description?.length ?? 0, `${t.name} description`).toBeGreaterThan(40);
       const props = (t.inputSchema.properties ?? {}) as Record<string, { description?: string }>;
@@ -285,6 +286,12 @@ describe('task lifecycle through the tools', () => {
       status: 'in_progress',
     });
     expect((await h.call('reset_task', { task_id: id })).json()).toMatchObject({ status: 'todo' });
+  });
+
+  it('delete_task removes the task', async () => {
+    const id = todoId();
+    expect((await h.call('delete_task', { task_id: id })).json()).toMatchObject({ id });
+    expect(h.db.prepare('SELECT 1 FROM subtasks WHERE id = ?').get(id)).toBeUndefined();
   });
 
   it('log_action, enrich_task and update_task', async () => {

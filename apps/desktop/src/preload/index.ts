@@ -19,6 +19,7 @@ const api: Api = {
     transition: (req) => ipcRenderer.invoke(CH.taskTransition, req),
     update: (req) => ipcRenderer.invoke(CH.taskUpdate, req),
     create: (req) => ipcRenderer.invoke(CH.taskCreate, req),
+    delete: (taskId) => ipcRenderer.invoke(CH.taskDelete, taskId),
     history: (taskId) => ipcRenderer.invoke(CH.taskHistory, taskId),
     contextMd: (taskId) => ipcRenderer.invoke(CH.taskContext, taskId),
   },

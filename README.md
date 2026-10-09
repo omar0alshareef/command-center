@@ -56,12 +56,12 @@ Agents drive the board through the `command-center` MCP server (stdio). The app'
 
 The server registers the calling agent automatically on its first call, named after the client (`claude-code` for Claude Code). Override with `COMMAND_CENTER_AGENT_ID`, `COMMAND_CENTER_AGENT_NAME`, `COMMAND_CENTER_AGENT_TYPE` (`orchestrator` | `sub-agent` | `external`) and `COMMAND_CENTER_AGENT_MODEL` in the config's `env`. A tool call can never act as `operator`, `system` or a human agent, and can act only as the session agent or sub-agents registered under it (`register_agent` it, then pass its id as `agent_id`). Review is independent: an agent cannot approve work submitted by itself or by its own parent or sub-agents; the operator or an unrelated agent must.
 
-### The 25 tools
+### The 26 tools
 
 | Group | Tools |
 |---|---|
 | Read (9) | `get_task_context` (≤ ~8K tokens), `get_task_summary` (≤ ~500), `get_project_status`, `get_milestone_overview`, `list_tasks`, `get_task_history`, `list_agents`, `get_activity_feed`, `get_lessons_learned` |
-| Task (10) | `start_task`, `complete_task`, `approve_task`, `reject_task`, `reset_task`, `block_task`, `unblock_task`, `update_task`, `log_action`, `enrich_task` |
+| Task (11) | `start_task`, `complete_task`, `approve_task`, `reject_task`, `reset_task`, `delete_task`, `block_task`, `unblock_task`, `update_task`, `log_action`, `enrich_task` |
 | Milestone (5) | `add_milestone_note`, `set_milestone_dates`, `update_drift`, `create_milestone`, `add_milestone_task` |
 | Agent (1) | `register_agent` |
 

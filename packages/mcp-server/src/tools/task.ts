@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   TaskNotFoundError,
+  deleteTask,
   enrichTask,
   getLessonsForTask,
   getTask,
@@ -115,6 +116,15 @@ export function registerTaskTools(server: McpServer, { db, session }: Ctx): void
     'DESTRUCTIVE: clear a task back to todo (status, completion, blockers and run state). Use only to redo a task from scratch.',
     {},
     (a, actor) => transition(db, tid(a), 'reset', { actor }),
+    { ...WRITES, destructiveHint: true },
+  );
+
+  run(
+    'delete_task',
+    'Delete task',
+    'DESTRUCTIVE and irreversible: permanently delete a task and its lessons. Its past activity-log entries are kept. Use only when the operator asks.',
+    {},
+    (a, actor) => deleteTask(db, tid(a), actor),
     { ...WRITES, destructiveHint: true },
   );
 

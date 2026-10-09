@@ -185,6 +185,25 @@ export function createTask(db: Db, input: NewTask, actor = 'operator'): Task {
   });
 }
 
+/** Permanently delete a task and its lessons. Keeps its log entries and logs a `task_deleted` entry. */
+export function deleteTask(db: Db, taskId: string, actor = 'operator'): Task {
+  return write(db, () => {
+    const task = getTask(db, taskId);
+    if (!task) throw new TaskNotFoundError(taskId);
+    db.prepare('DELETE FROM lessons_learned WHERE subtask_id = ?').run(taskId);
+    db.prepare('DELETE FROM subtasks WHERE id = ?').run(taskId);
+    logAction(db, {
+      agentId: actor,
+      action: 'task_deleted',
+      targetType: 'subtask',
+      targetId: taskId,
+      description: `${taskId}: deleted — ${task.label}`,
+      tags: ['delete'],
+    });
+    return task;
+  });
+}
+
 export interface TaskHistory {
   log: AgentLogEntry[];
   lessons: Lesson[];

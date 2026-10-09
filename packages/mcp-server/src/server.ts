@@ -26,7 +26,7 @@ export interface ServerOptions {
   now?: () => Date;
 }
 
-/** Build the MCP server with all 25 tools. Transport-agnostic so tests can use an in-memory pair. */
+/** Build the MCP server with all 26 tools. Transport-agnostic so tests can use an in-memory pair. */
 export function createServer({
   db,
   env = process.env,
