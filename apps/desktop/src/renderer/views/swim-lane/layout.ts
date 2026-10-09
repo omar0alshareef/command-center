@@ -84,6 +84,14 @@ export const scrollLeftToPlace = (
   fraction = 0.3,
 ): number => Math.max(0, pos * weekW - viewW * fraction);
 
+/**
+ * Week columns needed so the grid never ends before the screen does or before NOW (plus two weeks of
+ * look-ahead), however old the plan's target date is.
+ */
+export function extraWeeks(pos: number, weekW: number, viewW: number): number {
+  return Math.max(Math.ceil(pos) + 2, Math.ceil(viewW / weekW) + 1);
+}
+
 /** Number of week columns to draw: covers the plan, every milestone and phase, plus one spare week. */
 export function totalWeeks(
   startIso: string,

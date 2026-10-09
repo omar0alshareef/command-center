@@ -81,10 +81,14 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
 
   const today = useToday();
   const [weekW, setWeekW] = useState(readZoom);
-  const model = useMemo(() => buildSwimModel(tracker, weekW, today), [tracker, weekW, today]);
+  const [view, setView] = useState({ left: 0, width: 1200 });
+  const viewW = view.width;
+  const model = useMemo(
+    () => buildSwimModel(tracker, weekW, today, viewW),
+    [tracker, weekW, today, viewW],
+  );
 
   const scroller = useRef<HTMLDivElement>(null);
-  const [view, setView] = useState({ left: 0, width: 1200 });
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [tip, setTip] = useState<{ id: string; x: number; y: number } | null>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -129,12 +133,7 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
     if (el) el.scrollLeft = scrollLeftToPlace(model.nowPos, weekW, viewWidth());
   }, [model.nowPos, weekW]);
 
-  const initialised = useRef(false);
-  useLayoutEffect(() => {
-    if (initialised.current || model.nodes.length === 0) return;
-    initialised.current = true;
-    placeNow();
-  }, [model.nodes.length, placeNow]);
+  // The canvas opens at the left edge (the plan reads from its start); "Today" / T jumps to NOW.
 
   const pendingZoom = useRef<{ old: number; next: number } | null>(null);
   const requestZoom = useCallback(

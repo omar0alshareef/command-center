@@ -23,6 +23,7 @@ import {
   plannedCenter,
   scrollLeftAfterZoom,
   scrollLeftToPlace,
+  extraWeeks,
   totalWeeks,
   visibleXRange,
   weekPos,
@@ -359,5 +360,11 @@ describe('buildSwimModel on the seeded project', () => {
     expect(empty.nodes).toEqual([]);
     expect(empty.bodyH).toBe(KEY_ROW_H);
     expect(empty.weeks.length).toBeGreaterThanOrEqual(13);
+  });
+
+  it('extraWeeks keeps the grid past NOW and past the right edge of the screen', () => {
+    expect(extraWeeks(40.5, 60, 1000)).toBe(43); // NOW week 41 + 2
+    expect(extraWeeks(2, 60, 1500)).toBe(26); // fills 1500px at 60px/week, +1
+    expect(extraWeeks(-3, 100, 0)).toBe(1);
   });
 });

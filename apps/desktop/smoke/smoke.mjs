@@ -51,7 +51,8 @@ await step('S1 window shows the app shell', async () => {
 
 await step('S2 hydrate through the bundled CLI fills the board live', async () => {
   const plan = {
-    project: { name: 'Smoke', start_date: '2026-01-05', target_date: '2026-12-31' },
+    // Target long before today on purpose: NOW then falls past the plan's own end (the Swim Lane must cope).
+    project: { name: 'Smoke', start_date: '2026-01-05', target_date: '2026-02-01' },
     milestones: [
       {
         id: 'M1',
@@ -80,6 +81,41 @@ await step('S2 hydrate through the bundled CLI fills the board live', async () =
     (await page.locator('[data-task-id]').count()) === 2,
   );
 });
+
+await step(
+  'S2c the Swim Lane opens at the left and its grid reaches NOW and the screen edge',
+  async () => {
+    await page.keyboard.press('Control+1');
+    await page.waitForSelector('[data-now-x]', { state: 'attached', timeout: 5000 });
+    const m = await page.evaluate(() => {
+      const section = document.querySelector('section[aria-label="Swim Lane"]');
+      const scroller = [...section.querySelectorAll('*')].find(
+        (e) => getComputedStyle(e).overflowX === 'auto' && e.scrollWidth > e.clientWidth,
+      );
+      const nowX = Number(document.querySelector('[data-now-x]').getAttribute('data-now-x'));
+      const labelW = 140;
+      return {
+        scrollLeft: scroller ? scroller.scrollLeft : -1,
+        // content (labels + week columns) vs what the scroller shows
+        scrollWidth: scroller ? scroller.scrollWidth : 0,
+        clientWidth: scroller ? scroller.clientWidth : 0,
+        nowX,
+        gridW: scroller ? scroller.scrollWidth - labelW : 0,
+      };
+    });
+    check('S2c opens scrolled to the left edge', m.scrollLeft === 0, JSON.stringify(m));
+    check(
+      'S2c the grid extends past the NOW marker',
+      m.gridW > m.nowX,
+      `nowX ${m.nowX}, grid ${m.gridW}`,
+    );
+    check(
+      'S2c the grid is at least as wide as the screen (nothing ends early)',
+      m.scrollWidth >= m.clientWidth,
+      `${m.scrollWidth} vs ${m.clientWidth}`,
+    );
+  },
+);
 
 await step('S3 tabs switch with Ctrl+1..5', async () => {
   const names = ['Swim Lane', 'Task Board', 'Agent Hub', 'Calendar', 'Terminal'];

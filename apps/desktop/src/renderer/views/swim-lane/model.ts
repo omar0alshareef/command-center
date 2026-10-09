@@ -13,6 +13,7 @@ import {
   nowPos,
   plannedCenter,
   posToX,
+  extraWeeks,
   totalWeeks,
   weekStartIso,
   type Edge,
@@ -82,7 +83,12 @@ export interface SwimModel {
 
 const byWeekThenId = (a: Milestone, b: Milestone) => a.week - b.week || a.id.localeCompare(b.id);
 
-export function buildSwimModel(tracker: TrackerState, weekW: number, now: Date): SwimModel {
+export function buildSwimModel(
+  tracker: TrackerState,
+  weekW: number,
+  now: Date,
+  viewW = 0,
+): SwimModel {
   const { project, phases } = tracker;
   const milestones = [...tracker.milestones].sort(byWeekThenId);
   const startIso = project.start_date;
@@ -96,7 +102,10 @@ export function buildSwimModel(tracker: TrackerState, weekW: number, now: Date):
   }
 
   const domains = [...new Set(milestones.map((m) => m.domain))];
-  const weeksN = totalWeeks(startIso, project.target_date, milestones, phases);
+  const weeksN = Math.max(
+    totalWeeks(startIso, project.target_date, milestones, phases),
+    extraWeeks(nowPos(todayIso, startIso), weekW, viewW),
+  );
 
   // Position + progress for every milestone, then lane/track layout.
   const base = milestones.map((m) => {
