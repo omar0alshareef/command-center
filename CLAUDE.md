@@ -5,15 +5,18 @@ Electron desktop app + MCP server + operator CLI for steering a project worked o
 ## Read first (in this order)
 1. `COMMAND_CENTER_BLUEPRINT.md` — architecture, schema, stack, APIs (wins on data/API conflicts)
 2. `UI_UX_SPEC.md` — visuals and interaction (wins on UI conflicts)
-3. `ROADMAP.md` — milestones M0–M12, decisions D1–D14 (apply these even where the blueprint differs)
+3. `ROADMAP.md` — milestones M0–M15, decisions D1–D40 (apply these even where the blueprint differs). M0–M12 are done and approved; M13, M14 (Slice 1 first) and M15 remain.
 
 ## Working rules
 - Build one milestone at a time, in order, starting at the first not-done milestone in `PROGRESS.md`.
+- Do not start M13 (or any later milestone) until the operator says "continue", even if a verdict or stop file would otherwise allow it.
 - At milestone start: state the goal and files to create/change. At the end: run the exit criteria, show results, update `PROGRESS.md`, commit (`feat(Mx): ...`), then follow the Supervisor handoff below instead of stopping.
 - Definition of Done: `tsc --noEmit` (strict) clean, lint clean, tests pass, `npm run dev` launches, exit criteria verified.
 - Ambiguity: choose the simplest option, record it in `PROGRESS.md`, proceed.
 - Target OS: Windows first (keep macOS/Linux working). Native modules (`node-pty`, `better-sqlite3`) need electron-rebuild; document Windows build-tool prerequisites.
 - Security: contextIsolation on, nodeIntegration off, strict CSP, no raw SQL over IPC, render agent text as text only.
+
+- `PROGRESS.md` is the project log. Record every change, decision, deviation and operator instruction there, dated, as it happens. The supervisor reads this file, and a new session relies on it to know where the project stands.
 
 ## Layout
 npm workspaces: `packages/core`, `packages/mcp-server`, `packages/cli`, `apps/desktop` (see ROADMAP §2).

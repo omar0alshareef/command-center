@@ -113,3 +113,19 @@
 - M12 packaging: electron-builder 26 with `npmRebuild: false` (node-pty and better-sqlite3 ship prebuilds), native modules in `asarUnpack`, `out/bundles/{mcp,cli}.mjs` copied by `apps/desktop/scripts/copy-bundles.mjs` (always rebuilt; `.mjs` because they are ESM). A packaged app launches the bundled MCP server and CLI with its own Electron (`ELECTRON_RUN_AS_NODE=1`), so no Node is needed; `McpLaunch` gained an optional `env`, which the Settings / Agent Hub command and JSON now include. Renderer-only libraries moved to devDependencies (Vite bundles them); `@command-center/core` is bundled too. The installer is unsigned. macOS dmg and Linux AppImage are configured but not built here.
 - M12 smoke tests use `playwright-core` (no browser download). `apps/desktop/smoke/smoke.mjs` hydrates the project through the bundled CLI, then drives the UI; `--exe` runs it against a packaged or installed app. `smoke/perf.mjs`: tabs render in 28-222 ms with 500 tasks and 5,000 log rows, board scroll averages 7.7 ms/frame (worst 42), 20 external writes settle in 974 ms with zero long tasks, so no memoization changes were needed.
 - M12 not done / not verified: a clean second machine, SmartScreen / code signing, macOS and Linux builds, the OS notification toast, the first-run card on screen (it hides once all four steps are done and the screenshots used a seeded project), the <1200px Agent Hub icon rail (the window minimum is 1200 px), hydrate with the real `claude` runner.
+
+## Update (2026-10-12)
+- Real Claude Code MCP client test: passed (confirmed by the operator). The `claude -p` ConPTY hang is still listed as open in the M12 verdict and is not covered by this note.
+- `.supervisor/STOP` removed by the operator. Supervisor stop is lifted; next milestone is M13 once the operator says "continue".
+
+## Project log
+
+Dated entries for every change, decision and operator instruction. Newest at the bottom.
+
+- 2026-10-12 · Roadmap. `ROADMAP.md` replaced with the version that adds M13 (Planning Workspace), M14 (Orchestrator & Multi-Provider Runners, Slice 1 = Claude Code model per agent comes first), M15 (Agent Library, project folders, project switcher, lessons upgrade), decisions D15–D40, and an updated kickoff. The previous file is kept as `old roadmap.md` in the repo root for reference. M0–M12 wording is unchanged.
+- 2026-10-12 · `command-center` roadmap addendum for M15 was merged into `ROADMAP.md` and removed from the Cowork project.
+- 2026-10-12 · Operator instruction: M13 starts only after the operator says "continue".
+- 2026-10-12 · Real Claude Code MCP client test passed (confirmed by the operator).
+- 2026-10-12 · `.supervisor/STOP` deleted on the operator's instruction. The supervisor loop is closed after M12 approval, so no new milestone starts until "continue".
+- 2026-10-12 · `CLAUDE.md` updated: roadmap references now M0–M15 and D1–D40; `PROGRESS.md` named as the project log; M13 and later wait for "continue".
+- Open items carried over: the `claude -p` hang under ConPTY (noted in the M12 verdict, needs the operator's login to reproduce), and the M12 carry-overs listed above.

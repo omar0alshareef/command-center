@@ -2,15 +2,16 @@
 
 > For Claude Code. Read in this order: `COMMAND_CENTER_BLUEPRINT.md` (what to build) → `UI_UX_SPEC.md` (how it looks/behaves) → this file (what order to build it in).
 > The blueprint's 13 phases are preserved, but **resequenced into vertical slices** so the app is demoable end-to-end early (agent writes → app updates live) instead of finishing every layer before anything works.
+> **Status:** M0–M12 are complete and approved. Do not redo them. M13 (Planning Workspace), M14 (Orchestrator & Multi-Provider Runners, starting with a Claude Code model-per-agent slice) and M15 (Agent Library, Project Workspaces, Lessons) are the remaining work. Check `PROGRESS.md` for the current position before starting anything.
 
 ---
 
 ## 0. How to use this roadmap
 
-1. Work **one milestone at a time**, in order. Do not start a milestone until the previous one's **Exit criteria** pass.
+1. Work **one milestone at a time**, in order. Do not start a milestone until the previous one's **Exit criteria** pass and the operator has said "continue".
 2. At the start of each milestone: restate the goal, list the files you'll touch, then build.
 3. At the end of each: run the exit checks, fix failures, commit (`feat(M3): …`), and report what passed.
-4. Keep a `PROGRESS.md` at repo root: milestone → status → notes → known issues. Update it every milestone.
+4. Keep a `PROGRESS.md` at repo root: milestone → status → notes → known issues. Update it every milestone. It is the source of truth for what is already done.
 5. When the blueprint and the UI/UX spec disagree: visuals/interaction → UI/UX spec; data/API/schema → blueprint. If something is ambiguous, pick the simplest option, note it in `PROGRESS.md`, and continue.
 6. Tests: write unit tests for `core` (state machine, queries, lessons retrieval) from M1 onward. UI gets manual checklists from the UI/UX spec §9 plus a few Playwright-for-Electron smoke tests (M11).
 
@@ -33,11 +34,52 @@ These are gaps or risks found while reading the blueprint. They are decisions, n
 | D7 | `lessons_learned` retrieval uses `LIKE %taskLabel%` (poor recall). | Use SQLite **FTS5** over `rejection_reason + fix_applied` and match on task label/keywords; fall back to LIKE. |
 | D8 | Terminal cwd defaults to home dir. | Default to `PROJECT_ROOT`. Default shell: PowerShell on Windows, `$SHELL` elsewhere. |
 | D9 | Light theme not specified. | Use the light tokens in UI/UX spec §4.2. |
-| D10 | Tool count inconsistency (“24+” vs 25 listed). | Implement all 25 listed tools; update docs to say 25. |
+| D10 | Tool count inconsistency ("24+" vs 25 listed). | Implement all 25 listed tools; update docs to say 25. |
 | D11 | No migration story. | `schema_version` table + ordered migration files in `core/migrations`. Schema in blueprint Phase 1 = migration `001`; D5 and D6 additions = `002`. |
 | D12 | `Electron 41+`, `Tailwind 4`, `React 19` — versions drift. | Run `npm view electron version` etc. and use the **latest stable** that electron-vite supports; pin exact versions in `package-lock`. Note choices in `PROGRESS.md`. |
 | D13 | Primary dev machine is **Windows**; `node-pty` and `better-sqlite3` are native modules. | Use `electron-rebuild` (postinstall), document Windows build-tools prerequisites in README, test M7 on Windows first. Ship prebuilds where available. |
 | D14 | JSON-in-TEXT columns (`dependencies`, `notes`, …). | Keep per blueprint, but access only through typed `core` mappers (`parse/serialize`) so shape is validated in one place. |
+
+### Decisions for M13 (Planning Workspace)
+
+| # | Decision |
+|---|---|
+| D15 | **The planner never writes to the board until the operator approves.** Drafts live in a separate planning store. Approval is a single explicit action that writes everything in one transaction. |
+| D16 | **Deadlines live at two levels.** Milestones keep `planned_start` / `planned_end` (existing). Tasks get a new optional `due_date` column (migration `003`), and the planner must set it when the requirements give one. |
+| D17 | **Teams are agents.** A team (Frontend, Backend, Marketing, Design) is an `agents` row with a role and permissions. Each task's `assignee` points to one of them. The planner proposes the roster; the operator confirms it. |
+| D18 | **The planner runs outside the terminal.** It calls the chosen runner as a child process (`claude -p` or an API call) and streams output into the planning panel. It never runs inside the PTY, because the PTY path is where `claude -p` hung in earlier testing. |
+| D19 | **Runner is pluggable and chosen by the operator in Settings.** Default: Claude Code CLI in non-interactive mode. Alternative: direct API key, stored in `settings`, never printed in logs. |
+| D20 | **The planner's output is validated before it is shown.** It must match zod schemas for manifesto, roadmap, milestones, tasks and agents. Invalid output is shown to the operator as an error with the failing field, not silently dropped. |
+| D21 | **The team is derived from the roadmap, up front.** The planner reads the requirements and, for each milestone, lists the capabilities it needs (for example frontend, backend, database, security, design, marketing, or none for design). Those capabilities map to team roles. The operator confirms the roster before the plan is approved. Not every milestone needs every role. |
+
+### Decisions for M14 (Orchestrator & Multi-Provider Runners)
+
+| # | Decision |
+|---|---|
+| D22 | **Dispatch is code, not an LLM.** The orchestrator is a deterministic scheduler in the main process (or a `command-center orchestrate` daemon). It decides which task is ready (all `depends_on` done, status `todo`, assignee set, not blocked) using plain rules. An LLM is used only for judgment work inside a task (research, writing, review summaries), never to decide what runs next. Reason: an LLM deciding dispatch can skip or repeat tasks silently. |
+| D23 | **Providers are adapters behind one interface.** Each adapter implements `run({prompt, workdir, model, timeout, signal}) → {output, usage, exitCode}`. Adapters in v1: `claude-code` (CLI, `claude -p`), `anthropic-api`, `openai-api`, `gemini` (CLI or API, whichever is installed), `local` (Ollama or LM Studio over localhost HTTP). Adding a provider means adding one adapter file. |
+| D24 | **Routing is per agent, with a per-task override.** Each agent row gets `provider` and `model` (the existing `source_model` column holds the model name). The planner proposes a provider for each team role during M13 approval; the operator can change it. A task can override its agent's provider in the task modal. |
+| D25 | **Keys are stored locally and never shown.** Provider keys go in the `settings` table, encrypted with Electron `safeStorage` (OS keychain on Windows/macOS). The renderer sees only "key set / not set" and a masked suffix. Keys are never written to logs, `agent_log`, `TASK_CONTEXT.md` or the MCP output. |
+| D26 | **Every run is recorded.** Each run writes one `agent_log` row with provider, model, duration, exit code and token counts when the provider reports them. Estimated cost is shown per task and per milestone in the Agent Hub, labelled "estimate" unless the provider returns exact usage. |
+| D27 | **Local providers are first-class but optional.** The app detects installed local tools at startup (Ollama, LM Studio, Gemini CLI, Claude Code) and lists only the ones it finds. Nothing is required to be installed except the adapters the operator actually routes to. |
+| D28 | **Unattended runs need an explicit ceiling.** The orchestrator has a settings-level cap: max concurrent runs (default 2), max runs per hour, and a spend ceiling per day (estimate). When a cap is hit it pauses and raises a Review-style notification instead of continuing. |
+| D29 | **The reviewer is never the executor.** When a task finishes, the orchestrator moves it to Review and dispatches a *different* agent (or the human) for review. The same agent and provider cannot approve its own run. The existing 409 self-approval rule still applies. |
+
+### Decisions for M15 (Agent Library, Project Workspaces & Lessons)
+
+| # | Decision |
+|---|---|
+| D30 | **One global agent library, owned by the Command Center.** It lives in the app's own data folder on the operator's computer, not in any project database. Agents are created, edited, archived and deleted only from the Agent Hub → Agents page. |
+| D31 | **Each project is an independent folder.** When the operator opens or creates a project, the app asks where the folder should go (same pattern as Claude's folder picker). The app stores that absolute path. Nothing about a project is stored only inside the app's own database except the pointer and the assignments. |
+| D32 | **Project folder layout.** `project.json` (name, slug, status, optional `repo_path`, file pointers), `README.md` (goal, domains, milestones), `LICENSE` (the license for the project's own material), `AGENTS.md` (project spec for agents), `details/` (any extra background files). `LICENSE` is copied from the repo when `repo_path` is set, never duplicated as an independent text. |
+| D33 | **Agents are assigned, never copied.** A project's agent list is a set of links to library agents plus per-project settings: enabled, allowed task types, extra constraints. Removing an agent from a project deletes only that link. The library agent stays. |
+| D34 | **Instruction precedence.** When an agent works on a task in a project, its prompt is built in this order: the library profile (general role, base instructions, default provider and model), then the project's `AGENTS.md` (project rules), then the lessons that apply (D38), then the task's `TASK_CONTEXT.md`. Later layers add to or override earlier ones only where they explicitly say so. |
+| D35 | **Deletion rule.** An agent with no project links and no run history may be deleted. Any other agent is archived: it stops receiving dispatches and disappears from the assign picker, but its history stays readable. |
+| D36 | **Missing spec is a warning, not a failure.** If a project has no `AGENTS.md`, dispatch still runs with the library profile alone, and the Agent Hub shows a visible "no project spec" notice on that project. Malformed `project.json` blocks dispatch for that project and says why. |
+| D37 | **Lesson scopes.** Every lesson has one scope: `project` (applies only in that project), `agent` (applies to one library agent in every project it is assigned to), or `global` (applies to every agent). A rejection creates a `project` lesson by default. The operator can promote it to `agent` or `global` from the lesson's detail view. Promotion is never automatic. |
+| D38 | **Lessons are required reading, not optional context.** Before a run starts, the prompt builder pulls every lesson that matches the agent (agent scope), the project (project scope) or all agents (global scope), using the task's labels and keywords (FTS5). Matched lessons are injected as a numbered "Before you start" block, and the run record stores the ids of the lessons it received. A run with no matched lessons still records that the lookup happened. |
+| D39 | **Recurrence counter and lesson status.** Each lesson has `occurrences` (how many rejections or audit failures matched its pattern after the lesson was written) and a status: `active`, `needs_rewrite` (occurrences ≥ 2 after the lesson was written), or `retired` (operator-chosen). A lesson marked `needs_rewrite` appears in the Agent Hub with a warning, because the wording or the check is not working. |
+| D40 | **Lessons carry checks.** Each lesson has a prevention check: a short, verifiable statement (for example "the task's diff contains a test file" or "no import from `fs` in renderer code"). Checks marked `automatic` are run by the audit pipeline (M9) when the task reaches Review. Checks marked `manual` appear as a reviewer checklist item. A lesson with neither is saved as a draft and cannot be promoted beyond `project` scope. |
 
 ---
 
@@ -52,10 +94,11 @@ command-center/
 ├── packages/
 │   ├── core/
 │   │   ├── src/{db.ts, schema.ts, migrations/, queries/, state-machine.ts,
-│   │   │        lessons.ts, context.ts, types.ts, seed.ts}
+│   │   │        lessons.ts, context.ts, types.ts, seed.ts,
+│   │   │        planning/, orchestrator.ts, providers/, library/, projects/}
 │   │   └── test/
 │   ├── mcp-server/              # bin: command-center-mcp
-│   │   └── src/{index.ts, tools/{read,task,milestone,agent}.ts}
+│   │   └── src/{index.ts, tools/{read,task,milestone,agent,planning,runs,library,lessons}.ts}
 │   └── cli/                     # bin: command-center
 │       └── src/{index.ts, commands/, pipeline/}
 └── apps/
@@ -63,13 +106,13 @@ command-center/
         ├── electron.vite.config.ts
         └── src/
             ├── main/{index.ts, config.ts, ipc-handlers.ts, pty.ts,
-            │         webhook.ts, watcher.ts, notifications.ts}
+            │         webhook.ts, watcher.ts, notifications.ts, orchestrator-loop.ts}
             ├── preload/index.ts
             └── renderer/
                 ├── main.tsx, App.tsx, store.ts, styles.css
                 ├── components/ui/…        # shared components (UI/UX §5)
-                ├── components/shell/…     # title bar, tab bar, status bar
-                └── views/{swim-lane, task-board, agent-hub, calendar, terminal}/
+                ├── components/shell/…     # title bar, tab bar, status bar, project switcher
+                └── views/{swim-lane, task-board, agent-hub, calendar, terminal, planning, agents-library, lessons}/
 ```
 
 ---
@@ -278,7 +321,7 @@ Exit criteria: `curl` with token updates a task and the card moves live; without
 
 ---
 
-### M12 — Polish, Settings, Packaging  *(2–3 days)*
+### M12 — Polish, Settings, Packaging  *(2–3 days)*  — DONE (approved)
 **Maps to:** Phase 9 (final pass), Post-build
 
 Tasks
@@ -292,6 +335,223 @@ Tasks
 - Implement the **Hydration** flow from the blueprint's post-build notice: a `hydrate` helper (CLI `command-center hydrate --manifesto … --roadmap …` or a documented prompt) that lets an agent create domains/phases/milestones/subtasks/agents from the user's docs.
 
 Exit criteria: UI/UX §9 checklist passes for all five views in both themes; a Windows installer launches on a clean machine; a fresh clone → hydrated demo in under 10 minutes following the README.
+
+---
+
+### M13 — Planning Workspace  *(3–4 days)*
+**Maps to:** New (post-blueprint). Builds on M4 (MCP), M9 (runner abstraction), M12 (hydration).
+**Goal:** The operator goes from "an idea and some requirements" to an approved manifesto, roadmap, milestones, tasks with deadlines and dependencies, and a team roster, without leaving the app.
+
+**Where it lives.** A new **Planning** view. Open it from the tab bar as a sixth tab, or from the command palette and the empty-state hydration card if the tab bar would get crowded. The implementer picks one and records the choice in `PROGRESS.md`. Keyboard shortcut `Ctrl/Cmd+6` if it is a tab.
+
+Tasks
+
+*Data (migration `003`)*
+- `planning_documents` table: `id`, `kind` (`manifesto` | `roadmap`), `version`, `content` (markdown), `status` (`draft` | `approved` | `superseded`), `created_at`, `approved_at`.
+- `planning_sessions` table: `id`, `status` (`interviewing` | `drafting` | `review` | `approved` | `abandoned`), `requirements` (JSON array of answered questions), `created_at`.
+- `subtasks.due_date TEXT` (ISO date, nullable).
+- `planning_proposals` table: staged milestones, tasks, dependencies, capabilities per milestone and agents as JSON, linked to a session, cleared on approve or abandon.
+- Typed `core` queries and zod schemas for all of the above. No raw SQL from the renderer (D2 still applies).
+
+*Planner runner (main process)*
+- `planner` module with a stage list: `interview` → `draft_manifesto` → `draft_roadmap` → `plan_capabilities` → `plan_tasks` → `propose_team`.
+- `plan_capabilities` lists, for each milestone, the capabilities it needs (D21). `propose_team` maps those capabilities to team roles and proposes one agent per role.
+- Each stage builds a prompt from the operator's answers and the previous stage's approved output, calls the runner, validates the result with zod, and stores it in `planning_proposals`.
+- Runner implementations: Claude Code CLI (`claude -p`, child process, stdin prompt, timeout, output capped) and API key. Both behind one interface (D18, D19).
+- Cancel button kills the child process tree (reuse the M8 process-tree kill).
+
+*Planning view (renderer)*
+- Left: session list (new session, resume, abandon). Centre: chat-style interview panel, where the planner asks questions and the operator answers. Right: draft panel with tabs for Manifesto, Roadmap, Milestones, Tasks, Team.
+- Operator can edit any draft directly in the panel (markdown editor for manifesto and roadmap, tables for tasks and team). Edits save to the draft, never to the board.
+- Each draft shows a short note from the planner about what it assumed. Assumptions are highlighted so the operator can correct them.
+- Interview stops when the planner has enough to draft. The planner can also ask the operator to confirm a list of open questions before drafting.
+- Team tab: roster confirmation (D21). The operator can add, remove or rename roles before approval.
+
+*Approval (D15)*
+- One "Approve plan" button, with a confirmation dialog that lists counts: N milestones, N tasks, N with deadlines, N dependencies, N agents.
+- On approve, a single transaction: marks the manifesto and roadmap `approved`, creates or updates milestones (with planned dates), creates tasks (with `due_date`, `depends_on`, `assignee`, `priority`, acceptance criteria), registers team agents, and writes one `agent_log` row per batch with the session id.
+- Approve is refused if any task has no milestone, any dependency points to a missing task, or any dependency cycle exists. The error names the item.
+- After approve, the session is marked `approved` and the proposal is cleared.
+
+*Integration with the rest of the app*
+- Approved manifesto and roadmap are viewable from Settings and linked from the Swim Lane empty state, replacing the copy-paste hydration step for new projects. The old hydration prompt stays for existing projects.
+- Task Detail modal shows `due_date` and highlights tasks past due.
+- Swim Lane milestone panel shows the approved roadmap entry for that milestone.
+- MCP: add read tools `get_planning_documents` and `get_planning_session`. Do not add an MCP tool that approves a plan; approval is operator-only in the UI. This matches the rule that an agent cannot approve its own work.
+
+Exit criteria
+- **Interview:** starting a session with a one-paragraph idea produces at least three planner questions before any draft is shown. Answers are saved and the session can be resumed after an app restart.
+- **Drafts:** manifesto and roadmap render as markdown; milestones and tasks render as editable tables; edits persist to the draft and survive restart.
+- **Capabilities and team:** a roadmap with one milestone that needs design and one that does not produces a team roster where only the first milestone lists a design role, and the operator can remove or rename a role before approval.
+- **Validation:** feed the runner a deliberately malformed output (missing `due_date` type, dependency to a non-existent task, dependency cycle). The UI shows an error naming the field and does not write to the board.
+- **Approval:** approving a seeded plan writes milestones, tasks with `due_date`, dependencies, and team agents in one transaction. A forced failure mid-write rolls back everything (test with a fault injection).
+- **Board after approval:** new milestones appear in the Swim Lane at the right dates; tasks appear in To Do with assignees; past-due tasks are flagged in the Task Board.
+- **No leak:** planning drafts do not appear in the Task Board, Calendar or Agent Hub until approved.
+- **Runner:** cancel kills the child process and leaves no orphans (check Task Manager after cancel). Output over the cap is truncated with a visible notice.
+- **Tests:** `core` tests for approval transaction, rollback, dependency validation, cycle detection, capability-to-role mapping, and `due_date` migration. Vitest suite and typecheck and lint pass. `PROGRESS.md` updated, commit `feat(M13): …`.
+- **UI/UX §9 checklist** passes for the new view in both themes, including keyboard operation of the interview panel and the approval dialog.
+
+Out of scope for M13 (goes to the backlog)
+- Multi-project planning (see the project switcher in M15).
+- Automatic re-planning when a milestone slips. Drift is still shown, but the planner is not triggered.
+- Gantt-style editing of dates by dragging. Dates are edited in the table.
+- Importing an existing manifesto or roadmap from a file. Paste-in is enough for v1 of this milestone.
+
+---
+
+### M14 — Orchestrator & Multi-Provider Runners  *(4–5 days, plus Slice 1 below)*
+**Maps to:** New (post-blueprint). Builds on M9 (runner abstraction), M10 (lessons), M11 (webhook), M13 (approved plan, team roster).
+**Goal:** Approved tasks run without the operator starting each one, on the provider each one is routed to, with every run recorded and every spend capped.
+
+**Slice 1 — Claude Code model per agent (do this first inside M14)**
+Scope: per-agent model selection for the `claude-code` provider only. No other providers yet. This is the first slice of D23 and D24, and can be committed on its own (`feat(M14a): claude-code model per agent`).
+
+Tasks
+- Data: add `model TEXT` (nullable) to the `agents` table in a new migration. Empty means "use the CLI default".
+- Model list: do not hardcode model names. Store the list of available Claude Code models in the `settings` table as an editable JSON array of `{ id, label }`. Ship it with three starter entries (a fast model, a balanced model, a strongest model) using the aliases the installed `claude` CLI accepts. Verify the aliases against `claude --help` or its docs on this machine and record the exact ones used in `PROGRESS.md`.
+- Runner: the `claude-code` adapter passes `--model <id>` to `claude -p` when the agent has a model set. Log the model used in `agent_log` for each run.
+- UI: on the Agent Hub agent row, a model dropdown (options from the settings list, plus "CLI default"). Changing it writes to the agents row and logs an `agent_log` entry. The dropdown is disabled for non-claude-code providers (they do not exist yet).
+- Tests: a core test that an agent's model is passed to the runner; a test that an empty model passes no `--model` flag; a test that a removed model id in settings does not crash dispatch (falls back to CLI default and shows a warning).
+
+Slice 1 exit criteria
+- Two agents with different models: each run's log shows its own model.
+- Setting an agent to "CLI default" removes the flag on the next run.
+- Typecheck, lint and tests pass. `PROGRESS.md` updated.
+- Stop and report. Wait for "continue" before the rest of M14.
+
+**Rest of M14**
+
+Tasks
+
+*Data (next free migration number)*
+- `agents`: add `provider TEXT`, `max_concurrent INTEGER DEFAULT 1` (`model` is already added in Slice 1).
+- `subtasks`: add `provider_override TEXT` (nullable).
+- `runs` table: `id`, `task_id`, `agent_id`, `provider`, `model`, `status` (`queued` | `running` | `succeeded` | `failed` | `cancelled`), `started_at`, `finished_at`, `exit_code`, `input_tokens`, `output_tokens`, `est_cost_usd`, `error`.
+- `settings` rows for provider keys (encrypted per D25), concurrency cap, hourly cap, daily spend ceiling.
+- Typed `core` functions for all of the above.
+
+*Provider adapters (`packages/core/src/providers/`)*
+- Common interface per D23, with timeout, cancellation through `AbortSignal`, and output capped at a set size.
+- `claude-code`: child process running `claude -p` in the project folder, prompt on stdin. Reuses M8 process-tree kill. Model per agent from Slice 1.
+- `anthropic-api` and `openai-api`: HTTPS calls with the key from `safeStorage`; parse usage from the response.
+- `gemini`: adapter for whichever of the CLI or API is installed; detected at startup.
+- `local`: HTTP to `localhost` for Ollama (`:11434`) or LM Studio's local server; model list fetched from the server.
+- Adapter tests with recorded fixtures; no live network calls in CI.
+
+*Orchestrator (`packages/core/src/orchestrator.ts` + main-process wiring)*
+- `readyTasks()`: pure function returning tasks that meet the D22 rules, ordered by milestone planned start, then priority, then `due_date`.
+- Dispatch loop: runs every 5 seconds while enabled, respects D28 caps, and calls `prepare` (if `TASK_CONTEXT.md` is missing) then `start_task` then the provider adapter.
+- On adapter success: `complete_task` with the output summary. On failure: retry once, then `block_task` with the error as the reason.
+- Pause, resume and "stop after current run" controls in the status bar and Agent Hub.
+- Triggers: (a) a task becomes ready (dependency completed), (b) a webhook `task-update` sets a task to `todo`, (c) manual Start from the task modal. All three call the same dispatch path.
+- Reviewer dispatch per D29 when a task reaches Review.
+
+*Routing UI*
+- Agent Hub: each agent shows its provider and model; a provider picker to change them (writes to the agent row).
+- Task modal Details tab: provider override dropdown, with "use agent default" as the first option.
+- Settings → Providers: list of adapters with detected/not detected status, key entry (masked), test-connection button per provider.
+
+*Run visibility*
+- Agent Hub Activity Feed: each run appears as one entry with provider, model and duration; expandable to show the last N lines of output.
+- Task History tab lists runs for the task with cost estimate.
+- Status bar shows: running count, queued count, today's estimated spend against the ceiling.
+
+*MCP and CLI*
+- New read tool `list_runs(task_id?)`. New write tool `cancel_run(run_id)`. Neither can approve work.
+- CLI: `command-center orchestrate --status | --pause | --resume` and `command-center runs --task TASK-ID`.
+
+Exit criteria
+- **Dispatch rules:** seed a plan with a dependency chain of three tasks. Only the first is dispatched; completing it dispatches the second within 10 seconds; the third waits for both. Unit tests cover `readyTasks()` with cycles rejected at approval (M13) and with blocked tasks excluded.
+- **Routing:** two tasks assigned to two agents with different providers each run on their own adapter (verify through `runs.provider`). Task-level override beats the agent default.
+- **Providers:** each adapter passes its fixture tests. Live smoke test per provider the operator has installed: one small prompt, run recorded, cost estimate shown. Providers not installed show "not detected" and cannot be routed to.
+- **Keys:** a key entered in Settings does not appear in the renderer's state, in any log file, in `agent_log`, or in `TASK_CONTEXT.md`. Grep the DB and logs for the key string after the test: zero matches.
+- **Caps:** with the hourly cap set to 2, a third ready task is queued, the status bar shows "paused by cap", and no run starts until the window clears or the operator raises the cap.
+- **Failure path:** a provider that times out is retried once, then the task is blocked with the error text as `blocked_reason`. The orchestrator continues with other ready tasks.
+- **Reviewer rule:** a task finished by agent A is never approved by agent A. Test with the API and with the UI approve button.
+- **Cancel:** cancelling a running `claude-code` run kills the child process tree; Task Manager shows no orphans.
+- **Pause:** pause stops new dispatches immediately; in-flight runs finish or are cancelled per the operator's choice in the dialog.
+- **Tests and gates:** Vitest for `core`, typecheck and lint clean, UI/UX §9 checklist for Agent Hub and Settings → Providers, `PROGRESS.md` updated, commit `feat(M14): …`.
+
+Out of scope for M14
+- Planner-driven re-routing when a provider fails repeatedly (keep the manual override; automatic routing changes go to the backlog).
+- Exact cost tracking for providers that do not report usage (label as estimate, that is all).
+- Running agents on remote machines or cloud VMs. Everything runs on the operator's computer in M14.
+- Sandboxing of arbitrary shell commands an agent might run beyond what its provider already allows. Document the risk in the README and in Settings → Providers.
+- Complexity-based routing, budget modes (economy / balanced / speed) and escalation on failure. These go to the backlog until real cost data exists from the first runs.
+
+---
+
+### M15 — Agent Library, Project Workspaces & Lessons  *(4–5 days)*
+**Maps to:** New (post-blueprint). Builds on M10 (lessons), M13 (planner reads project spec), M14 (dispatch reads project spec and lessons).
+**Goal:** The operator creates agents once, assigns them to any project, and each project's own rules apply automatically, with project folders placed wherever the operator chooses. Mistakes that were caught and corrected stay corrected: lessons reach the right agents before they start, scope correctly, and show when they stop working. The operator can also switch between projects in the app.
+
+Tasks
+
+*Global library (app data folder)*
+- Storage: a separate SQLite file in the app's user data folder (not inside any project). Tables: `library_agents` (id, name, role, type `orchestrator` | `sub-agent` | `human` | `external`, parent_id, color, base_instructions, provider, model, default_permissions, status `active` | `archived`, created_at, updated_at) and `library_agent_versions` (append-only edit history).
+- Typed `core` functions for create, edit, archive, delete (with the D35 rule) and list with sort and filter by role, status and provider.
+- Starter templates by role (frontend, backend, database, security, design, marketing, reviewer) that the create flow offers, editable like any agent.
+
+*Project registry and switcher*
+- The app keeps a registry of known projects in the app data folder: name, slug, absolute folder path, last opened. The registry is the only place that lists all projects.
+- Switching: the title bar project name (UI/UX §3.2) becomes a button that opens a project switcher listing registered projects. Choosing one closes the current project's database connection, opens the chosen project's `command-center.db`, and reloads the store and every view. Running dispatch loops for the previous project are paused first, and the app says so.
+- A project whose folder is missing or whose database cannot open is shown in the switcher with its error and cannot be opened until fixed.
+- "Add existing project" registers a folder that already contains `project.json`. "Remove from registry" never deletes files.
+- Phase 2 of the switcher (only if the operator asks later, backlog): an overview screen that reads each registered project's database read-only and shows progress, pending work and items needing review across all projects. This is not part of M15.
+
+*Project folders*
+- "New project" and "Open project" flows: folder picker, then the app writes `project.json`, `README.md`, `AGENTS.md` and `details/` from templates if they are missing, and copies `LICENSE` from `repo_path` when set. Existing files are never overwritten; the app shows a diff and asks.
+- The project's database stays in the project's own `command-center.db`. It records assignments (`project_agents`: library agent id, enabled, allowed task types, extra constraints) and the project's folder path.
+- `project.json` is validated with zod on open (D36).
+
+*Lessons (upgrade of M10)*
+- Lesson table fields: `id`, `scope` (`project` | `agent` | `global`), `agent_id` (nullable, required when scope is `agent`), `project_id`, `trigger_keywords`, `rejection_reason`, `fix_applied`, `prevention_rule`, `check` (text), `check_type` (`automatic` | `manual` | `none`), `occurrences`, `status` (`draft` | `active` | `needs_rewrite` | `retired`), `created_at`, `updated_at`.
+- Rejection flow: the reviewer's rejection reason is saved as a `project` lesson in `draft` if the reviewer did not give a prevention check, and as `active` if they did. The file `.claude/LESSONS_LEARNED.md` is still written for each project, as M10 requires; the file is generated from the table, never edited by hand.
+- Promotion UI: from a lesson's detail view, promote to `agent` (pick the library agent) or `global`. Each promotion writes an `agent_log` entry.
+- Recurrence: when a later rejection or audit failure matches a lesson's trigger keywords and the reviewer marks it as the same mistake, `occurrences` increases. At two or more after the lesson was written, status becomes `needs_rewrite`.
+- Retrieval: FTS5 over `trigger_keywords` plus `rejection_reason` and `prevention_rule`, combined with the scope filter (D38). Results are capped (default 10) and ordered by scope (agent, then project, then global) and then by recency.
+- Audit integration (M9): automatic checks run when a task reaches Review. A failed automatic check moves the task back to In Progress with the lesson id in the reason, and increments `occurrences` for that lesson.
+
+*Agent Hub changes*
+- Agents page (the library): sorted list grouped by role, search, status filter, create, edit, archive, delete. This is the only place agents are created or edited.
+- Per project: a "Project agents" panel listing only assigned agents, with a "+" button that opens the library picker. The picker allows multi-select and shows each agent's role and provider. Removing from the project is one action with a confirm that says the agent stays in the library.
+- Per-project settings for an assigned agent: enabled toggle, allowed task types, extra constraints, and an "open project spec" link.
+- Lessons panel: lists lessons by scope with filters for `needs_rewrite` and `draft`. Each row shows occurrences and the check type.
+
+*Runtime*
+- Prompt builder implements D34: profile → `AGENTS.md` → matched lessons (D38) → `TASK_CONTEXT.md`. The run record stores the layers used, the `AGENTS.md` hash, and the ids of lessons injected.
+- The M13 planner and the M14 orchestrator both read the project's `AGENTS.md` and the matched lessons before proposing or dispatching anything.
+- Spec file changes are picked up on the next run without restarting the app (file hash checked at dispatch).
+
+*MCP and CLI*
+- New read tools: `list_library_agents`, `get_project_spec`, `get_lessons_for_task(task_id)`. Writes to the library and lesson scope promotion stay in the UI; MCP cannot create or delete library agents, promote lessons, or retire them, so an agent cannot widen its own permissions or remove a lesson that constrains it.
+- MCP write tool `propose_lesson(task_id, reason, fix, check)`: an agent may propose a lesson after its own mistake is pointed out, but the lesson stays in `draft` until a human promotes it.
+- CLI: `command-center project status` (folder, spec status, assigned agents, lessons count), `command-center projects` (registry list), `command-center agents --library`, `command-center lessons --needs-rewrite`.
+
+Exit criteria
+- **Library scope:** create an agent in the library; open two different projects; the agent appears in both assign pickers and nowhere is it copied. Edit it once; both projects use the new profile on their next run.
+- **Folder placement:** create a project in a folder chosen by the operator outside the Command Center's own folder. Project files are created there; the app's database stays in its own project file; the path is saved and reopens correctly after restart.
+- **Switcher:** with two registered projects, switching from one to the other reloads every view with the second project's data, and switching back restores the first. Dispatch for the first project is paused during the switch and the app says so. A project with a missing folder shows its error in the switcher and cannot be opened.
+- **Precedence:** run a seeded task in a project whose `AGENTS.md` forbids a specific tool. The run record shows the layers, and the agent does not use the forbidden tool. Repeat with the spec removed: the run still starts and the project shows the "no project spec" notice (D36).
+- **Live spec edits:** change one line in `AGENTS.md` between two runs; the second run's record shows the new hash.
+- **Assignment:** removing an agent from a project leaves it in the library and removes only the link. Adding it back restores its project settings only if they still exist; otherwise defaults apply and the app says so.
+- **Deletion rule:** an unassigned agent with no runs deletes; an agent with runs archives and stays readable in history (D35).
+- **Lesson scopes:** a rejected task creates a `project` lesson. Promoting it to `agent` makes it appear in a second project's run for the same library agent, and not for a different agent. Promoting to `global` makes it appear for both agents.
+- **Required reading:** a run with a matching lesson shows the "Before you start" block in its prompt and stores the lesson id. A run with no matching lesson stores the lookup with an empty result.
+- **Recurrence:** reject the same mistake twice after a lesson is active. The lesson's `occurrences` reaches 2 and its status becomes `needs_rewrite`, and it appears in the Lessons panel with the warning.
+- **Automatic check:** a lesson with an automatic check fails on a task that breaks it. The task moves back to In Progress, the reason names the lesson, and `occurrences` increases. The same check passes on a fixed task.
+- **Draft rule:** a lesson with no check cannot be promoted beyond `project` scope; the UI explains why.
+- **Agent cannot self-promote:** an agent calling `propose_lesson` creates a `draft`; no MCP call can change its scope or status.
+- **Malformed project file:** a broken `project.json` blocks dispatch for that project only, names the bad field, and other projects keep running.
+- **Tests:** `core` tests for library CRUD, the D35 rule, precedence builder, hash-based reload, missing and malformed spec handling, assignment removal, registry and switch logic, lesson scope filtering, recurrence counting, and automatic check handling. Typecheck, lint and Vitest pass. UI/UX §9 checklist for the Agents page, project agents panel, project switcher and Lessons panel in both themes.
+- **Demo project:** the sample project in `sample-projects/demo-project/` (with `AGENTS.md`, `README.md`, `LICENSE`, `details/`, `project.json`) is used as the first fixture for the precedence, switcher and lesson tests.
+
+Out of scope for M15
+- Sharing the library or lessons between machines or users (backlog: cloud sync / multi-user).
+- Automatic generation of a project's `AGENTS.md` from the M13 planning session. The planner may propose its content, but writing the file is an operator-approved action, the same as plan approval.
+- Editing project files from inside the app beyond the spec and README (the operator edits other files in their own editor).
+- Machine-learned ranking of lessons. Retrieval uses keywords, scope and recency only.
+- Cross-project overview screen (backlog, see the switcher section).
 
 ---
 
@@ -311,9 +571,12 @@ Exit criteria: UI/UX §9 checklist passes for all five views in both themes; a W
 | M9 | Operator CLI + pipeline | 3d | 17.5d |
 | M10 | Memory | 1d | 18.5d |
 | M11 | Webhooks | 1d | 19.5d |
-| M12 | Polish + packaging + hydration | 2.5d | **~22d** |
+| M12 | Polish + packaging + hydration (done) | 2.5d | ~22d |
+| M13 | Planning workspace | 3–4d | ~25–26d |
+| M14 | Orchestrator + multi-provider runners (Slice 1 first: Claude Code model per agent, 0.5d) | 4–5d | ~30d |
+| M15 | Agent library, project workspaces, switcher, lessons | 4–5d | ~34–35d |
 
-Estimates are focused-build days for an agent working with review; expect the human to spend most time on reviewing M3, M5 and M9. **Natural demo points:** after M4 (agent drives the board live), after M6 (full observability), after M12 (shippable).
+Estimates are focused-build days for an agent working with review; expect the human to spend most time on reviewing M3, M5, M9, M13, M14 and M15. **Natural demo points:** after M4 (agent drives the board live), after M6 (full observability), after M12 (shippable), after M13 (plans created in-app), after M14 (tasks run without manual starts), after M15 (multi-project, shared agent library).
 
 ---
 
@@ -329,6 +592,14 @@ Estimates are focused-build days for an agent working with review; expect the hu
 | Token estimate for "~500 tokens" compressor is vague | Inconsistent context size | Use a simple char/4 estimator + hard truncation guard; warn rather than fail |
 | Agent-written free text rendered in UI | XSS / injection | Render as text only (no `dangerouslySetInnerHTML`), `contextIsolation: true`, `nodeIntegration: false`, strict CSP |
 | Scope creep from "nice to have" items | Never ships | Anything not in an Exit criteria list goes to the Backlog below |
+| Planner output invents capabilities, roles or deadlines the operator never gave | Wrong team or dates get approved | Assumptions are highlighted in the draft (M13); nothing reaches the board without approval (D15) |
+| Unattended orchestrator spends money or runs too long | Unexpected cost, runaway loops | Concurrency, hourly and daily caps (D28); pause control; per-run cost recorded (D26) |
+| Provider keys leak into logs, DB or agent context | Credential exposure | `safeStorage` encryption, no key in renderer state, grep test in M14 exit criteria (D25) |
+| Same agent reviews its own work through a different path | Quality gate bypassed | Reviewer-is-not-executor rule (D29) enforced in core, not only in UI |
+| Claude Code model aliases change or are unavailable on the operator's machine | Runs fail or use an unexpected model | Model list lives in settings, aliases verified against the installed CLI in Slice 1, removed ids fall back to CLI default with a warning |
+| Switching projects leaves dispatch or DB handles from the previous project running | Writes land in the wrong project | Pause dispatch and close the connection before opening the next project; test in M15 switcher exit criteria |
+| Lessons never reach an agent that skips the prepare step | Repeated mistakes | Lessons are injected by the prompt builder itself (D38), not only by `prepare`; run record stores the lookup |
+| Lessons keep matching but do not prevent the mistake | False sense of learning | Recurrence counter and `needs_rewrite` status (D39); verifiable checks (D40) |
 
 ---
 
@@ -337,29 +608,39 @@ Estimates are focused-build days for an agent working with review; expect the hu
 - Split terminal panes; terminal output → task log capture
 - Manual card ordering in columns; swimlane drag-to-reschedule milestones
 - Week-over-week agent performance comparison; completion heat-map in Calendar
-- Multi-project switcher
+- Cross-project overview screen (progress, pending work and review items across all registered projects, read-only)
 - Export (PDF/Markdown status report); import from Linear/GitHub issues
 - Command Center as a tray app with quick-status popup
 - Cloud sync / multi-user
 - Auto-update channel
+- Planner-driven re-planning when milestones slip
+- Automatic provider re-routing after repeated failures
+- Complexity-based routing and budget modes (economy / balanced / speed) with escalation on failure
+- Gantt-style date editing in Swim Lane
+- Remote and cloud agent execution
 
 ---
 
 ## 7. Kickoff Prompt (paste into Claude Code)
 
 ```
-You are building the Command Center desktop app. Read, in order:
+You are continuing the Command Center desktop app. Read, in order:
 1. COMMAND_CENTER_BLUEPRINT.md  — architecture, schema, stack, APIs
 2. UI_UX_SPEC.md                — visual design and interaction (wins on UI conflicts)
-3. ROADMAP.md                   — build order, decisions D1–D14, milestones
+3. ROADMAP.md                   — build order, decisions D1–D40, milestones M0–M15
+4. PROGRESS.md                  — what is already done. Trust it over this file for status.
 
 Rules:
-- Build milestone by milestone starting at M0. Do not skip ahead.
+- M0–M12 are complete and approved. Do not rebuild, rewrite or re-run them.
+- The next milestone is M13. Do not start it until the operator says "continue".
+- After M13: M14 (starting with Slice 1), then M15. Same rule: one at a time, stop and wait for "continue" after each.
 - Apply the decisions in ROADMAP §1 (monorepo with a shared `core` package, typed IPC with no raw SQL, WAL + data_version change detection, etc.) even where the blueprint differs.
 - At the start of each milestone state the goal and the files you'll create or change. At the end, run the exit criteria, show the results, update PROGRESS.md, and commit.
-- Stop and report after each milestone; wait for my "continue" before the next one.
+- Stop and report after each milestone or slice; wait for my "continue" before the next one.
 - Target OS is Windows first (also keep macOS/Linux working).
 - If something is ambiguous, choose the simplest option, record it in PROGRESS.md, and proceed.
+- Before writing any provider adapter in M14, list which providers are detected on the operator's machine and report that list in the handoff. Do not add adapters for providers the operator does not have or has not asked for, except `claude-code`, which is required.
+- Before writing the library storage in M15, confirm the app's user data path on Windows and report it in the handoff.
 
-Begin with M0.
+Wait for "continue" before starting M13.
 ```
