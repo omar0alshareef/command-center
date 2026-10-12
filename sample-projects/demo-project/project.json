@@ -1,0 +1,13 @@
+{
+  "name": "Demo Project",
+  "slug": "demo-project",
+  "status": "active",
+  "repo_path": null,
+  "files": {
+    "readme": "README.md",
+    "license": "LICENSE",
+    "agent_spec": "AGENTS.md",
+    "details": "details/"
+  },
+  "created": "2026-10-11"
+}
