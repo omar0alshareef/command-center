@@ -255,7 +255,7 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
               aria-selected={filter === t.id}
               data-feed-tab={t.id}
               onClick={() => setFilter(t.id)}
-              className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] font-medium ${filter === t.id ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2 hover:text-text'}`}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-[12px] font-medium ${filter === t.id ? 'bg-accent text-on-accent' : 'text-muted hover:bg-surface-2 hover:text-text'}`}
             >
               {t.label}
             </button>
@@ -349,7 +349,7 @@ export function ActivityFeed({ tracker }: { tracker: TrackerState }) {
           <button
             type="button"
             onClick={() => scrollRef.current?.scrollTo({ top: 0 })}
-            className="absolute top-2 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-accent px-3 py-1 text-[12px] font-semibold text-white shadow-pop"
+            className="absolute top-2 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-accent px-3 py-1 text-[12px] font-semibold text-on-accent shadow-pop"
             data-new-pill
           >
             <ArrowUp size={12} aria-hidden /> {newCount} new

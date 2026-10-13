@@ -1,4 +1,4 @@
-import { Leaf, Monitor, Moon, Settings, Sun, type LucideIcon } from 'lucide-react';
+import { Leaf, Monitor, Moon, MoonStar, Settings, Sun, type LucideIcon } from 'lucide-react';
 import { overallProgress, scheduleBadge } from '../../lib/derive';
 import { nextThemePref, useApp, type SyncState, type ThemePref } from '../../store';
 import { Skeleton } from '../ui/feedback';
@@ -9,12 +9,14 @@ const THEME_LABEL: Record<ThemePref, string> = {
   dark: 'Dark',
   light: 'Light',
   calm: 'Calm',
+  'calm-dark': 'Calm Dark',
   system: 'System',
 };
 const THEME_ICON: Record<ThemePref, LucideIcon> = {
   dark: Moon,
   light: Sun,
   calm: Leaf,
+  'calm-dark': MoonStar,
   system: Monitor,
 };
 

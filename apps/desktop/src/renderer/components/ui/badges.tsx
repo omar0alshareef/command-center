@@ -73,7 +73,7 @@ export function PriorityPill({ priority }: { priority: string }) {
 
 export function DomainTag({ domain, color }: { domain: string; color: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
+    <span data-domain={domain} className="inline-flex items-center gap-1.5 text-[11px] text-muted">
       <StatusDot color={color} />
       {domain}
     </span>

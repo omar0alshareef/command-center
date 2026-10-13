@@ -184,6 +184,8 @@ Dense surfaces (Task Board columns, Swim Lane, activity feed, terminal) use `--b
 - **Progress bar:** 6px tall pill, track `--surface-3`, fill `--accent`.
 - **Notification:** `--surface` card, icon disc in `--accent-soft` with `--accent` tick, title 600, body `--muted`.
 
+**Domain colours (both Calm modes):** `--domain-1..10` cycle amber, violet and blue; light Calm uses `#D97706`, `#7C5CD6`, `#2F6FB0` (inferred), Calm Dark the three values in its table. `--on-accent` is the label colour on any accent fill (ivory in light Calm, `#0F3A25` in Calm Dark; white in the default themes).
+
 **Tags and chips:** the light themes (§4.2, Calm) mix a tag's own hue 55% with `--text` for the tag's text (`--tag-ink`), because palette hues such as orange and cyan are under 3:1 on ivory. Agent-avatar initials and swim-lane phase labels use `--text`; the hue stays on the ring and the tint.
 
 **Rules for this theme**

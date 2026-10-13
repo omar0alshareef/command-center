@@ -67,6 +67,7 @@ export function CardBody({
   const total = task.acceptance_criteria.length;
   return (
     <div
+      data-card-status={task.status}
       className={cn(
         'group relative min-h-[84px] rounded-lg border border-border bg-surface-2 p-3 text-left',
         'hover:border-border-strong',
@@ -77,7 +78,13 @@ export function CardBody({
     >
       <div className="flex items-center justify-between gap-2">
         <DomainTag domain={domain} color={domainColor} />
-        <PriorityPill priority={task.priority} />
+        <span className="flex items-center gap-1.5">
+          <span className="done-mark text-success" title="Done">
+            <Check size={12} aria-hidden />
+            <span className="sr-only">Done</span>
+          </span>
+          <PriorityPill priority={task.priority} />
+        </span>
       </div>
 
       <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug font-medium">{task.label}</p>

@@ -6,7 +6,7 @@ import { matchesFilter } from './lib/agent-hub';
 import { mergeTracker } from './lib/share';
 
 export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal' | 'planning';
-export type Theme = 'dark' | 'light' | 'calm';
+export type Theme = 'dark' | 'light' | 'calm' | 'calm-dark';
 export type ThemePref = Theme | 'system';
 export type WeekStart = 'mon' | 'sun';
 
@@ -86,8 +86,8 @@ interface AppState {
   retryProject: () => Promise<void>;
 }
 
-/** The title-bar button cycles dark -> light -> calm -> system -> dark. */
-export const THEME_CYCLE: readonly ThemePref[] = ['dark', 'light', 'calm', 'system'];
+/** The title-bar button cycles dark -> light -> calm -> calm-dark -> system -> dark. */
+export const THEME_CYCLE: readonly ThemePref[] = ['dark', 'light', 'calm', 'calm-dark', 'system'];
 export function nextThemePref(pref: ThemePref): ThemePref {
   return THEME_CYCLE[(THEME_CYCLE.indexOf(pref) + 1) % THEME_CYCLE.length] ?? 'dark';
 }

@@ -25,11 +25,13 @@ const ratio = (a: string, b: string) => {
 const dark = tokens(':root');
 const light = { ...dark, ...tokens(":root[data-theme='light']") };
 const calm = { ...dark, ...tokens(":root[data-theme='calm']") };
+const calmDark = { ...dark, ...tokens(":root[data-theme='calm'][data-mode='dark']") };
 
 describe.each([
   ['dark', dark],
   ['light', light],
   ['calm', calm],
+  ['calm dark', calmDark],
 ])('%s theme contrast', (_name, t) => {
   const surfaces = ['bg', 'surface', 'surface-2'] as const;
   it.each(surfaces)('text and muted text on %s are >= 4.5:1', (s) => {
@@ -79,6 +81,66 @@ describe('calm theme (UI/UX §4.8)', () => {
         ).toBeGreaterThanOrEqual(4.5);
     const used = [...css.matchAll(/color:\s*var\(--accent-soft\)/g)];
     expect(used).toHaveLength(0);
+  });
+});
+
+describe('calm dark (UI/UX §4.8, M13.3)', () => {
+  it('uses the operator-approved values', () => {
+    const own = tokens(":root[data-theme='calm'][data-mode='dark']");
+    expect(own['bg']).toBe('#0c1410');
+    expect(own['accent']).toBe('#b7d9c1');
+    expect(own['on-accent']).toBe('#0f3a25');
+    expect(own['text']).toBe('#eef0e6');
+    for (const k of [
+      'bg',
+      'surface',
+      'surface-2',
+      'surface-3',
+      'border',
+      'border-strong',
+      'muted',
+      'text',
+      'accent',
+      'success',
+      'warning',
+      'danger',
+    ])
+      expect(own[k], `--${k}`).toBeDefined();
+  });
+  it('text, muted, accent and every status colour are >= 4.5:1 on bg, surface and surface-2', () => {
+    for (const s of ['bg', 'surface', 'surface-2'])
+      for (const k of ['text', 'muted', 'accent', 'success', 'warning', 'danger'])
+        expect(ratio(calmDark[k] ?? '', calmDark[s] ?? ''), `${k} on ${s}`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+  });
+  it('the label on a Mint fill is >= 4.5:1, and hover fill too', () => {
+    expect(ratio(calmDark['on-accent'] ?? '', calmDark['accent'] ?? '')).toBeGreaterThanOrEqual(
+      4.5,
+    );
+    expect(
+      ratio(calmDark['on-accent'] ?? '', calmDark['accent-light'] ?? ''),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+  it('domain colours are amber, violet and blue only (no green) in both Calm modes', () => {
+    for (const t of [
+      tokens(":root[data-theme='calm']"),
+      tokens(":root[data-theme='calm'][data-mode='dark']"),
+    ]) {
+      const hues = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => t[`domain-${i}`] ?? '');
+      expect(new Set(hues).size).toBe(3);
+      for (const h of hues) {
+        const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+        expect(g, `${h} must not be green`).toBeLessThanOrEqual(Math.max(r ?? 0, b ?? 0));
+      }
+    }
+  });
+  it('domain colours are readable as tag text (tag-ink 100% in dark mode)', () => {
+    const own = tokens(":root[data-theme='calm'][data-mode='dark']");
+    for (const i of [1, 2, 3])
+      expect(ratio(own[`domain-${i}`] ?? '', calmDark['surface-2'] ?? '')).toBeGreaterThanOrEqual(
+        4.5,
+      );
   });
 });
 

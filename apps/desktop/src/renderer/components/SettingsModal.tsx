@@ -62,6 +62,7 @@ export function SettingsModal() {
               <option value="dark">Dark</option>
               <option value="light">Light</option>
               <option value="calm">Calm</option>
+              <option value="calm-dark">Calm Dark</option>
               <option value="system">System</option>
             </select>
           </Row>

@@ -49,7 +49,11 @@ export function App() {
   }, [activeTab, markTerminalVisited]);
 
   useEffect(() => {
-    document.documentElement.dataset['theme'] = theme;
+    // Calm Dark is the calm theme in its dark mode: `data-theme="calm"` plus `data-mode="dark"`.
+    const root = document.documentElement.dataset;
+    root['theme'] = theme === 'calm-dark' ? 'calm' : theme;
+    if (theme === 'calm-dark') root['mode'] = 'dark';
+    else delete root['mode'];
   }, [theme]);
 
   useEffect(() => {

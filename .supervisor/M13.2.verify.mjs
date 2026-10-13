@@ -111,15 +111,15 @@ await step('C1 Settings and title bar offer Calm; the cycle is dark > light > ca
   check('C1a default stays dark', (await theme()) === 'dark');
   await page.keyboard.press('Control+,');
   const options = await page.locator('dialog[open] select').first().locator('option').allInnerTexts();
-  check('C1b Settings -> Theme lists Dark, Light, Calm, System', options.join(',') === 'Dark,Light,Calm,System', options.join(','));
+  check('C1b Settings -> Theme lists Dark, Light, Calm, Calm Dark (M13.3), System', options.join(',') === 'Dark,Light,Calm,Calm Dark,System', options.join(','));
   await page.keyboard.press('Escape');
   const seen = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     await toggle();
     await sleep(120);
     seen.push(await theme());
   }
-  check('C1c title-bar button cycles light, calm, (system -> OS), dark', seen[0] === 'light' && seen[1] === 'calm' && seen[3] === 'dark', seen.join(' > '));
+  check('C1c title-bar button cycles light, calm, (system -> OS), dark', seen[0] === 'light' && seen[1] === 'calm' && seen[4] === 'dark', seen.join(' > '));
 });
 
 await step('C2 Calm tokens are applied (exact study values)', async () => {

@@ -417,7 +417,7 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
                   </div>
                 ))}
                 <div
-                  className="absolute top-0 z-10 -translate-x-1/2 rounded-b bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                  className="absolute top-0 z-10 -translate-x-1/2 rounded-b bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-on-accent"
                   style={{ left: model.nowX }}
                   data-now-flag
                 >

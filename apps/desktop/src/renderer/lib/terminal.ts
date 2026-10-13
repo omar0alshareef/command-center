@@ -74,10 +74,10 @@ const LIGHT_ANSI: ITheme = {
 };
 
 /** xterm colours from the design tokens, so the terminal follows the theme. */
-export function xtermTheme(theme: 'dark' | 'light' | 'calm'): ITheme {
+export function xtermTheme(theme: 'dark' | 'light' | 'calm' | 'calm-dark'): ITheme {
   const accent = cssVar('--accent') || '#585cf0';
   return {
-    ...(theme === 'dark' ? DARK_ANSI : LIGHT_ANSI), // calm is a light theme
+    ...(theme === 'dark' || theme === 'calm-dark' ? DARK_ANSI : LIGHT_ANSI),
     background: cssVar('--bg') || '#0a0a10',
     foreground: cssVar('--text') || '#e8e8f0',
     cursor: accent,
@@ -115,7 +115,11 @@ interface TerminalState {
 
 const send = (id: string, data: string) => window.api.terminal.write(id, data);
 
-function build(id: string, fontSize: number, theme: 'dark' | 'light' | 'calm'): Instance {
+function build(
+  id: string,
+  fontSize: number,
+  theme: 'dark' | 'light' | 'calm' | 'calm-dark',
+): Instance {
   const el = document.createElement('div');
   el.className = 'term-host';
   el.dataset.sessionId = id;
@@ -210,7 +214,8 @@ export const useTerminal = create<TerminalState>()(
             return null;
           }
           const info = res.value;
-          const theme = document.documentElement.dataset['theme'] === 'dark' ? 'dark' : 'light';
+          const d = document.documentElement.dataset;
+          const theme = d['theme'] === 'dark' || d['mode'] === 'dark' ? 'dark' : 'light';
           const inst = build(info.id, get().fontSize, theme);
           instances.set(info.id, inst);
           for (const chunk of pending.get(info.id) ?? []) inst.term.write(chunk);

@@ -36,22 +36,12 @@ export const PRIORITY_COLOR: Record<string, string> = {
 };
 
 // Domain palette (UI/UX §4.4): assigned in order of first appearance.
-export const DOMAIN_COLORS = [
-  '#f59e0b',
-  '#22c55e',
-  '#8286FF',
-  '#ef4444',
-  '#14B8A6',
-  '#EC4899',
-  '#F97316',
-  '#6366F1',
-  '#06B6D4',
-  '#9B9BAA',
-];
+// CSS variables (`--domain-N`, defined per theme in styles.css), so Calm can drop green from the palette.
+export const DOMAIN_COLORS = Array.from({ length: 10 }, (_, i) => `var(--domain-${i + 1})`);
 
 export function domainColor(domain: string, allDomains: readonly string[]): string {
   const i = allDomains.indexOf(domain);
-  return DOMAIN_COLORS[(i < 0 ? 0 : i) % DOMAIN_COLORS.length] ?? '#9B9BAA';
+  return DOMAIN_COLORS[(i < 0 ? 0 : i) % DOMAIN_COLORS.length] ?? 'var(--muted)';
 }
 
 export const HYDRATION_PROMPT = `Hydrate the Command Center with my project. I will provide a manifesto and a roadmap.
