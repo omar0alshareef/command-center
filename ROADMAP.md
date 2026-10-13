@@ -460,6 +460,30 @@ Out of scope for M13.2
 
 ---
 
+### M13.3 — Calm Dark (patch, after M13.2)  *(0.5 day)*
+**Maps to:** Patch to the shell and Settings. Builds on M13.2. Runs after M13.2, before M14.
+**Goal:** Add the dark mode of Calm (UI/UX §4.8, "Calm Dark") so Calm becomes one theme with a light and a dark mode. Default stays dark (the existing theme).
+
+Tasks
+- `styles.css`: add the Calm Dark token block with every token in the §4.8 Calm Dark table, selected by `data-theme="calm"` plus `data-mode="dark"`. Light Calm stays as built in M13.2.
+- Settings → Appearance: Calm gets a Light / Dark mode choice (Dark, Light, Calm Light, Calm Dark, System is acceptable if simpler). The title-bar cycle includes it. Persisted like M12 and M13.2. `system` maps Calm to light or dark from the OS.
+- Components from M13.2 (pill buttons, switch, checkbox, segmented tabs, progress, notification, modal scrim) restyled for dark by tokens only. Active tab and primary button: Mint fill, `--on-accent` text. No per-view colour overrides.
+- Domain colours in Calm Dark: amber, violet, blue only (no green), per §4.8. Done cards dimmed with a ✓.
+- `color-scheme: dark`; terminal uses the dark ANSI palette; `--tag-ink` 100%.
+- `test/a11y-tokens.test.ts`: add Calm Dark with the same thresholds as dark (text ≥ 4.5:1, accent and status ≥ 3:1 on bg, surface and surface-2). Re-run the computed-contrast scan from `M13.2.verify.mjs` in Calm Dark.
+
+Exit criteria
+- Calm Dark selectable in Settings and the title bar; survives restart; `system` follows the OS.
+- Every view renders in Calm Dark with no text under 4.5:1; UI/UX §9 passes for Task Board, Swim Lane, Agent Hub, Planning and Settings.
+- Screenshots of Task Board, Swim Lane and Planning in Calm Dark saved to `.supervisor/M13.3-calm-dark-*.png`.
+- `PROGRESS.md` updated. Commit `feat(M13.3): calm dark`.
+
+Out of scope for M13.3
+- A beige-heavy variant (considered and dropped by the operator).
+- Changing the default theme, per-project themes, any data, route or IPC change.
+
+---
+
 ### M14 — Orchestrator & Multi-Provider Runners  *(4–5 days, plus Slice 1 below)*
 **Maps to:** New (post-blueprint). Builds on M9 (runner abstraction), M10 (lessons), M11 (webhook), M13 (approved plan, team roster).
 **Goal:** Approved tasks run without the operator starting each one, on the provider each one is routed to, with every run recorded and every spend capped.

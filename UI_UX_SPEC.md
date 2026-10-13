@@ -132,7 +132,7 @@ Implement as CSS variables in `styles.css`, mapped into the Tailwind v4 `@theme`
 
 Status colors stay the same hue; darken text-on-light variants by ~10% for contrast (verify ≥ 4.5:1).
 
-### 4.8 Theme — Calm (light, optional)
+### 4.8 Theme — Calm (light and dark, optional)
 
 Source: the "CALM / SYSTEM" UI component study (operator-approved, 2026-10-13). The hex values in the study are exact; every other value is inferred from it and marked **(inferred)**. This theme is an **addition**: the default dark theme (§4.1) and the existing light theme (§4.2) stay. Settings → Appearance gains a fourth option, **Calm**, in milestone M13.2. Status colours (§4.3) keep their hue meaning in every theme.
 
@@ -191,6 +191,31 @@ Dense surfaces (Task Board columns, Swim Lane, activity feed, terminal) use `--b
 - `--accent-soft` (mint) is never a text colour.
 - The forest accent is not the success colour. Success uses `--success` and always carries a label or icon (§4.4: colour is never the only signal).
 - Verify with the `test/a11y-tokens` contrast test (add the calm tokens to it, same thresholds as §4.2).
+
+**Calm Dark (dark mode of Calm, operator-approved 2026-10-13, milestone M13.3)**
+
+Calm is one theme with two modes. The roles invert: Mint becomes the accent, forest-black becomes the background, ivory becomes the text. Values below are **(inferred)** from the Calm study and the operator-approved mock; contrast ratios were computed, not eyeballed.
+
+| Token | Value | Notes |
+|---|---|---|
+| `--bg` | `#0C1410` | forest-black |
+| `--surface` | `#121C17` | columns, panels |
+| `--surface-2` | `#18241E` | cards, rows |
+| `--surface-3` | `#202F27` | tracks, avatar discs |
+| `--border` | `#243329` | |
+| `--border-strong` | `#355043` | |
+| `--muted` | `#A3B5A9` | ≈7.4:1 on `--bg` |
+| `--text` | `#EEF0E6` | ivory, ≈13.9:1 on `--bg` |
+| `--accent` | `#B7D9C1` | Mint, ≈12.2:1 on `--bg`; may be text in dark mode |
+| `--on-accent` | `#0F3A25` | label on an accent fill |
+| `--accent-soft` | `rgba(183,217,193,0.14)` | tints, selected rows |
+| `--success` | `#6FC48E` | saturated green, always with a ✓ icon or label |
+| `--warning` | `#E6B04F` | |
+| `--danger` | `#EE7B6F` | |
+| `--focus` | `#B7D9C1` | 2px ring, 2px offset |
+| domain dots | amber `#E6B04F`, violet `#B79BEA`, blue `#7FB6E6` | no green domain colour in Calm Dark, so green only ever means accent or success |
+
+Dark-mode component rules: active tab and primary button are a Mint fill with `--on-accent` text; secondary buttons are outlined with `--border-strong`; Review cards get an amber border and tint, Blocked cards a red border; Done cards are dimmed with a ✓; shadows are off (borders only); `color-scheme: dark` for native controls; the terminal uses the dark ANSI palette. Shape, type and tag rules are the same as light Calm, except `--tag-ink` is 100% (hues are already text-safe on dark). Selected through Settings → Appearance (Calm → Light / Dark) and the title-bar cycle; `system` maps Calm to its light or dark mode from the OS.
 
 ### 4.3 Status → color map (single source of truth)
 
