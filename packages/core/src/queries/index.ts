@@ -7,6 +7,7 @@ import {
   MilestoneSchema,
   PhaseSchema,
   ProjectSchema,
+  RunSchema,
   TaskSchema,
   toJson,
   type Agent,
@@ -15,6 +16,7 @@ import {
   type Milestone,
   type Phase,
   type Project,
+  type Run,
   type Task,
   type TaskStatus,
   type TrackerState,
@@ -94,6 +96,21 @@ export function listPhases(db: Db): Phase[] {
   return PhaseSchema.array().parse(db.prepare('SELECT * FROM phases ORDER BY start_week').all());
 }
 
+export const RUNS_IN_STATE = 300;
+
+/** Runs newest first (by when they were queued), optionally for one task. */
+export function listRuns(db: Db, o: { taskId?: string; limit?: number } = {}): Run[] {
+  const where = o.taskId ? 'WHERE task_id = ?' : '';
+  const sql = `SELECT * FROM runs ${where} ORDER BY queued_at DESC, rowid DESC LIMIT ?`;
+  const params = o.taskId ? [o.taskId, o.limit ?? RUNS_IN_STATE] : [o.limit ?? RUNS_IN_STATE];
+  return RunSchema.array().parse(db.prepare(sql).all(...params));
+}
+
+export function getRun(db: Db, id: string): Run | null {
+  const row = db.prepare('SELECT * FROM runs WHERE id = ?').get(id);
+  return row ? RunSchema.parse(row) : null;
+}
+
 export function listLessons(db: Db): Lesson[] {
   return LessonSchema.array().parse(
     db.prepare('SELECT * FROM lessons_learned ORDER BY created_at DESC, id DESC').all(),
@@ -144,6 +161,7 @@ export function getAllTrackerState(db: Db): TrackerState {
     agent_log: getActivityFeed(db),
     phases: listPhases(db),
     lessons_learned: listLessons(db),
+    runs: listRuns(db),
   };
 }
 

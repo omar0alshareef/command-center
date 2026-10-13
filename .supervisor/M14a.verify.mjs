@@ -123,11 +123,11 @@ await step('M4 "CLI default" removes the flag on the next run', async () => {
 
 await step('M5 a removed model does not crash dispatch: CLI default, warning on screen and in the log', async () => {
   await page.keyboard.press('Control+,');
-  const area = page.locator('#model-list');
+  const area = page.locator('#model-list-claude-code');
   await area.waitFor({ timeout: 5000 });
   check('M5a Settings shows the editable model list', (await area.inputValue()).includes('"sonnet"'));
   await area.fill(JSON.stringify([{ id: 'sonnet', label: 'Sonnet (balanced)' }, { id: 'haiku', label: 'Haiku (fast)' }]));
-  await page.getByRole('button', { name: 'Save list' }).click();
+  await page.locator('[data-save-models="claude-code"]').click();
   await sleep(900);
   await page.keyboard.press('Escape');
   // code-quality is on opus, which is no longer listed: the dropdown keeps showing it, marked.
@@ -144,19 +144,19 @@ await step('M5 a removed model does not crash dispatch: CLI default, warning on 
   });
   const text = `${r.stdout}\n${r.stderr}`;
   const c = calls().slice(before);
-  check('M5c the CLI prints a warning, runs every stage, none passes the removed model', /warning: .*"opus" is no longer on the model list/.test(text) && c.length >= 3 && c.every((x) => modelOf(x) !== 'opus'), `${c.length} calls; ${text.match(/warning:[^\n]*/)?.[0]}`);
+  check('M5c the CLI prints a warning, runs every stage, none passes the removed model', /warning: .*"opus" is no longer on the claude-code model list/.test(text) && c.length >= 3 && c.every((x) => modelOf(x) !== 'opus'), `${c.length} calls; ${text.match(/warning:[^\n]*/)?.[0]}`);
   const logged = q("SELECT description FROM agent_log WHERE action = 'model_unavailable'");
   check('M5d a model_unavailable entry is logged', logged.length >= 1 && logged[0].description.includes('opus'), JSON.stringify(logged[0]));
   check('M5e the stored choice is untouched', q("SELECT model FROM agents WHERE id = 'code-quality'")[0].model === 'opus');
   await shot('agent-hub-removed-model');
   // Choosing a model that is not on the list is refused with a message.
   const refused = await page.evaluate(() => window.api.models.setAgentModel({ agentId: 'research-explorer', model: 'gpt-9' }));
-  check('M5f a model that is not on the list is refused with a message', !refused.ok && /not on the model list/.test(refused.error.message), refused.error?.message);
+  check('M5f a model that is not on the list is refused with a message', !refused.ok && /not on the claude-code model list/.test(refused.error.message), refused.error?.message);
 });
 
 await step('M6 the bad cases are refused', async () => {
   const people = await page.evaluate(() => window.api.models.setAgentModel({ agentId: 'operator', model: 'haiku' }));
-  const badJson = await page.evaluate(() => window.api.models.setList([{ id: 'a', label: 'A' }, { id: 'a', label: 'B' }]));
+  const badJson = await page.evaluate(() => window.api.models.setList({ provider: 'claude-code', list: [{ id: 'a', label: 'A' }, { id: 'a', label: 'B' }] }));
   check('M6a the operator has no model; a duplicate id is refused', !people.ok && !badJson.ok && /duplicate id/.test(badJson.error.message), `${people.error?.message} | ${badJson.error?.message}`);
 });
 

@@ -187,6 +187,7 @@ describe('mergeTracker structural sharing', () => {
       agent_log: [{ id: 'l1', action: 'x' }],
       phases: [],
       lessons_learned: [{ id: 1, subtask_id: 'T1' }],
+      runs: [{ id: 'r1', task_id: 'T1' }],
     }) as unknown as TrackerState;
 
   it('returns the previous object when nothing changed', () => {

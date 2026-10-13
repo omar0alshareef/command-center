@@ -9,7 +9,9 @@ import { ShortcutSheet } from './components/ShortcutSheet';
 import { useHotkeys } from './components/shell/useHotkeys';
 import { useNotifications } from './components/shell/useNotifications';
 import { MilestonePanel } from './components/milestone/MilestonePanel';
+import { RunOutputDialog } from './components/run/RunOutputDialog';
 import { TaskDetailModal } from './components/task/TaskDetailModal';
+import { useOrch } from './lib/orchestrator';
 import { Button } from './components/ui/button';
 import { ToastHost } from './components/ui/feedback';
 import { FatalError, ViewSkeleton, Welcome } from './screens';
@@ -28,6 +30,7 @@ export function App() {
   const init = useApp((s) => s.init);
   const refresh = useApp((s) => s.refresh);
   const setSync = useApp((s) => s.setSync);
+  const initOrch = useOrch((s) => s.init);
 
   useHotkeys();
   useNotifications();
@@ -55,6 +58,8 @@ export function App() {
     if (theme === 'calm-dark') root['mode'] = 'dark';
     else delete root['mode'];
   }, [theme]);
+
+  useEffect(() => initOrch(), [initOrch, project?.root]);
 
   useEffect(() => {
     void init();
@@ -108,6 +113,7 @@ export function App() {
           <StatusBar />
           <MilestonePanel />
           <TaskDetailModal />
+          <RunOutputDialog />
           <SettingsModal />
           <CommandPalette />
           <ShortcutSheet />

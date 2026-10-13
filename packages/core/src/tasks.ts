@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { nowIso, write, type Db } from './db';
 import { AgentNotFoundError, MilestoneNotFoundError, TaskNotFoundError } from './errors';
 import { isoDate } from './milestones';
+import { isProviderId, PROVIDER_IDS } from './providers/types';
 import { getActivityFeed, getAgent, getMilestone, getTask, logAction } from './queries';
 import {
   AcceptanceCriterionSchema,
@@ -31,6 +32,14 @@ export const TaskPatchSchema = z
     acceptance_criteria: z.array(AcceptanceCriterionSchema),
     /** Optional deadline (D16), YYYY-MM-DD. */
     due_date: isoDate.nullable(),
+    /** Run this task on a specific provider instead of its agent's (M14); null = the agent's. */
+    provider_override: z
+      .string()
+      .nullable()
+      .refine(
+        (v) => (v === null ? true : isProviderId(v)),
+        `use one of: ${PROVIDER_IDS.join(', ')}`,
+      ),
   })
   .partial()
   .strict();
@@ -193,6 +202,7 @@ export function deleteTask(db: Db, taskId: string, actor = 'operator'): Task {
   return write(db, () => {
     const task = getTask(db, taskId);
     if (!task) throw new TaskNotFoundError(taskId);
+    db.prepare('DELETE FROM runs WHERE task_id = ?').run(taskId);
     db.prepare('DELETE FROM lessons_learned WHERE subtask_id = ?').run(taskId);
     db.prepare('DELETE FROM subtasks WHERE id = ?').run(taskId);
     logAction(db, {

@@ -8,6 +8,11 @@ import {
   isAgentActive,
   listAgents,
   listLessons,
+  listRuns,
+  orchestratorStatus,
+  setOrchestratorMode,
+  getOrchestratorConfig,
+  type OrchestratorStatus,
 } from '@command-center/core';
 import { CliError, type Handle } from './context';
 import { ago, clip, table } from './format';
@@ -49,8 +54,11 @@ export function agentsCommand({ db }: Handle, json: boolean, out: Out): void {
     ago(a.last_action_at),
     String(a.session_action_count),
     a.source_model ?? '',
+    a.executor === 'agent'
+      ? `${a.provider ?? 'claude-code'}${a.model ? `/${a.model}` : ''}`
+      : a.executor,
   ]);
-  out(table(['AGENT', 'TYPE', 'STATE', 'LAST ACTION', 'ACTIONS', 'MODEL'], rows));
+  out(table(['AGENT', 'TYPE', 'STATE', 'LAST ACTION', 'ACTIONS', 'MODEL', 'RUNS ON'], rows));
 }
 
 export function logCommand(
@@ -98,4 +106,78 @@ export function lessonsCommand(
     if (l.fix_applied) out(`    fix: ${l.fix_applied}`);
     if (l.prevention) out(`    prevention: ${l.prevention}`);
   }
+}
+
+const money = (n: number) => `$${n.toFixed(n >= 0.01 || n === 0 ? 2 : 4)}`;
+
+function statusLines(s: OrchestratorStatus, ceiling: number): string[] {
+  const lines = [
+    `Orchestrator: ${s.mode}`,
+    `Running ${s.running} / ${s.maxConcurrent} · queued ${s.queued}`,
+    `Started in the last hour: ${s.startedLastHour} / ${s.maxPerHour}`,
+    `Spent today (estimate): ${money(s.spendToday)}${ceiling > 0 ? ` / ${money(ceiling)}` : ' (no ceiling)'}`,
+  ];
+  if (s.pausedByCap)
+    lines.push(
+      `PAUSED BY CAP (${s.pausedByCap}): no new run starts until the window clears or you raise the cap.`,
+    );
+  return lines;
+}
+
+/**
+ * The orchestrator itself runs inside the app; this only reads its state and flips the mode in the shared database, which the
+ * app sees within seconds. Provider detection is the app's, so `queued` here counts every ready task.
+ */
+export function orchestrateCommand(
+  { db }: Handle,
+  o: { status?: boolean; pause?: boolean; resume?: boolean; json?: boolean },
+  out: Out,
+): void {
+  const chosen = [o.status, o.pause, o.resume].filter(Boolean).length;
+  if (chosen > 1) throw new CliError('Use only one of --status, --pause, --resume.');
+  if (o.pause) setOrchestratorMode(db, 'paused');
+  if (o.resume) setOrchestratorMode(db, 'running');
+  const s = orchestratorStatus(db);
+  if (o.json)
+    return out(
+      JSON.stringify({ ...s, providers: undefined, config: getOrchestratorConfig(db) }, null, 2),
+    );
+  if (o.pause)
+    out('Paused: no new runs will start (runs in flight finish, or cancel them in the app).');
+  if (o.resume)
+    out('Resumed: the app starts ready tasks within a few seconds (it must be running).');
+  for (const line of statusLines(s, getOrchestratorConfig(db).dailySpendUsd)) out(line);
+}
+
+export function runsCommand(
+  { db }: Handle,
+  o: { task?: string; limit: number; json?: boolean },
+  out: Out,
+): void {
+  const taskId = o.task?.trim().toUpperCase();
+  if (taskId && !getTask(db, taskId)) throw new CliError(`Task ${taskId} does not exist.`);
+  const runs = listRuns(db, { ...(taskId ? { taskId } : {}), limit: o.limit });
+  if (o.json) return out(JSON.stringify(runs, null, 2));
+  if (runs.length === 0) return out(taskId ? `No runs for ${taskId} yet.` : 'No runs yet.');
+  out(
+    table(
+      ['RUN', 'TASK', 'AGENT', 'PROVIDER / MODEL', 'STATUS', 'TIME', 'TOKENS', 'COST'],
+      runs.map((r) => [
+        r.id.slice(0, 8),
+        r.task_id,
+        r.agent_id,
+        `${r.provider}/${r.model ?? 'default'}`,
+        r.status + (r.kind === 'review' ? ' (review)' : r.attempt > 1 ? ` (try ${r.attempt})` : ''),
+        r.started_at && r.finished_at
+          ? `${Math.max(1, Math.round((Date.parse(r.finished_at) - Date.parse(r.started_at)) / 1000))}s`
+          : '',
+        r.input_tokens === null && r.output_tokens === null
+          ? ''
+          : `${r.input_tokens ?? '?'}/${r.output_tokens ?? '?'}`,
+        r.est_cost_usd === null
+          ? ''
+          : `${money(r.est_cost_usd)} ${r.cost_basis === 'reported' ? '' : '(est.)'}`.trim(),
+      ]),
+    ),
+  );
 }

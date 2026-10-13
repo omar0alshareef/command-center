@@ -10,6 +10,7 @@ import { Button } from '../ui/button';
 import { Skeleton } from '../ui/feedback';
 import { Tooltip } from '../ui/overlays';
 import { copyText } from './fields';
+import { providerLabel, runCost, runDuration } from '../../lib/orchestrator';
 
 /** Fetch something per task, refetching when the task changes (`version` = its updated_at). */
 function useTaskData<T>(
@@ -100,20 +101,74 @@ export function HistoryTab({ taskId, version }: { taskId: string; version: strin
     );
   if (!value || value.log.length === 0) return <p className="p-5 text-muted">No history yet.</p>;
   return (
-    <ul className="flex flex-col gap-1 p-5">
-      {value.log.map((e) => (
-        // The reject log entry and its lesson are written in the same transaction with one timestamp.
-        <HistoryEntry
-          key={e.id}
-          entry={e}
-          lesson={
-            e.action === 'task_rejected'
-              ? value.lessons.find((l) => l.created_at === e.timestamp)
-              : undefined
-          }
-        />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-4 p-5">
+      <RunsList taskId={taskId} />
+      <ul className="flex flex-col gap-1">
+        {value.log.map((e) => (
+          // The reject log entry and its lesson are written in the same transaction with one timestamp.
+          <HistoryEntry
+            key={e.id}
+            entry={e}
+            lesson={
+              e.action === 'task_rejected'
+                ? value.lessons.find((l) => l.created_at === e.timestamp)
+                : undefined
+            }
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The provider calls made for this task (M14): provider, model, outcome, duration and cost (an estimate unless reported). */
+function RunsList({ taskId }: { taskId: string }) {
+  const runs = useApp((s) => s.tracker?.runs);
+  const setOpenRunId = useApp((s) => s.setOpenRunId);
+  const mine = (runs ?? []).filter((r) => r.task_id === taskId);
+  if (mine.length === 0) return null;
+  const total = mine.reduce((n, r) => n + (r.est_cost_usd ?? 0), 0);
+  return (
+    <section aria-label="Runs" data-task-runs>
+      <h3 className="mb-1 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+        Runs · ${total.toFixed(4)} total (estimate unless reported)
+      </h3>
+      <ul className="flex flex-col gap-1">
+        {mine.map((r) => (
+          <li key={r.id}>
+            <button
+              type="button"
+              data-run-row={r.id}
+              onClick={() => setOpenRunId(r.id)}
+              className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left text-[12px] hover:bg-surface-2"
+            >
+              <Tag
+                color={
+                  r.status === 'succeeded'
+                    ? 'var(--success)'
+                    : r.status === 'running'
+                      ? 'var(--accent)'
+                      : 'var(--danger)'
+                }
+              >
+                {r.status}
+              </Tag>
+              <span className="font-mono">
+                {providerLabel(r.provider)}
+                {r.model ? ` / ${r.model}` : ''}
+              </span>
+              <span className="text-muted">
+                {r.kind}
+                {r.attempt > 1 ? ` · attempt ${r.attempt}` : ''}
+              </span>
+              <span className="flex-1" />
+              <span className="font-mono text-muted">{runDuration(r)}</span>
+              <span className="font-mono">{runCost(r)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

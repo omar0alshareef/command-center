@@ -26,6 +26,8 @@ interface AppState {
   selectedMilestoneId: string | null;
   /** Task shown in the detail modal (global: any view can open it). */
   openTaskId: string | null;
+  /** Run shown in the output dialog (Activity Feed and the task History tab). */
+  openRunId: string | null;
   /** Milestone shown in the 480px panel; selection (`selectedMilestoneId`) is separate and global. */
   openMilestoneId: string | null;
   /** One-shot request for the panel to start in a mode (set by the swim lane's context menu). */
@@ -62,6 +64,7 @@ interface AppState {
   setActiveTab: (tab: TabId) => void;
   setSelectedMilestoneId: (id: string | null) => void;
   setOpenTaskId: (id: string | null) => void;
+  setOpenRunId: (id: string | null) => void;
   openMilestone: (id: string | null, intent?: 'dates' | 'add-task') => void;
   clearPanelIntent: () => void;
   scrollToMilestone: (id: string | null) => void;
@@ -171,6 +174,7 @@ export const useApp = create<AppState>()(
       clearBoardAssignee: () => set({ boardAssignee: null }),
       selectedMilestoneId: null,
       openTaskId: null,
+      openRunId: null,
       openMilestoneId: null,
       panelIntent: null,
       scrollToMilestoneId: null,
@@ -186,6 +190,7 @@ export const useApp = create<AppState>()(
       setActiveTab: (activeTab) => set({ activeTab }),
       setSelectedMilestoneId: (selectedMilestoneId) => set({ selectedMilestoneId }),
       setOpenTaskId: (openTaskId) => set({ openTaskId }),
+      setOpenRunId: (openRunId) => set({ openRunId }),
       openMilestone: (id, intent) =>
         set({
           openMilestoneId: id,

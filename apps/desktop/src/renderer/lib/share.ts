@@ -32,6 +32,7 @@ export function mergeTracker(prev: TrackerState, next: TrackerState): TrackerSta
       prev.lessons_learned,
       next.lessons_learned,
     ) as TrackerState['lessons_learned'],
+    runs: reuse(prev.runs, next.runs) as TrackerState['runs'],
   };
   const unchanged = (Object.keys(merged) as (keyof TrackerState)[]).every(
     (k) => merged[k] === prev[k],

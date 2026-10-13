@@ -1,7 +1,14 @@
 import { CoreError, hydrate, hydrationPrompt } from '@command-center/core';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Command, InvalidArgumentError } from 'commander';
-import { agentsCommand, lessonsCommand, logCommand, statusCommand } from './commands';
+import {
+  agentsCommand,
+  lessonsCommand,
+  logCommand,
+  orchestrateCommand,
+  runsCommand,
+  statusCommand,
+} from './commands';
 import { CliError, openProject, type Handle } from './context';
 import { audit } from './pipeline/audit';
 import { prepare } from './pipeline/prepare';
@@ -78,6 +85,41 @@ program
   .option('--json', 'machine-readable output')
   .action(
     action((h, o: { json?: boolean }) => (agentsCommand(h, Boolean(o.json), out), undefined)),
+  );
+
+program
+  .command('orchestrate')
+  .description(
+    'The orchestrator that runs approved tasks: its state (--status, the default), or pause/resume it (the app does the running)',
+  )
+  .option('--status', 'show the mode, runs, caps and spend')
+  .option('--pause', 'stop starting new runs')
+  .option('--resume', 'start ready tasks again')
+  .option('--json', 'machine-readable output')
+  .action(
+    action(
+      (h, o: { status?: boolean; pause?: boolean; resume?: boolean; json?: boolean }) => (
+        orchestrateCommand(h, o, out),
+        undefined
+      ),
+    ),
+  );
+
+program
+  .command('runs')
+  .description(
+    'Provider runs: provider, model, status, duration, tokens and cost (an estimate unless reported)',
+  )
+  .option('--task <id>', 'only runs for this task')
+  .option('--limit <n>', 'how many runs', int(1, 200), 20)
+  .option('--json', 'machine-readable output')
+  .action(
+    action(
+      (h, o: { task?: string; limit: number; json?: boolean }) => (
+        runsCommand(h, o, out),
+        undefined
+      ),
+    ),
   );
 
 program

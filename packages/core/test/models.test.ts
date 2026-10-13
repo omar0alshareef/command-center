@@ -62,13 +62,15 @@ describe('agent model', () => {
     expect(setAgentModel(t.db, 'writer', 'opus').model).toBe('opus');
     const log = getActivityFeed(t.db, { targetId: 'writer', limit: 1 })[0];
     expect(log).toMatchObject({ action: 'agent_model_changed', agent_id: 'operator' });
-    expect(log?.description).toBe('Writer: model CLI default -> opus');
+    expect(log?.description).toBe('Writer: model default -> opus');
     expect(setAgentModel(t.db, 'writer', null).model).toBeNull();
     expect(setAgentModel(t.db, 'writer', '  ').model).toBeNull();
   });
 
   it('refuses ids that are not on the list, unknown agents, and agents that have no model', () => {
-    expect(() => setAgentModel(t.db, 'writer', 'gpt-9')).toThrow(/not on the model list/);
+    expect(() => setAgentModel(t.db, 'writer', 'gpt-9')).toThrow(
+      /not on the claude-code model list/,
+    );
     expect(() => setAgentModel(t.db, 'ghost', 'opus')).toThrow(/not registered/);
     expect(() => setAgentModel(t.db, 'voice', 'opus')).toThrow(/external tool/);
     expect(() => setAgentModel(t.db, 'operator', 'opus')).toThrow(/no model/);
@@ -86,7 +88,7 @@ describe('agent model', () => {
     const r = resolveAgentModel(t.db, 'writer');
     expect(r.model).toBeNull();
     expect(r.warning).toBe(
-      'Writer: model "sonnet" is no longer on the model list, using the CLI default.',
+      'Writer: model "sonnet" is no longer on the claude-code model list, using the default.',
     );
     expect(getAgent(t.db, 'writer')?.model).toBe('sonnet');
   });

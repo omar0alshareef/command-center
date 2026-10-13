@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { TrackerState } from '@command-center/core';
 import { HydrationEmptyState } from '../../components/HydrationEmptyState';
 import { McpConnect } from '../../components/McpConnect';
+import { OrchestratorControls } from '../../components/run/OrchestratorControls';
 import { EmptyState } from '../../components/ui/feedback';
 import { isConnectedAgent, mergeLog, weekStart } from '../../lib/agent-hub';
 import { useApp } from '../../store';
@@ -48,6 +49,16 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
         className="flex min-h-0 flex-col gap-3 overflow-auto border-r border-border p-3"
         data-hub-left
       >
+        <section
+          aria-label="Orchestrator"
+          className="rounded-lg border border-border bg-surface p-3"
+          data-orchestrator-card
+        >
+          <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-muted uppercase">
+            Orchestrator
+          </h2>
+          <OrchestratorControls />
+        </section>
         <AgentTree agents={tracker.agents} />
         <SharedState tracker={tracker} />
         <ContextPreview tracker={tracker} />

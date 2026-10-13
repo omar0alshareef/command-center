@@ -56,7 +56,7 @@ Agents drive the board through the `command-center` MCP server (stdio). The app'
 
 The server registers the calling agent automatically on its first call, named after the client (`claude-code` for Claude Code). Override with `COMMAND_CENTER_AGENT_ID`, `COMMAND_CENTER_AGENT_NAME`, `COMMAND_CENTER_AGENT_TYPE` (`orchestrator` | `sub-agent` | `external`) and `COMMAND_CENTER_AGENT_MODEL` in the config's `env`. A tool call can never act as `operator`, `system` or a human agent, and can act only as the session agent or sub-agents registered under it (`register_agent` it, then pass its id as `agent_id`). Review is independent: an agent cannot approve work submitted by itself or by its own parent or sub-agents; the operator or an unrelated agent must.
 
-### The 28 tools
+### The 30 tools
 
 | Group | Tools |
 |---|---|
@@ -64,6 +64,7 @@ The server registers the calling agent automatically on its first call, named af
 | Task (11) | `start_task`, `complete_task`, `approve_task`, `reject_task`, `reset_task`, `delete_task`, `block_task`, `unblock_task`, `update_task`, `log_action`, `enrich_task` |
 | Milestone (5) | `add_milestone_note`, `set_milestone_dates`, `update_drift`, `create_milestone`, `add_milestone_task` |
 | Agent (1) | `register_agent` |
+| Runs (2) | `list_runs` (provider runs with usage and cost), `cancel_run` (stop a run; it can never approve or complete work) |
 
 Typical loop: `get_project_status` → `list_tasks` → `get_task_context` → `start_task` → work (`log_action`) → `complete_task`. The task then waits in **Review** for the human. Errors name the tool to call next, and unknown parameters are rejected rather than ignored.
 
@@ -82,6 +83,8 @@ command-center log --task TASK-001     # a task's history, newest first (--agent
 command-center prepare --id TASK-001   # Research Explorer -> Token Compressor -> Prompt Optimizer -> .claude/TASK_CONTEXT.md
 command-center start   --id TASK-001   # start_task, dispatch the agent with the context, run checks, complete_task
 command-center audit   --id TASK-001   # Code Quality -> Security -> Final Validator; FAIL sends a reviewed task back
+command-center orchestrate --status    # the orchestrator: mode, runs, caps, spend (--pause / --resume; the app does the running)
+command-center runs --task TASK-001    # provider runs: provider/model, time, tokens, cost (an estimate unless reported)
 command-center lessons --task TASK-001 # lessons from past rejections that apply (or --query text; no flag = latest)
 command-center hydrate --plan plan.json # create phases, agents, milestones and tasks from a plan (see Hydrate below)
 ```
@@ -102,9 +105,20 @@ Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves
 
 The planner runs Claude Code (`claude -p`, as a child process, never in the terminal) or the Anthropic API with a key (Settings → Planner; the key is encrypted with the OS keychain and never shown). The approved manifesto and roadmap are under Settings → Planner, and each milestone's roadmap entry shows in its panel. Agents can read plans (`get_planning_documents`, `get_planning_session`) but cannot approve them.
 
+## Run approved tasks automatically (orchestrator)
+
+Agent Hub → **Orchestrator** (or the status bar) switches the orchestrator on. It is plain code, never a model: every 5 seconds (and straight after a change to the board) it starts the tasks that are ready, in order of milestone start, priority and due date. A task is ready when it is To Do, assigned to a text agent, every task it depends on is done, and its provider is detected. A run is `start_task`, one call to the agent's provider with the task's context, then `complete_task` with the agent's `SUMMARY:` line; the task then waits in **Review**. A failed run is retried once, then the task is **blocked** with the error text; the orchestrator carries on with other tasks. Manual **Run with agent** in a task uses the same path.
+
+- **Providers** (Settings → Providers): Claude Code (`claude -p` in the project folder), Anthropic API, OpenAI API, Gemini (CLI if installed, else API key), and a local Ollama / LM Studio server. Each shows detected / not detected; a provider that is not detected cannot be chosen. Keys are encrypted with the OS keychain, never shown again, never written to a log, the database or a task file. **Test connection** makes one live round trip.
+- **Routing:** each agent has a provider and model (Agent Hub); a task can override its agent's provider (task → Details → Provider).
+- **Limits (D28):** runs at once (default 2, and 1 per agent), runs per hour (20), estimated spend per day ($5) and a per-run timeout (15 min). Reaching the hourly or daily cap pauses dispatch ("Paused by cap" in the status bar) until the window clears or you raise it. Pause asks whether to let running runs finish or cancel them; "Stop after current" lets the current runs end, then pauses.
+- **Reviews:** a task an agent finished is reviewed by a different agent (never the same agent or its family) or by you. Automatic review by another agent is off by default (Settings → Providers).
+- **Visibility:** each run is one activity-feed entry (provider, model, duration; **Output** opens its last lines), a row in the task's History, and a count in the status bar (running, queued, today's spend against the ceiling). Costs are labelled **estimate** unless the provider reported them (Claude Code does).
+- **Risk:** agents run on your computer with the permissions their provider already grants (Claude Code may edit files and run `npm run` scripts in the project folder). Command Center does not sandbox anything beyond that.
+
 ## Choose a model per agent
 
-Agent Hub → each text-runner agent has a **Model** dropdown. The options come from Settings → Claude Code models, an editable JSON list of `{ "id", "label" }` that starts with the aliases `haiku`, `sonnet` and `opus` (checked against the installed `claude` CLI; `id` is what is passed to `claude --model`, so a full model name works too). "CLI default" passes no flag. The operator CLI (`prepare`, `start`, `audit`) runs each stage on its agent's model (the builder on the task's assignee), writes the model into the run's activity entry, and warns, then uses the CLI default, if an agent's model has been removed from the list. The old `COMMAND_CENTER_MODEL` variable is no longer read: the agent decides.
+Agent Hub → each text-runner agent has **Provider** and **Model** dropdowns. For Claude Code the options come from Settings → Providers, an editable JSON list of `{ "id", "label" }` that starts with the aliases `haiku`, `sonnet` and `opus` (checked against the installed `claude` CLI; `id` is what is passed to `claude --model`, so a full model name works too). "CLI default" passes no flag. The operator CLI (`prepare`, `start`, `audit`) runs each stage on its agent's model (the builder on the task's assignee), writes the model into the run's activity entry, and warns, then uses the CLI default, if an agent's model has been removed from the list. The old `COMMAND_CENTER_MODEL` variable is no longer read: the agent decides.
 
 ## Hydrate a project from your docs
 

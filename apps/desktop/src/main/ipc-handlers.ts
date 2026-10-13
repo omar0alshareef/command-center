@@ -7,7 +7,8 @@ import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
 import { lessonsApi } from './lessons-api';
 import { milestoneApi } from './milestone-api';
-import { modelsApi } from './models-api';
+import { OrchestratorLoop } from './orchestrator-loop';
+import { orchestratorApi } from './orchestrator-api';
 import { planningApi } from './planning-api';
 import type { Planner } from './planner';
 import { run, taskApi } from './task-api';
@@ -18,7 +19,10 @@ function broadcast(channel: string, payload?: unknown): void {
 }
 
 export const projectEvents = {
-  changed: () => broadcast(CH.dbChanged),
+  changed: () => {
+    broadcast(CH.dbChanged);
+    orchestrator?.kick();
+  },
   status: (s: SyncStatus) => broadcast(CH.dbStatus, s),
 };
 
@@ -32,6 +36,7 @@ export const pty = new PtyManager(
 );
 export let webhook: WebhookServer;
 export let planner: Planner | null = null;
+export let orchestrator: OrchestratorLoop | null = null;
 let projectRoot: () => string | null = () => null;
 
 export function registerIpc(project: ProjectService): void {
@@ -69,10 +74,29 @@ export function registerIpc(project: ProjectService): void {
   ipcMain.handle(CH.lessonUpdate, (_e, req: unknown) => lessons.update(req));
   ipcMain.handle(CH.lessonRemove, (_e, id: unknown) => lessons.remove(id));
 
-  const models = modelsApi(() => project.db());
-  ipcMain.handle(CH.modelsList, () => models.list());
-  ipcMain.handle(CH.modelsSet, (_e, list: unknown) => models.setList(list));
-  ipcMain.handle(CH.agentSetModel, (_e, req: unknown) => models.setAgentModel(req));
+  orchestrator = new OrchestratorLoop(
+    () => project.db(),
+    () => project.info().root,
+    (v) => broadcast(CH.orchEvent, v),
+  );
+  orchestrator.start();
+  const orch = orchestratorApi(() => project.db(), orchestrator);
+  ipcMain.handle(CH.modelsSet, (_e, req: unknown) => orch.setModels(req));
+  ipcMain.handle(CH.agentSetModel, (_e, req: unknown) => orch.setAgentModel(req));
+  ipcMain.handle(CH.agentSetProvider, (_e, req: unknown) => orch.setAgentProvider(req));
+  ipcMain.handle(CH.agentSetConcurrency, (_e, req: unknown) => orch.setAgentConcurrency(req));
+  ipcMain.handle(CH.orchStatus, () => orch.status());
+  ipcMain.handle(CH.orchResume, () => orch.resume());
+  ipcMain.handle(CH.orchPause, (_e, req: unknown) => orch.pause(req));
+  ipcMain.handle(CH.orchStopAfter, () => orch.stopAfterCurrent());
+  ipcMain.handle(CH.orchStart, (_e, req: unknown) => orch.start(req));
+  ipcMain.handle(CH.orchCancelRun, (_e, id: unknown) => orch.cancelRun(id));
+  ipcMain.handle(CH.orchConfig, (_e, patch: unknown) => orch.setConfig(patch));
+  ipcMain.handle(CH.provList, (_e, refresh: unknown) => orch.providers(refresh));
+  ipcMain.handle(CH.provSetKey, (_e, req: unknown) => orch.setKey(req));
+  ipcMain.handle(CH.provSetUrl, (_e, req: unknown) => orch.setBaseUrl(req));
+  ipcMain.handle(CH.provTest, (_e, id: unknown) => orch.test(id));
+  ipcMain.handle(CH.provModels, (_e, id: unknown) => orch.models(id));
 
   const plan = planningApi(
     () => project.db(),

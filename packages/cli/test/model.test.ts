@@ -122,7 +122,7 @@ describe('per-agent model reaches the runner and the log', () => {
     const r = await run(runner);
     expect(r.result.ok).toBe(true);
     expect(seen[0]?.model).toBeNull();
-    expect(r.warning).toContain('no longer on the model list');
+    expect(r.warning).toContain('no longer on the claude-code model list');
     expect(getAgent(db, 'research-explorer')?.model).toBe('opus'); // the stored choice is untouched
     const log = getActivityFeed(db, { targetId: 'TASK-001', limit: 5 });
     expect(log.some((l) => l.action === 'model_unavailable')).toBe(true);

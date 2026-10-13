@@ -96,6 +96,8 @@ export const TaskSchema = z.object({
   last_run_id: z.string().nullable(),
   builder_prompt: z.string().nullable(),
   due_date: z.string().nullable(),
+  /** Run this task on this provider instead of its agent's (M14); null = the agent's. */
+  provider_override: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -118,6 +120,10 @@ export const AgentSchema = z.object({
   tool: z.string().nullable(),
   /** Claude Code model id for this agent (M14); null = the CLI default. */
   model: z.string().nullable(),
+  /** Which provider runs this agent's tasks (M14); null = claude-code. */
+  provider: z.string().nullable(),
+  /** How many runs this agent may have at once. */
+  max_concurrent: z.number(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
 
@@ -152,6 +158,33 @@ export const LessonSchema = z.object({
 });
 export type Lesson = z.infer<typeof LessonSchema>;
 
+export const RUN_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'cancelled'] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+export const RunSchema = z.object({
+  id: z.string(),
+  task_id: z.string(),
+  agent_id: z.string(),
+  provider: z.string(),
+  model: z.string().nullable(),
+  kind: z.enum(['work', 'review']),
+  attempt: z.number(),
+  status: z.enum(RUN_STATUSES),
+  queued_at: z.string(),
+  started_at: z.string().nullable(),
+  finished_at: z.string().nullable(),
+  exit_code: z.number().nullable(),
+  input_tokens: z.number().nullable(),
+  output_tokens: z.number().nullable(),
+  est_cost_usd: z.number().nullable(),
+  /** 'reported' = the provider returned the cost; 'estimate' = computed from tokens and an approximate price table. */
+  cost_basis: z.enum(['reported', 'estimate']).nullable(),
+  error: z.string().nullable(),
+  output_tail: z.string().nullable(),
+  cancel_requested: z.number().transform((n) => n !== 0),
+});
+export type Run = z.infer<typeof RunSchema>;
+
 export interface TrackerState {
   project: Project;
   milestones: Milestone[];
@@ -160,4 +193,6 @@ export interface TrackerState {
   agent_log: AgentLogEntry[];
   phases: Phase[];
   lessons_learned: Lesson[];
+  /** The newest runs (M14), newest first. */
+  runs: Run[];
 }

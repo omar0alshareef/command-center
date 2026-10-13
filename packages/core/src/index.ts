@@ -14,3 +14,8 @@ export * from './hydrate';
 export * from './planning';
 export * from './claude-bin';
 export * from './models';
+export * from './process';
+export * from './providers';
+export * from './runs';
+export * from './orchestrator-settings';
+export * from './orchestrator';

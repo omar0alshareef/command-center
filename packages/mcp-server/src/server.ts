@@ -8,7 +8,7 @@ import { registerReadTools } from './tools/read';
 import type { Ctx } from './tools/shared';
 import { registerTaskTools } from './tools/task';
 
-export const TOOL_COUNT = 28;
+export const TOOL_COUNT = 30;
 
 const INSTRUCTIONS = `Command Center is the shared project board for the human operator and AI agents.
 
@@ -26,7 +26,7 @@ export interface ServerOptions {
   now?: () => Date;
 }
 
-/** Build the MCP server with all 26 tools. Transport-agnostic so tests can use an in-memory pair. */
+/** Build the MCP server with all 30 tools. Transport-agnostic so tests can use an in-memory pair. */
 export function createServer({
   db,
   env = process.env,

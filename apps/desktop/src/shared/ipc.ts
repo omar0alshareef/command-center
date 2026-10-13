@@ -5,6 +5,8 @@ import type {
   Milestone,
   ModelOption,
   NewTask,
+  OrchestratorConfig,
+  OrchestratorStatus,
   PlanCounts,
   PlannerStage,
   PlanningDocument,
@@ -44,9 +46,23 @@ export const CH = {
   termKill: 'terminal:kill',
   webhookStatus: 'webhook:status',
   webhookRegenerate: 'webhook:regenerate',
-  modelsList: 'models:list',
   modelsSet: 'models:set',
   agentSetModel: 'agents:setModel',
+  agentSetProvider: 'agents:setProvider',
+  agentSetConcurrency: 'agents:setConcurrency',
+  orchStatus: 'orchestrator:status',
+  orchResume: 'orchestrator:resume',
+  orchPause: 'orchestrator:pause',
+  orchStopAfter: 'orchestrator:stopAfterCurrent',
+  orchStart: 'orchestrator:start',
+  orchCancelRun: 'orchestrator:cancelRun',
+  orchConfig: 'orchestrator:setConfig',
+  orchEvent: 'orchestrator:event',
+  provList: 'providers:list',
+  provSetKey: 'providers:setKey',
+  provSetUrl: 'providers:setBaseUrl',
+  provTest: 'providers:test',
+  provModels: 'providers:models',
   planList: 'planning:list',
   planGet: 'planning:get',
   planCreate: 'planning:create',
@@ -135,6 +151,26 @@ export type PlannerEvent =
   | { sessionId: string; type: 'done' }
   | { sessionId: string; type: 'error'; text: string };
 
+/** The orchestrator's state plus its limits, as the status bar and Settings show them. */
+export type OrchestratorView = OrchestratorStatus & { config: OrchestratorConfig };
+
+/** One provider as Settings → Providers shows it. The key itself never crosses to the renderer. */
+export interface ProviderInfo {
+  id: string;
+  label: string;
+  kind: 'cli' | 'api' | 'local';
+  needsKey: boolean;
+  /** Gemini can use its CLI instead of a key. */
+  keyOptional: boolean;
+  defaultModel: string | null;
+  available: boolean;
+  detail: string;
+  keySet: boolean;
+  keySuffix: string | null;
+  baseUrl: string | null;
+  encrypted: boolean;
+}
+
 /** What the renderer may know about the planner runner: never the key itself (D19). */
 export interface PlannerSettings {
   runner: 'claude-code' | 'anthropic-api';
@@ -191,11 +227,36 @@ export interface Api {
     remove(id: number): Promise<Result<null>>;
   };
   models: {
-    /** The editable Claude Code model list (settings), starting from three aliases. */
-    list(): Promise<Result<ModelOption[]>>;
-    setList(list: ModelOption[]): Promise<Result<ModelOption[]>>;
-    /** Set an agent's model (null = CLI default). Logged in the activity feed. */
+    /** Replace one provider's editable model list (settings). */
+    setList(req: { provider: string; list: ModelOption[] }): Promise<Result<ModelOption[]>>;
+    /** Set an agent's model (null = the provider's default). Logged in the activity feed. */
     setAgentModel(req: { agentId: string; model: string | null }): Promise<Result<Agent>>;
+  };
+  agents: {
+    /** Route an agent to a provider (null = Claude Code). Clears its model. */
+    setProvider(req: { agentId: string; provider: string | null }): Promise<Result<Agent>>;
+    setConcurrency(req: { agentId: string; max: number }): Promise<Result<Agent>>;
+  };
+  orchestrator: {
+    status(): Promise<Result<OrchestratorView | null>>;
+    resume(): Promise<Result<OrchestratorView | null>>;
+    /** Pause dispatch; `cancelRunning` also ends the runs in flight. */
+    pause(req: { cancelRunning: boolean }): Promise<Result<OrchestratorView | null>>;
+    stopAfterCurrent(): Promise<Result<OrchestratorView | null>>;
+    /** The manual Start button: same dispatch path as the loop. */
+    start(req: { taskId: string; force?: boolean }): Promise<Result<{ runId: string }>>;
+    cancelRun(runId: string): Promise<Result<null>>;
+    setConfig(patch: Partial<OrchestratorConfig>): Promise<Result<OrchestratorView | null>>;
+    onStatus(cb: (v: OrchestratorView) => void): () => void;
+  };
+  providers: {
+    list(refresh?: boolean): Promise<Result<ProviderInfo[]>>;
+    /** Store a key (encrypted); null removes it. The key is never sent back. */
+    setKey(req: { id: string; key: string | null }): Promise<Result<ProviderInfo>>;
+    setBaseUrl(req: { id: string; url: string | null }): Promise<Result<ProviderInfo>>;
+    test(id: string): Promise<Result<{ ok: boolean; detail: string }>>;
+    /** The models an agent on this provider can pick: the editable list, or what a local server reports. */
+    models(id: string): Promise<Result<ModelOption[]>>;
   };
   planning: {
     list(): Promise<Result<PlanningSession[]>>;

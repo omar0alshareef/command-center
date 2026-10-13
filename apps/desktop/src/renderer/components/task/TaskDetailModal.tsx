@@ -6,6 +6,8 @@ import { isPastDue } from '../../lib/planning';
 import { useAgents, useTasksById } from '../../lib/hooks';
 import { deleteTask, saveTaskFields, transitionTask } from '../../lib/task-actions';
 import { typeInTerminal } from '../../lib/terminal-actions';
+import { PROVIDER_ORDER, providerAvailable, providerLabel, useOrch } from '../../lib/orchestrator';
+import { toast } from '../../toast';
 import { STATUS_NAME, STATUS_ORDER } from '../../lib/status';
 import { useApp } from '../../store';
 import { useMoveFlow } from '../../views/task-board/MoveFlow';
@@ -197,6 +199,8 @@ function Details({ task, save }: { task: Task; save: (patch: TaskPatch) => void 
           </div>
         </div>
 
+        <ProviderOverride task={task} save={save} />
+
         <div className="grid grid-cols-3 gap-3">
           <div>
             <FieldLabel htmlFor="f-due">Due date</FieldLabel>
@@ -313,6 +317,37 @@ export function TaskDetailModal() {
   );
 }
 
+/** Which provider runs this task: "Use agent default" first, then the providers that are detected (M14). */
+function ProviderOverride({ task, save }: { task: Task; save: (patch: TaskPatch) => void }) {
+  const view = useOrch((s) => s.view);
+  const agents = useAgents();
+  const agent = agents.find((a) => a.id === task.assignee);
+  const agentDefault = providerLabel(agent?.provider);
+  return (
+    <div>
+      <FieldLabel htmlFor="f-provider">Provider</FieldLabel>
+      <select
+        id="f-provider"
+        value={task.provider_override ?? ''}
+        onChange={(e) => save({ provider_override: e.target.value || null })}
+        className="h-8 w-full rounded-md border border-border bg-surface-2 px-2"
+      >
+        <option value="">Use agent default ({agentDefault})</option>
+        {PROVIDER_ORDER.map((id) => (
+          <option
+            key={id}
+            value={id}
+            disabled={id !== task.provider_override && !providerAvailable(view, id)}
+          >
+            {providerLabel(id)}
+            {providerAvailable(view, id) ? '' : ' (not detected)'}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => void }) {
   const agents = useAgents();
   const flow = useMoveFlow();
@@ -320,6 +355,22 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
   const [saved, setSaved] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmForce, setConfirmForce] = useState(false);
+  const activeRun = useApp((s) =>
+    s.tracker?.runs.find((r) => r.task_id === task.id && r.status === 'running'),
+  );
+
+  // The manual Start: the same dispatch path the orchestrator uses, so the task runs on its routed provider.
+  const runWithAgent = async (force = false) => {
+    const r = await window.api.orchestrator.start({
+      taskId: task.id,
+      ...(force ? { force: true } : {}),
+    });
+    if (r.ok) return toast.info(`${task.id} is running`);
+    if (r.error.code === 'NOT_READY' && r.error.message.includes('depends on'))
+      return setConfirmForce(true);
+    toast.error(r.error.message);
+  };
 
   useEffect(() => {
     if (!saved) return;
@@ -454,6 +505,11 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
             <Tooltip content="Arrives with the operator CLI (M9)">
               <Button disabled>Prepare</Button>
             </Tooltip>
+            <Tooltip content="Runs the task on its agent's provider now (same path as the orchestrator)">
+              <Button data-run-agent onClick={() => void runWithAgent()}>
+                Run with agent
+              </Button>
+            </Tooltip>
             <Button variant="primary" onClick={() => flow.request(task, 'in_progress')}>
               Start
             </Button>
@@ -461,6 +517,17 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
         ) : null}
         {task.status === 'in_progress' ? (
           <>
+            {activeRun ? (
+              <Button
+                data-cancel-run={activeRun.id}
+                onClick={async () => {
+                  const r = await window.api.orchestrator.cancelRun(activeRun.id);
+                  if (!r.ok) toast.error(r.error.message);
+                }}
+              >
+                Cancel run
+              </Button>
+            ) : null}
             <Button onClick={() => flow.request(task, 'blocked')}>Block</Button>
             <Button variant="primary" onClick={() => flow.request(task, 'review')}>
               Complete
@@ -492,6 +559,17 @@ function TaskDetailBody({ task, onClose: close }: { task: Task; onClose: () => v
         onConfirm={() => {
           setConfirmDelete(false);
           void deleteTask(task.id);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmForce}
+        title={`Run ${task.id} anyway?`}
+        body="Some tasks it depends on are not done yet. The agent will start without their results."
+        confirmLabel="Run anyway"
+        onCancel={() => setConfirmForce(false)}
+        onConfirm={() => {
+          setConfirmForce(false);
+          void runWithAgent(true);
         }}
       />
       <ConfirmDialog

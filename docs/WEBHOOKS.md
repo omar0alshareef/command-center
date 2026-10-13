@@ -9,6 +9,8 @@ The app listens on `http://127.0.0.1:38120` while it is running. Local connectio
 | `POST /webhook/agent-action` | `{agent_id, action, target_type?, target_id?, description?, tags?}` | Appends to the activity log. |
 | `GET /webhook/status` | — | `{port, status}` |
 
+A task set to `todo` (or one whose dependency was just approved) is picked up by the orchestrator within seconds when it is switched on and the task has a text agent assigned (see the README, "Run approved tasks automatically"). The independence rule applies here too: `completed_by` equal to the agent that submitted the task is refused with `409`.
+
 Errors: `401` bad/missing token, `403` non-local peer or foreign `Host`, `400` invalid body or status, `404` unknown task/milestone/endpoint, `409` illegal move or unmet dependencies, `413` body over 64 KB.
 
 ## curl

@@ -80,11 +80,24 @@ const Entry = memo(function Entry({
         <div className="flex items-center gap-1.5">
           <span className="truncate text-[12px] font-semibold">{name}</span>
           <Tag color={colorFor(entry.action)}>{entry.action}</Tag>
-          {entry.tags.slice(0, 3).map((t) => (
-            <Tag key={t} color={colorFor(t)}>
-              {t}
-            </Tag>
-          ))}
+          {/* A run entry's last tag is the run id: it is the key to its output, not something to show as a chip. */}
+          {(entry.action === 'run_finished' ? entry.tags.slice(0, 2) : entry.tags.slice(0, 3)).map(
+            (t) => (
+              <Tag key={t} color={colorFor(t)}>
+                {t}
+              </Tag>
+            ),
+          )}
+          {entry.action === 'run_finished' && entry.tags[2] ? (
+            <button
+              type="button"
+              data-run-output={entry.tags[2]}
+              onClick={() => useApp.getState().setOpenRunId(entry.tags[2] ?? null)}
+              className="rounded-full border border-border-strong px-2 py-0.5 text-[10px] font-semibold text-accent-light hover:bg-surface-2"
+            >
+              Output
+            </button>
+          ) : null}
           <span className="flex-1" />
           {link}
           <span

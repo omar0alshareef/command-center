@@ -9,9 +9,12 @@ import {
   getActivityFeed,
   getLessonsForTask,
   getMilestoneOverview,
+  cancelRun,
   getPlanningDocuments,
   getPlanningSession,
   listPlanningSessions,
+  listRuns,
+  orchestratorStatus,
   getProjectStatus,
   getRelevantLessons,
   getTask,
@@ -25,7 +28,7 @@ import {
 } from '@command-center/core';
 import { z } from 'zod';
 import { guard, ok } from '../results';
-import { READ_ONLY, clampLimit, milestoneId, taskId, tool, type Ctx } from './shared';
+import { READ_ONLY, agentId, clampLimit, milestoneId, taskId, tool, type Ctx } from './shared';
 
 /** Hard budgets from the roadmap: full context ~8K tokens, summary ~500. */
 export const CONTEXT_MAX_TOKENS = 8000;
@@ -46,7 +49,7 @@ function fitSummary(s: TaskSummary): TaskSummary {
   return out;
 }
 
-export function registerReadTools(server: McpServer, { db, now }: Ctx): void {
+export function registerReadTools(server: McpServer, { db, now, session }: Ctx): void {
   tool(
     server,
     'get_task_context',
@@ -430,6 +433,79 @@ export function registerReadTools(server: McpServer, { db, now }: Ctx): void {
                 team: p.team.map((r) => ({ id: r.id, name: r.name, milestones: r.milestones })),
               }
             : null,
+        });
+      }),
+  );
+
+  tool(
+    server,
+    'list_runs',
+    {
+      title: 'List runs',
+      description:
+        'Provider runs the orchestrator made, newest first: provider, model, status, duration, tokens and cost (an estimate unless cost_basis is "reported"), and the tail of the output. Pass task_id for one task. Also returns the orchestrator state when no task_id is given. Read-only.',
+      inputSchema: {
+        task_id: taskId.optional(),
+        limit: z.number().int().optional().describe('Max runs (default 20, max 100).'),
+      },
+      annotations: READ_ONLY,
+    },
+    ({ task_id, limit }) =>
+      guard(() => {
+        if (task_id && !getTask(db, task_id)) throw new TaskNotFoundError(task_id);
+        const runs = listRuns(db, {
+          ...(task_id ? { taskId: task_id } : {}),
+          limit: clampLimit(limit, 20, 100),
+        });
+        return ok({
+          ...(task_id
+            ? {}
+            : { orchestrator: { ...orchestratorStatus(db, null, now()), providers: undefined } }),
+          runs: runs.map((r) => ({
+            id: r.id,
+            task_id: r.task_id,
+            agent_id: r.agent_id,
+            provider: r.provider,
+            model: r.model,
+            kind: r.kind,
+            attempt: r.attempt,
+            status: r.status,
+            started_at: r.started_at,
+            finished_at: r.finished_at,
+            exit_code: r.exit_code,
+            input_tokens: r.input_tokens,
+            output_tokens: r.output_tokens,
+            est_cost_usd: r.est_cost_usd,
+            cost_basis: r.cost_basis,
+            error: r.error,
+            output_tail: r.output_tail?.slice(-1500) ?? null,
+          })),
+        });
+      }),
+  );
+
+  tool(
+    server,
+    'cancel_run',
+    {
+      title: 'Cancel run',
+      description:
+        'Ask for a queued or running provider run to stop (the app kills its process tree within about a second, and the task is blocked as cancelled). This only cancels: it never completes or approves work. Find run ids with list_runs.',
+      inputSchema: {
+        run_id: z.string().min(1).describe('Run id from list_runs.'),
+        agent_id: agentId,
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    ({ run_id, agent_id }) =>
+      guard(() => {
+        const actor = session.resolveActor(agent_id);
+        const run = cancelRun(db, run_id, actor);
+        return ok({
+          id: run.id,
+          task_id: run.task_id,
+          status: run.status,
+          cancel_requested: run.cancel_requested,
         });
       }),
   );

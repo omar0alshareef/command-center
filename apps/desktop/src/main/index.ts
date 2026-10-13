@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { resolveProjectRoot } from './config';
-import { planner, projectEvents, pty, registerIpc, webhook } from './ipc-handlers';
+import { orchestrator, planner, projectEvents, pty, registerIpc, webhook } from './ipc-handlers';
 import { ProjectService } from './project';
 import { loadSavedRoot } from './settings';
 import { buildWindowOptions } from './window-options';
@@ -52,7 +52,15 @@ void app.whenReady().then(() => {
   });
 });
 
-app.on('before-quit', () => {
+let shuttingDown = false;
+app.on('before-quit', (event) => {
+  // Runs in flight get their process trees killed and their last rows written before the database closes.
+  if (!shuttingDown && orchestrator) {
+    shuttingDown = true;
+    event.preventDefault();
+    void orchestrator.shutdown().finally(() => app.quit());
+    return;
+  }
   pty.killAll();
   planner?.cancelAll();
   webhook.stop();

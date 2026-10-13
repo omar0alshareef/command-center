@@ -26,6 +26,8 @@ const EXPECTED_TOOLS = [
   'get_lessons_learned',
   'get_planning_documents',
   'get_planning_session',
+  'list_runs',
+  'cancel_run',
   // task write (11)
   'start_task',
   'complete_task',
@@ -64,11 +66,11 @@ const todoId = () =>
   ).id;
 
 describe('tool surface', () => {
-  it('exposes exactly the 28 tools, each described, each parameter described', async () => {
+  it('exposes exactly the 30 tools, each described, each parameter described', async () => {
     const { tools } = await h.client.listTools();
     const undocumented: string[] = [];
     expect(tools.map((t) => t.name).sort()).toEqual([...EXPECTED_TOOLS].sort());
-    expect(tools).toHaveLength(28);
+    expect(tools).toHaveLength(30);
     for (const t of tools) {
       expect(t.description?.length ?? 0, `${t.name} description`).toBeGreaterThan(40);
       const props = (t.inputSchema.properties ?? {}) as Record<string, { description?: string }>;
@@ -125,6 +127,54 @@ describe('planning read tools (M13)', () => {
     expect((await h.call('get_planning_session', { session_id: 'plan-nope' })).isError).toBe(true);
     const { tools } = await h.client.listTools();
     expect(tools.some((t) => /approve.*plan|plan.*approve/i.test(t.name))).toBe(false);
+  });
+});
+
+describe('runs (M14)', () => {
+  const insertRun = (id: string, status: string) =>
+    h.db
+      .prepare(
+        `INSERT INTO runs (id, task_id, agent_id, provider, model, status, queued_at, started_at, input_tokens, output_tokens, est_cost_usd, cost_basis, output_tail)
+         VALUES (?, ?, 'claude-code', 'local', 'llama3', ?, '2026-03-12T09:00:00Z', '2026-03-12T09:00:01Z', 10, 5, 0, 'estimate', 'tail text')`,
+      )
+      .run(id, todoId(), status);
+
+  it('list_runs returns runs with usage and the orchestrator state; a task filter narrows it', async () => {
+    insertRun('run-a', 'succeeded');
+    const all = (await h.call('list_runs')).json<{
+      orchestrator: { mode: string; maxConcurrent: number };
+      runs: { id: string; provider: string; cost_basis: string; output_tail: string }[];
+    }>();
+    expect(all.orchestrator).toMatchObject({ mode: 'off', maxConcurrent: 2 });
+    expect(all.runs[0]).toMatchObject({
+      id: 'run-a',
+      provider: 'local',
+      cost_basis: 'estimate',
+      output_tail: 'tail text',
+    });
+    const one = (await h.call('list_runs', { task_id: todoId() })).json<{ runs: unknown[] }>();
+    expect(one.runs).toHaveLength(1);
+    expect((await h.call('list_runs', { task_id: 'TASK-999' })).isError).toBe(true);
+  });
+
+  it('cancel_run flags a running run (the app kills it), cancels a queued one at once, and never completes or approves', async () => {
+    insertRun('run-r', 'running');
+    const r = (await h.call('cancel_run', { run_id: 'run-r' })).json<{
+      status: string;
+      cancel_requested: boolean;
+    }>();
+    expect(r).toMatchObject({ status: 'running', cancel_requested: true });
+    insertRun('run-q', 'queued');
+    expect(
+      (await h.call('cancel_run', { run_id: 'run-q' })).json<{ status: string }>().status,
+    ).toBe('cancelled');
+    const again = await h.call('cancel_run', { run_id: 'run-q' });
+    expect(again.isError).toBe(true);
+    expect(again.text).toMatch(/already cancelled/);
+    expect((await h.call('cancel_run', { run_id: 'nope' })).isError).toBe(true);
+    expect(getTask(h.db, todoId())?.status).toBe('todo');
+    const { tools } = await h.client.listTools();
+    expect(tools.some((t) => /approve.*run|run.*approve/i.test(t.name))).toBe(false);
   });
 });
 

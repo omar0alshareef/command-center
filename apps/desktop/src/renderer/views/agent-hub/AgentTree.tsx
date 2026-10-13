@@ -1,11 +1,19 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { Agent, ModelOption } from '@command-center/core';
+import type { Agent } from '@command-center/core';
 import { AgentAvatar } from '../../components/ui/agent';
 import { StatusDot, Tag } from '../../components/ui/badges';
 import { ContextMenu } from '../../components/ui/menu';
 import { agentState, buildTree, type AgentState } from '../../lib/agent-hub';
-import { useClaudeModels, useNow } from '../../lib/hooks';
+import { useNow } from '../../lib/hooks';
+import {
+  canRoute,
+  PROVIDER_ORDER,
+  providerAvailable,
+  providerLabel,
+  useOrch,
+  useProviderModels,
+} from '../../lib/orchestrator';
 import { relativeTime } from '../../lib/time';
 import { useApp } from '../../store';
 import { toast } from '../../toast';
@@ -17,51 +25,87 @@ const STATE_META: Record<AgentState, { label: string; color: string }> = {
 };
 
 /**
- * The Claude Code model for one agent (M14 Slice 1). Only text-runner agents have one: agents done by an external
- * tool or by a person show nothing. A model that was removed from the list stays visible, marked, so nothing
- * changes silently; runs fall back to the CLI default.
+ * Routing for one agent (M14): which provider runs its tasks and on which model. Only text-runner agents have either:
+ * agents done by an external tool or by a person show nothing. A provider that is not detected cannot be chosen; a model
+ * that was removed from its list stays visible, marked, so nothing changes silently (runs use the provider's default).
  */
-function ModelPicker({ agent, models }: { agent: Agent; models: readonly ModelOption[] | null }) {
+function AgentRouting({ agent }: { agent: Agent }) {
+  const view = useOrch((s) => s.view);
   const [busy, setBusy] = useState(false);
-  if (
-    agent.executor !== 'agent' ||
-    agent.type === 'human' ||
-    agent.id === 'operator' ||
-    agent.id === 'system'
-  )
-    return null;
-  const stale = agent.model !== null && !models?.some((m) => m.id === agent.model);
-  const change = async (value: string) => {
+  const provider = agent.provider ?? 'claude-code';
+  const models = useProviderModels(provider);
+  if (!canRoute(agent)) return null;
+  const stale =
+    agent.model !== null &&
+    provider !== 'local' &&
+    models !== null &&
+    !models.some((m) => m.id === agent.model);
+  const wrap = async (p: Promise<{ ok: boolean; error?: { message: string } }>) => {
     setBusy(true);
-    const r = await window.api.models.setAgentModel({ agentId: agent.id, model: value || null });
+    const r = await p;
     setBusy(false);
-    if (!r.ok) toast.error(r.error.message);
+    if (!r.ok) toast.error(r.error?.message ?? 'Could not save.');
   };
+  const sel =
+    'min-w-0 flex-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-text';
   return (
-    <label className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
-      <span>Model</span>
-      <select
-        aria-label={`${agent.name} model`}
-        data-agent-model={agent.id}
-        disabled={busy || models === null}
-        value={agent.model ?? ''}
-        onChange={(e) => void change(e.target.value)}
-        title={
-          stale
-            ? `"${agent.model}" is no longer on the model list; runs use the CLI default.`
-            : undefined
-        }
-        className="min-w-0 flex-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-text"
-      >
-        <option value="">CLI default</option>
-        {models?.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.label}
+    <div className="mt-1 flex flex-col gap-1 text-[11px] text-muted">
+      <label className="flex items-center gap-1.5">
+        <span className="w-12">Provider</span>
+        <select
+          aria-label={`${agent.name} provider`}
+          data-agent-provider={agent.id}
+          disabled={busy}
+          value={provider}
+          onChange={(e) =>
+            void wrap(
+              window.api.agents.setProvider({ agentId: agent.id, provider: e.target.value }),
+            )
+          }
+          className={sel}
+        >
+          {PROVIDER_ORDER.map((id) => (
+            <option key={id} value={id} disabled={id !== provider && !providerAvailable(view, id)}>
+              {providerLabel(id)}
+              {providerAvailable(view, id) ? '' : ' (not detected)'}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-1.5">
+        <span className="w-12">Model</span>
+        <select
+          aria-label={`${agent.name} model`}
+          data-agent-model={agent.id}
+          disabled={busy || models === null}
+          value={agent.model ?? ''}
+          onChange={(e) =>
+            void wrap(
+              window.api.models.setAgentModel({ agentId: agent.id, model: e.target.value || null }),
+            )
+          }
+          title={
+            stale
+              ? `"${agent.model}" is no longer on the ${providerLabel(provider)} model list; runs use the default.`
+              : undefined
+          }
+          className={sel}
+        >
+          <option value="">
+            {provider === 'claude-code' ? 'CLI default' : 'Provider default'}
           </option>
-        ))}
-        {stale ? <option value={agent.model ?? ''}>{agent.model} (not on the list)</option> : null}
-      </select>
-    </label>
+          {models?.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+          {stale ||
+          (provider === 'local' && agent.model && !models?.some((m) => m.id === agent.model)) ? (
+            <option value={agent.model ?? ''}>{agent.model} (not on the list)</option>
+          ) : null}
+        </select>
+      </label>
+    </div>
   );
 }
 
@@ -73,10 +117,8 @@ function AgentRow({
   collapsed,
   onToggle,
   onMenu,
-  models,
 }: {
   agent: Agent;
-  models: readonly ModelOption[] | null;
   now: number;
   nested: boolean;
   collapsible: boolean;
@@ -167,7 +209,7 @@ function AgentRow({
           </span>
         </button>
         <div className="px-2 pb-1">
-          <ModelPicker agent={agent} models={models} />
+          <AgentRouting agent={agent} />
         </div>
       </div>
     </div>
@@ -180,7 +222,6 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
   const toggle = useApp((s) => s.toggleHubCollapsed);
   const viewTasks = useApp((s) => s.viewAgentTasks);
   const now = useNow();
-  const models = useClaudeModels();
   const tree = useMemo(() => buildTree(agents), [agents]);
   const [menu, setMenu] = useState<{ agent: Agent; x: number; y: number } | null>(null);
 
@@ -199,7 +240,6 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
             <div key={agent.id}>
               <AgentRow
                 agent={agent}
-                models={models}
                 now={now}
                 nested={false}
                 collapsible={children.length > 0}
@@ -212,7 +252,6 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
                     <AgentRow
                       key={c.id}
                       agent={c}
-                      models={models}
                       now={now}
                       nested
                       collapsible={false}

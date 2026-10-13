@@ -33,9 +33,29 @@ const api: Api = {
     remove: (id) => ipcRenderer.invoke(CH.lessonRemove, id),
   },
   models: {
-    list: () => ipcRenderer.invoke(CH.modelsList),
-    setList: (list) => ipcRenderer.invoke(CH.modelsSet, list),
+    setList: (req) => ipcRenderer.invoke(CH.modelsSet, req),
     setAgentModel: (req) => ipcRenderer.invoke(CH.agentSetModel, req),
+  },
+  agents: {
+    setProvider: (req) => ipcRenderer.invoke(CH.agentSetProvider, req),
+    setConcurrency: (req) => ipcRenderer.invoke(CH.agentSetConcurrency, req),
+  },
+  orchestrator: {
+    status: () => ipcRenderer.invoke(CH.orchStatus),
+    resume: () => ipcRenderer.invoke(CH.orchResume),
+    pause: (req) => ipcRenderer.invoke(CH.orchPause, req),
+    stopAfterCurrent: () => ipcRenderer.invoke(CH.orchStopAfter),
+    start: (req) => ipcRenderer.invoke(CH.orchStart, req),
+    cancelRun: (runId) => ipcRenderer.invoke(CH.orchCancelRun, runId),
+    setConfig: (patch) => ipcRenderer.invoke(CH.orchConfig, patch),
+    onStatus: (cb) => subscribe(CH.orchEvent, cb),
+  },
+  providers: {
+    list: (refresh) => ipcRenderer.invoke(CH.provList, refresh),
+    setKey: (req) => ipcRenderer.invoke(CH.provSetKey, req),
+    setBaseUrl: (req) => ipcRenderer.invoke(CH.provSetUrl, req),
+    test: (id) => ipcRenderer.invoke(CH.provTest, id),
+    models: (id) => ipcRenderer.invoke(CH.provModels, id),
   },
   planning: {
     list: () => ipcRenderer.invoke(CH.planList),

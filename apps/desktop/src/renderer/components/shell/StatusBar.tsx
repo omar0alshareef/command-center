@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { WebhookStatus } from '../../../shared/ipc';
 import { activeAgentCount, taskCounts } from '../../lib/derive';
+import { money, useOrch } from '../../lib/orchestrator';
 import { useApp } from '../../store';
 
 function Segment({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
@@ -21,6 +22,7 @@ export function StatusBar() {
   const setActiveTab = useApp((s) => s.setActiveTab);
   const [hook, setHook] = useState<WebhookStatus | null>(null);
   useEffect(() => void window.api.webhook.status().then(setHook), [project?.root]);
+  const orch = useOrch((s) => s.view);
   const counts = tracker ? taskCounts(tracker.subtasks) : null;
   const agents = tracker?.agents ?? [];
 
@@ -35,6 +37,24 @@ export function StatusBar() {
       <Segment onClick={() => setActiveTab('agent-hub')}>
         Agents {activeAgentCount(agents)} active / {agents.length}
       </Segment>
+      {orch ? (
+        <Segment onClick={() => setActiveTab('agent-hub')}>
+          <span data-orch-status>
+            {orch.pausedByCap
+              ? 'Paused by cap'
+              : orch.mode === 'running'
+                ? 'Orchestrator on'
+                : orch.mode === 'draining'
+                  ? 'Stopping after current'
+                  : orch.mode === 'paused'
+                    ? 'Orchestrator paused'
+                    : 'Orchestrator off'}
+            {' · '}
+            {orch.running} running · {orch.queued} queued · {money(orch.spendToday)}
+            {orch.dailyCeiling > 0 ? `/${money(orch.dailyCeiling)}` : ''}
+          </span>
+        </Segment>
+      ) : null}
       <Segment onClick={() => setActiveTab('task-board')}>Review {counts?.review ?? 0}</Segment>
       <Segment onClick={() => setActiveTab('task-board')}>Blocked {counts?.blocked ?? 0}</Segment>
       <span className="flex-1" />
