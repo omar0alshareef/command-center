@@ -132,6 +132,64 @@ Implement as CSS variables in `styles.css`, mapped into the Tailwind v4 `@theme`
 
 Status colors stay the same hue; darken text-on-light variants by ~10% for contrast (verify ≥ 4.5:1).
 
+### 4.8 Theme — Calm (light, optional)
+
+Source: the "CALM / SYSTEM" UI component study (operator-approved, 2026-10-13). The hex values in the study are exact; every other value is inferred from it and marked **(inferred)**. This theme is an **addition**: the default dark theme (§4.1) and the existing light theme (§4.2) stay. Settings → Appearance gains a fourth option, **Calm**, in milestone M13.2. Status colours (§4.3) keep their hue meaning in every theme.
+
+| Token | Value | Source |
+|---|---|---|
+| `--bg` | `#FAF9F4` | Ivory (study) |
+| `--surface` | `#FFFFFF` | study cards on ivory |
+| `--surface-2` | `#F3F2EC` | (inferred) one step darker than ivory |
+| `--surface-3` | `#ECEAE2` | (inferred) |
+| `--border` | `#E4E1D8` | (inferred) between ivory and stone |
+| `--border-strong` | `#D6D3C8` | Stone (study) |
+| `--muted` | `#5E6B63` | (inferred) green-grey secondary text, ≈5.3:1 on ivory |
+| `--text` | `#1B2A22` | (inferred) deep green-black, ≈15:1 on ivory |
+| `--accent` | `#0F5132` | Forest (study) |
+| `--accent-light` | `#2D7A52` | (inferred) hover state for accent |
+| `--accent-soft` | `#B7D9C1` | Mint (study); tints, selected rows, soft fills only, never text |
+| `--success` | `#1E7F4F` | (inferred) text-safe green, ≈4.7:1 on ivory; distinct from accent by lightness |
+| `--warning` | `#B45309` | matches §4.2 light override |
+| `--danger` | `#B42318` | (inferred) text-safe red |
+| `--focus` | `#0F5132` | focus ring, 2px, 2px offset |
+
+**Shape and elevation**
+
+| Token | Value |
+|---|---|
+| `--radius-pill` | `999px` (buttons, inputs, tabs, switches, search) |
+| `--radius-card` | `20px` (panels and cards on the calm theme only) |
+| `--radius-inner` | `12px` (rows, menus, popovers) |
+| `--shadow-card` | `0 1px 2px rgba(27,42,34,0.06), 0 8px 24px rgba(27,42,34,0.06)` |
+
+Dense surfaces (Task Board columns, Swim Lane, activity feed, terminal) use `--border` instead of `--shadow-card`. Soft shadows on dense lists lose the edges that keep rows readable.
+
+**Type**
+
+| Role | Font | Notes |
+|---|---|---|
+| View titles and display numbers | Source Serif 4 (inferred), 18px / 500 | Serif for presence, used sparingly: view titles, the hero number on Planning and Calendar. Bundled offline via `@fontsource`. |
+| Body, UI | Inter, 13px / 400 | unchanged from §4.5 |
+| Labels | Inter, 11px / 600, uppercase, +0.12em | wider tracking than §4.5 because the study uses it; still 11px |
+| IDs, timestamps, terminal | JetBrains Mono | unchanged |
+
+**Components (from the study)**
+- **Primary button:** `--accent` fill, `--bg` text, pill, arrow icon right-aligned. Hover `--accent-light`.
+- **Secondary button:** `--surface` fill, `--border-strong` 1px border, pill, `--text`.
+- **Search / input:** pill, `--surface` fill, `--border` 1px, search icon left, filter icon right.
+- **Switch:** 44×24 pill, on = `--accent` track with white knob, off = `--surface-3` track.
+- **Checkbox:** 18px, 6px radius, checked = `--accent` fill with white tick.
+- **Segmented tabs:** pill group, active segment `--accent` fill with `--bg` text.
+- **Progress bar:** 6px tall pill, track `--surface-3`, fill `--accent`.
+- **Notification:** `--surface` card, icon disc in `--accent-soft` with `--accent` tick, title 600, body `--muted`.
+
+**Rules for this theme**
+- Small captions in the study are light grey and fail contrast. In this theme no text below 4.5:1 on its background, and captions use `--muted`, never a lighter grey.
+- `--accent-soft` (mint) is never a text colour.
+- The forest accent is not the success colour. Success uses `--success` and always carries a label or icon (§4.4: colour is never the only signal).
+- Verify with the `test/a11y-tokens` contrast test (add the calm tokens to it, same thresholds as §4.2).
+
 ### 4.3 Status → color map (single source of truth)
 
 | Status | Label | Color |

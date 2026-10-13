@@ -399,6 +399,67 @@ Out of scope for M13 (goes to the backlog)
 
 ---
 
+### M13.1 — Stage-based roster (patch to M13)  *(0.5–1 day)*
+**Maps to:** Patch to M13. Builds on M13 (planner, `proposeTeam`, Team tab, approval transaction). Done before M14 starts.
+**Goal:** Replace the capability-to-job-title roster with a roster built from production stages. Each agent has an executor type, so the planner can route work to a text runner, to an external tool, or to the operator. The planner asks only for decisions, never for skills.
+
+**Decisions applied here (also recorded in §1)**
+- **D17 (revised):** an agent is an executor of stages. `executor` is `agent` (a text runner does the work), `external` (a named tool outside the app; the planner writes a brief and checklist, the operator runs the tool and marks the stage done) or `human` (the operator does it in person, for example on-camera recording). `tool` names the external tool when there is one.
+- **D21 (revised):** the roster comes from the stages each milestone needs (software: frontend, backend, database, security, design, marketing, or none; video: script, edit, voice-over, thumbnail, publish). The interview asks only for decisions: goal, deadlines, budget, on-camera or own-voice work, content limits. It never asks which roles or skills to use.
+- **D41 (new):** text runners do not edit media. Stages that need video, audio or image tools use `external` until a media adapter exists (backlog).
+
+Tasks
+- Migration `006` (the next free number after 005): `agents.executor TEXT NOT NULL DEFAULT 'agent'` with a CHECK for `agent` | `external` | `human`, and `agents.tool TEXT` (nullable). Existing agents get `agent`. Built-in `operator` stays `human`, `system` stays `external`.
+- Rename `plan_capabilities` to `plan_stages`. The stage output per milestone is a list of `{ stage, executor, tool?, brief?, checklist? }`. The zod schema rejects an unknown executor type.
+- `proposeTeam` maps stages to roles (one agent per distinct role) and copies the executor and tool. External and human stages get a brief and checklist written by the planner, stored with the task.
+- Interview prompt: replace the capability questions with decision questions (deadlines, budget, on-camera or own-voice work, content limits, target audience). Remove any question about roles or skills.
+- Team tab: the operator can add, remove, rename a role, and change its executor type or tool before approval.
+- Approval: writes `executor` and `tool` to each agent. The approve dialog counts stages by executor type.
+- Fix the migration references in §1 and §3: M13 `due_date` and planning tables are migration `005` in the repo (D16 said `003`; `003` and `004` were already used by M3 and M10).
+- Read paths: `listAgents`, the MCP `list_agents` output and the Agent Hub show the executor type and tool. No dispatch changes in this milestone (M14 owns dispatch).
+
+Exit criteria
+- **Roster from stages:** a roadmap with a design stage in one milestone and none in another produces a roster where only the first milestone has a design stage.
+- **External stage:** a video roadmap with a voice-over stage produces an agent with `executor = external`, `tool` set, and a brief and checklist on the task. No runner call is made for it.
+- **Decision-only interview:** a seeded session produces no question about roles or skills. Test with a fixed fake runner output.
+- **Migration:** `006` applies on an existing `005` database; existing agents read back as `agent`; the CHECK rejects an unknown executor type.
+- **Approval:** approving a plan with mixed executors writes the executor and tool to each agent in the same transaction. The fault-injection test from M13 still rolls back everything.
+- **Tests:** `core` tests for stage schema, stage-to-role mapping, executor validation, migration `006`, and approval with mixed executors. Typecheck, lint and Vitest pass. UI/UX §9 checklist for the Team tab in both themes.
+- `PROGRESS.md` updated with an M13.1 row and a project-log entry. Commit `feat(M13.1): stage-based roster`.
+
+Out of scope for M13.1
+- Dispatch of `agent` tasks (M14).
+- Media adapters (backlog, D41).
+- Any change to the Task Board, Swim Lane or Calendar.
+
+---
+
+### M13.2 — Calm theme (patch, after M13.1)  *(0.5 day)*
+**Maps to:** Patch to the shell and Settings. Builds on M2 (tokens), M12 (Settings → Appearance). Runs after M13.1, before M14.
+**Goal:** Add the **Calm** light theme from UI/UX §4.8 as a fourth appearance option. Default stays dark.
+
+Tasks
+- `styles.css`: add `[data-theme="calm"]` token block with every token in §4.8. Map them into the Tailwind `@theme` the same way as dark and light.
+- Settings → Appearance: fourth option **Calm**. The title bar theme toggle cycles dark → light → calm → system. Persisted in `localStorage` as `themePref` (same as M12).
+- Primary and secondary buttons, switch, checkbox, segmented tabs, search input, progress bar and notification card restyled to §4.8 components. Other views inherit the tokens; no per-view colour overrides.
+- Load Source Serif 4 via `@fontsource` (offline). Use it only for view titles and display numbers (§4.8).
+- Dense surfaces keep `--border`, no `--shadow-card` (§4.8 shape rules).
+- `test/a11y-tokens.test.ts`: include the calm theme with the same thresholds as §4.2 (text ≥ 4.5:1, accent and status ≥ 3:1 on bg, surface and surface-2).
+
+Exit criteria
+- Calm theme selectable in Settings and the title bar; choice survives restart; system theme still follows the OS.
+- Every view renders in Calm with no unreadable text; the UI/UX §9 checklist passes in Calm for Task Board, Swim Lane, Agent Hub, Planning and Settings.
+- Contrast test passes for calm tokens.
+- Screenshot of Task Board and Planning in Calm saved to `.supervisor/M13.2-calm-*.png` for the reviewer.
+- `PROGRESS.md` updated. Commit `feat(M13.2): calm theme`.
+
+Out of scope for M13.2
+- Replacing the default theme.
+- Per-project or per-agent themes.
+- Any change to data, routes or IPC.
+
+---
+
 ### M14 — Orchestrator & Multi-Provider Runners  *(4–5 days, plus Slice 1 below)*
 **Maps to:** New (post-blueprint). Builds on M9 (runner abstraction), M10 (lessons), M11 (webhook), M13 (approved plan, team roster).
 **Goal:** Approved tasks run without the operator starting each one, on the provider each one is routed to, with every run recorded and every spend capped.

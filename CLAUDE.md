@@ -9,7 +9,7 @@ Electron desktop app + MCP server + operator CLI for steering a project worked o
 
 ## Working rules
 - Build one milestone at a time, in order, starting at the first not-done milestone in `PROGRESS.md`.
-- Do not start M13 (or any later milestone) until the operator says "continue", even if a verdict or stop file would otherwise allow it.
+- Operator authorization (2026-10-13): build M13.1, M13.2, M14 (Slice 1 first, then the rest of M14) and M15 in ROADMAP order, one after another, without waiting for "continue" between them. The Supervisor handoff still applies after each milestone. Stop after M15: `.supervisor/STOP_AFTER` contains `M15`. Do not start anything after M15.
 - At milestone start: state the goal and files to create/change. At the end: run the exit criteria, show results, update `PROGRESS.md`, commit (`feat(Mx): ...`), then follow the Supervisor handoff below instead of stopping.
 - Definition of Done: `tsc --noEmit` (strict) clean, lint clean, tests pass, `npm run dev` launches, exit criteria verified.
 - Ambiguity: choose the simplest option, record it in `PROGRESS.md`, proceed.
@@ -17,6 +17,14 @@ Electron desktop app + MCP server + operator CLI for steering a project worked o
 - Security: contextIsolation on, nodeIntegration off, strict CSP, no raw SQL over IPC, render agent text as text only.
 
 - `PROGRESS.md` is the project log. Record every change, decision, deviation and operator instruction there, dated, as it happens. The supervisor reads this file, and a new session relies on it to know where the project stands.
+
+## Design work
+- Visual decisions come from `UI_UX_SPEC.md` §4 (tokens) and §4.8 (Calm theme). Use tokens only: no hex values in components, no new colours without adding a token to the spec first.
+- Before changing any view's look, read the matching section of `UI_UX_SPEC.md` §6 and §9 (acceptance checklist).
+- Reference images from the operator are the source of truth for a new theme. Extract the exact hex values they give; mark any value you infer as inferred in the spec.
+- Anti-slop check on every new view: no decorative gradients, no emoji as icons, no extra accent colours, no text under 4.5:1, no shadows on dense lists, one serif display font only (§4.8).
+- Tokens and contrast: run the `test/a11y-tokens` test after any token change.
+- Claude Code does not see Cowork skills. Do not rely on them; the spec above is the design brief.
 
 ## Layout
 npm workspaces: `packages/core`, `packages/mcp-server`, `packages/cli`, `apps/desktop` (see ROADMAP §2).
