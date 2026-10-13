@@ -95,6 +95,7 @@ export const TaskSchema = z.object({
   depends_on: jsonArray(z.string()),
   last_run_id: z.string().nullable(),
   builder_prompt: z.string().nullable(),
+  due_date: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });

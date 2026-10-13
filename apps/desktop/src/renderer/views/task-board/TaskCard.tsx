@@ -1,11 +1,21 @@
 import { useDraggable } from '@dnd-kit/core';
 import { motion } from 'framer-motion';
-import { Check, Copy, Link2, Lock, Maximize2, SquareTerminal, X } from 'lucide-react';
+import {
+  CalendarClock,
+  Check,
+  Copy,
+  Link2,
+  Lock,
+  Maximize2,
+  SquareTerminal,
+  X,
+} from 'lucide-react';
 import { memo, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Agent, Task } from '@command-center/core';
 import { AssigneeChip } from '../../components/ui/agent';
 import { DomainTag, PriorityPill, StatusDot } from '../../components/ui/badges';
 import { cn } from '../../lib/cn';
+import { isPastDue } from '../../lib/planning';
 import { elapsed } from '../../lib/time';
 import { STATUS_META } from '../../lib/status';
 import { toast } from '../../toast';
@@ -80,6 +90,18 @@ export function CardBody({
             title={`Depends on ${task.depends_on.join(', ')}`}
           >
             <Link2 size={11} aria-hidden /> {task.depends_on.length} deps
+          </span>
+        ) : null}
+        {task.due_date ? (
+          <span
+            className={cn(
+              'inline-flex items-center gap-0.5',
+              isPastDue(task) && 'font-semibold text-danger',
+            )}
+            title={isPastDue(task) ? `Past due (was due ${task.due_date})` : `Due ${task.due_date}`}
+          >
+            <CalendarClock size={11} aria-hidden /> {isPastDue(task) ? 'past due' : 'due'}{' '}
+            {task.due_date.slice(5)}
           </span>
         ) : null}
         {locked ? (

@@ -5,7 +5,7 @@ import type { ProjectInfo } from '../shared/ipc';
 import { matchesFilter } from './lib/agent-hub';
 import { mergeTracker } from './lib/share';
 
-export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal';
+export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal' | 'planning';
 export type Theme = 'dark' | 'light';
 export type ThemePref = Theme | 'system';
 export type WeekStart = 'mon' | 'sun';

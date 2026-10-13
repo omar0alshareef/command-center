@@ -56,11 +56,11 @@ Agents drive the board through the `command-center` MCP server (stdio). The app'
 
 The server registers the calling agent automatically on its first call, named after the client (`claude-code` for Claude Code). Override with `COMMAND_CENTER_AGENT_ID`, `COMMAND_CENTER_AGENT_NAME`, `COMMAND_CENTER_AGENT_TYPE` (`orchestrator` | `sub-agent` | `external`) and `COMMAND_CENTER_AGENT_MODEL` in the config's `env`. A tool call can never act as `operator`, `system` or a human agent, and can act only as the session agent or sub-agents registered under it (`register_agent` it, then pass its id as `agent_id`). Review is independent: an agent cannot approve work submitted by itself or by its own parent or sub-agents; the operator or an unrelated agent must.
 
-### The 26 tools
+### The 28 tools
 
 | Group | Tools |
 |---|---|
-| Read (9) | `get_task_context` (≤ ~8K tokens), `get_task_summary` (≤ ~500), `get_project_status`, `get_milestone_overview`, `list_tasks`, `get_task_history`, `list_agents`, `get_activity_feed`, `get_lessons_learned` |
+| Read (11) | `get_task_context` (≤ ~8K tokens), `get_task_summary` (≤ ~500), `get_project_status`, `get_milestone_overview`, `list_tasks`, `get_task_history`, `list_agents`, `get_activity_feed`, `get_lessons_learned`, `get_planning_documents`, `get_planning_session` |
 | Task (11) | `start_task`, `complete_task`, `approve_task`, `reject_task`, `reset_task`, `delete_task`, `block_task`, `unblock_task`, `update_task`, `log_action`, `enrich_task` |
 | Milestone (5) | `add_milestone_note`, `set_milestone_dates`, `update_drift`, `create_milestone`, `add_milestone_task` |
 | Agent (1) | `register_agent` |
@@ -96,6 +96,12 @@ command-center hydrate --plan plan.json # create phases, agents, milestones and 
 
 Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves **what went wrong** in the `lessons_learned` table and rewrites `.claude/LESSONS_LEARNED.md` (a generated view: edit lessons in the app's Agent Hub, not in the file). When the task is completed again, the `complete_task` summary is recorded as **the fix**; a rejection may also carry a **prevention** note. Similar new tasks are handed the most relevant lessons (FTS5 search over reason, fix and prevention) in `get_task_context`, in the `enrich_task` reply, in `TASK_CONTEXT.md` (`## Relevant lessons`) and in `command-center prepare`. The Agent Hub's Lessons list lets you search, edit and delete them.
 
+## Plan a project (Planning tab)
+
+`Ctrl/Cmd+6` (or "Plan a project" on any empty view). Describe the idea in a paragraph; the planner asks at least three questions, then drafts a manifesto, a roadmap, milestones with dates and the capabilities each needs, tasks with due dates and dependencies, and a team (one agent per role, derived from the capabilities). Every draft is editable in place and lists what the planner assumed. Nothing reaches the board until **Approve plan**, which writes it all in one transaction (or nothing, if any task has no milestone, a dependency is missing, or there is a cycle). Sessions survive a restart; Cancel kills the planner's process tree.
+
+The planner runs Claude Code (`claude -p`, as a child process, never in the terminal) or the Anthropic API with a key (Settings → Planner; the key is encrypted with the OS keychain and never shown). The approved manifesto and roadmap are under Settings → Planner, and each milestone's roadmap entry shows in its panel. Agents can read plans (`get_planning_documents`, `get_planning_session`) but cannot approve them.
+
 ## Hydrate a project from your docs
 
 Fresh clone to a populated board in a few minutes:
@@ -119,11 +125,11 @@ The app listens on `127.0.0.1:38120` with a per-project bearer token (Settings o
 
 ## Keyboard
 
-`Ctrl/Cmd+K` command palette (tabs, tasks, milestones, settings), `Ctrl/Cmd+1…5` tabs, `Ctrl/Cmd+,` Settings, `?` shortcut sheet, `/` search, `T` today, `[` `]` milestones, `Esc` closes the top overlay. Card drag works from the keyboard (Space, arrows, Space) with screen-reader announcements.
+`Ctrl/Cmd+K` command palette (tabs, tasks, milestones, settings), `Ctrl/Cmd+1…6` tabs, `Ctrl/Cmd+,` Settings, `?` shortcut sheet, `/` search, `T` today, `[` `]` milestones, `Esc` closes the top overlay. Card drag works from the keyboard (Space, arrows, Space) with screen-reader announcements.
 
 ## Settings
 
-Theme (dark / light / system), week start (Mon / Sun), OS notifications when a task newly enters Review or Blocked while the window is unfocused, default terminal shell and font size, project folder, webhook port/token, and the copy-ready MCP command and config. Preferences live in the app's local storage; the project data lives only in `command-center.db`.
+Theme (dark / light / system), week start (Mon / Sun), planner runner / model / API key and the approved plan, OS notifications when a task newly enters Review or Blocked while the window is unfocused, default terminal shell and font size, project folder, webhook port/token, and the copy-ready MCP command and config. Preferences live in the app's local storage; the project data lives only in `command-center.db`.
 
 ## Install as an app
 

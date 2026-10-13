@@ -7,6 +7,8 @@ import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
 import { lessonsApi } from './lessons-api';
 import { milestoneApi } from './milestone-api';
+import { planningApi } from './planning-api';
+import type { Planner } from './planner';
 import { run, taskApi } from './task-api';
 import { WebhookServer } from './webhook';
 
@@ -28,6 +30,7 @@ export const pty = new PtyManager(
   () => ensureShimDir(),
 );
 export let webhook: WebhookServer;
+export let planner: Planner | null = null;
 let projectRoot: () => string | null = () => null;
 
 export function registerIpc(project: ProjectService): void {
@@ -64,6 +67,27 @@ export function registerIpc(project: ProjectService): void {
   const lessons = lessonsApi(() => project.db());
   ipcMain.handle(CH.lessonUpdate, (_e, req: unknown) => lessons.update(req));
   ipcMain.handle(CH.lessonRemove, (_e, id: unknown) => lessons.remove(id));
+
+  const plan = planningApi(
+    () => project.db(),
+    (e) => broadcast(CH.planEvent, e),
+  );
+  planner = plan.planner;
+  ipcMain.handle(CH.planList, () => plan.list());
+  ipcMain.handle(CH.planGet, (_e, id: unknown) => plan.get(id));
+  ipcMain.handle(CH.planCreate, (_e, req: unknown) => plan.create(req));
+  ipcMain.handle(CH.planAnswer, (_e, req: unknown) => plan.answer(req));
+  ipcMain.handle(CH.planSaveDoc, (_e, req: unknown) => plan.saveDocument(req));
+  ipcMain.handle(CH.planSaveProposal, (_e, req: unknown) => plan.saveProposal(req));
+  ipcMain.handle(CH.planValidate, (_e, id: unknown) => plan.validate(id));
+  ipcMain.handle(CH.planAbandon, (_e, id: unknown) => plan.abandon(id));
+  ipcMain.handle(CH.planApprove, (_e, id: unknown) => plan.approve(id));
+  ipcMain.handle(CH.planInterview, (_e, id: unknown) => plan.interview(id));
+  ipcMain.handle(CH.planDraft, (_e, id: unknown) => plan.draft(id));
+  ipcMain.handle(CH.planCancel, (_e, id: unknown) => plan.cancel(id));
+  ipcMain.handle(CH.planApprovedDocs, () => plan.approvedDocuments());
+  ipcMain.handle(CH.planSettings, () => plan.settings());
+  ipcMain.handle(CH.planSetSettings, (_e, req: unknown) => plan.setSettings(req));
 
   const term = terminalApi(pty);
   ipcMain.handle(CH.termShells, () => term.shells());

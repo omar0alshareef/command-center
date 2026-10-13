@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { killTree } from './kill-tree';
 import { homedir } from 'node:os';
 import * as nodePty from 'node-pty';
 import type { ShellInfo } from './shells';
@@ -125,22 +125,8 @@ export class PtyManager {
     if (s.timer) clearTimeout(s.timer);
     if (s.exited) return;
     s.exited = true;
-    try {
-      s.pty.kill();
-    } catch {
-      /* already gone */
-    }
     // Closing the pseudo console does not always take grandchildren with it on Windows: kill the tree.
-    if (process.platform === 'win32') {
-      try {
-        execFileSync('taskkill', ['/PID', String(s.info.pid), '/T', '/F'], {
-          stdio: 'ignore',
-          timeout: 3000,
-        });
-      } catch {
-        /* nothing left to kill */
-      }
-    }
+    killTree(s.info.pid, () => s.pty.kill());
   }
 
   get count(): number {

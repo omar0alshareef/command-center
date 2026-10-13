@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useApp } from '../../store';
 import { TABS } from './tabs';
 
-/** Ctrl/Cmd+1…5 jump to a tab; Ctrl/Cmd+Tab cycles (Shift reverses); Ctrl/Cmd+K palette; Ctrl/Cmd+, settings; ? cheat-sheet. */
+/** Ctrl/Cmd+1…6 jump to a tab; Ctrl/Cmd+Tab cycles (Shift reverses); Ctrl/Cmd+K palette; Ctrl/Cmd+, settings; ? cheat-sheet. */
 export function useHotkeys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

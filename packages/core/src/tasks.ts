@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { nowIso, write, type Db } from './db';
 import { AgentNotFoundError, MilestoneNotFoundError, TaskNotFoundError } from './errors';
+import { isoDate } from './milestones';
 import { getActivityFeed, getAgent, getMilestone, getTask, logAction } from './queries';
 import {
   AcceptanceCriterionSchema,
@@ -28,6 +29,8 @@ export const TaskPatchSchema = z
     constraints: z.array(z.string()),
     depends_on: z.array(z.string()),
     acceptance_criteria: z.array(AcceptanceCriterionSchema),
+    /** Optional deadline (D16), YYYY-MM-DD. */
+    due_date: isoDate.nullable(),
   })
   .partial()
   .strict();

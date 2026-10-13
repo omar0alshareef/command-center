@@ -6,7 +6,8 @@ import { toJson, type Milestone, type MilestoneNote } from './types';
 
 const DAY_MS = 86_400_000;
 
-const isoDate = z
+/** A real calendar date as YYYY-MM-DD. */
+export const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD')
   .refine(

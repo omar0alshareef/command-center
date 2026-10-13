@@ -1,8 +1,11 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { findClaude } from '@command-center/core';
 import type { Runner, StageRequest, StageResult } from './runner';
+
+export { findClaude };
 
 // Runner v1: shell out to the Claude Code CLI in non-interactive mode (`claude -p`). The prompt goes in on stdin
 // (long prompts do not fit a Windows command line); the stage's system prompt is appended to Claude's own.
@@ -18,22 +21,6 @@ const BUILD_TOOLS = [
   'Bash(git status)',
   'Bash(git diff *)',
 ];
-
-/** `claude` from COMMAND_CENTER_CLAUDE, PATH, or the installer's usual folder; null if it cannot be found. */
-export function findClaude(
-  env: NodeJS.ProcessEnv = process.env,
-  exists: (p: string) => boolean = existsSync,
-): string | null {
-  const override = env['COMMAND_CENTER_CLAUDE']?.trim();
-  if (override) return override;
-  const names = process.platform === 'win32' ? ['claude.exe', 'claude.cmd'] : ['claude'];
-  const dirs = [
-    ...(env['PATH'] ?? env['Path'] ?? '').split(delimiter).filter(Boolean),
-    join(homedir(), '.local', 'bin'),
-  ];
-  for (const d of dirs) for (const n of names) if (exists(join(d, n))) return join(d, n);
-  return null;
-}
 
 /** The argument list for one stage (exported so tests can pin it). The system prompt travels in a file, not on the command line. */
 export function claudeArgs(

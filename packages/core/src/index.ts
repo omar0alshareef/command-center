@@ -11,3 +11,5 @@ export * from './tokens';
 export * from './lessons';
 export * from './context';
 export * from './hydrate';
+export * from './planning';
+export * from './claude-bin';

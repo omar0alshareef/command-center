@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../ui/button';
+import { Markdown } from '../ui/markdown';
+import { roadmapSection } from '../../lib/planning';
 import { DomainTag, StatusDot, Tag } from '../ui/badges';
 import { SlidePanel } from '../ui/overlays';
 import { ProgressRing } from '../ui/progress-ring';
@@ -48,6 +50,21 @@ export function MilestonePanel() {
     [tracker],
   );
   const agents = useMemo(() => new Map((tracker?.agents ?? []).map((a) => [a.id, a])), [tracker]);
+
+  // The approved roadmap's entry for this milestone (M13). Read when the panel opens.
+  const [roadmap, setRoadmap] = useState<string | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    let live = true;
+    void window.api.planning.approvedDocuments().then((r) => {
+      if (live)
+        setRoadmap(r.ok ? (r.value.find((d) => d.kind === 'roadmap')?.content ?? null) : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  const entry = roadmap && m ? roadmapSection(roadmap, m.id, m.title) : null;
 
   const addRef = useRef<HTMLInputElement>(null);
   const datesRef = useRef<HTMLDetailsElement>(null);
@@ -171,6 +188,15 @@ export function MilestonePanel() {
                 </div>
               </details>
             </section>
+
+            {entry ? (
+              <section aria-label="Roadmap entry">
+                <h3 className={H}>Roadmap</h3>
+                <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border p-3">
+                  <Markdown source={entry} />
+                </div>
+              </section>
+            ) : null}
 
             <section aria-label="Dependencies">
               <h3 className={H}>Depends on</h3>

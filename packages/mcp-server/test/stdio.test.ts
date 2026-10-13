@@ -62,7 +62,7 @@ describe.each(launches)('over real stdio: %s', (_name, args) => {
     const { client, call } = await open('stdio-client');
     const { client: reviewer, call: reviewCall } = await open('reviewer-client');
     try {
-      expect((await client.listTools()).tools).toHaveLength(26);
+      expect((await client.listTools()).tools).toHaveLength(28);
 
       const list = JSON.parse((await call('list_tasks', { status: 'todo', limit: 1 })).text) as {
         tasks: { id: string }[];

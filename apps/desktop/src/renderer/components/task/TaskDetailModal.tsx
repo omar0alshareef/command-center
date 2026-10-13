@@ -2,6 +2,7 @@ import { Check, ChevronDown, SquareTerminal, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Task, TaskPatch, TaskStatus } from '@command-center/core';
 import { cn } from '../../lib/cn';
+import { isPastDue } from '../../lib/planning';
 import { useAgents, useTasksById } from '../../lib/hooks';
 import { deleteTask, saveTaskFields, transitionTask } from '../../lib/task-actions';
 import { typeInTerminal } from '../../lib/terminal-actions';
@@ -196,7 +197,26 @@ function Details({ task, save }: { task: Task; save: (patch: TaskPatch) => void 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <FieldLabel htmlFor="f-due">Due date</FieldLabel>
+            <input
+              id="f-due"
+              type="date"
+              value={task.due_date ?? ''}
+              onChange={(e) => save({ due_date: e.target.value || null })}
+              aria-describedby={isPastDue(task) ? 'f-due-past' : undefined}
+              className={cn(
+                'h-8 w-full rounded-md border bg-surface-2 px-2 font-mono text-[12px]',
+                isPastDue(task) ? 'border-danger text-danger' : 'border-border',
+              )}
+            />
+            {isPastDue(task) ? (
+              <p id="f-due-past" className="mt-1 text-[11px] font-medium text-danger">
+                Past due
+              </p>
+            ) : null}
+          </div>
           <div>
             <FieldLabel htmlFor="f-mode">Execution mode</FieldLabel>
             <select

@@ -5,7 +5,7 @@ const MOD = window.api.platform === 'darwin' ? 'Cmd' : 'Ctrl';
 
 export const SHORTCUTS: readonly [string, string][] = [
   [`${MOD}+K`, 'Command palette'],
-  [`${MOD}+1 … 5`, 'Switch tab'],
+  [`${MOD}+1 … 6`, 'Switch tab'],
   [`${MOD}+Tab`, 'Next tab (Shift: previous)'],
   [`${MOD}+,`, 'Settings'],
   ['/', 'Focus search in the current view'],

@@ -9,6 +9,9 @@ import {
   getActivityFeed,
   getLessonsForTask,
   getMilestoneOverview,
+  getPlanningDocuments,
+  getPlanningSession,
+  listPlanningSessions,
   getProjectStatus,
   getRelevantLessons,
   getTask,
@@ -328,6 +331,103 @@ export function registerReadTools(server: McpServer, { db, now }: Ctx): void {
             prevention: l.prevention,
           })),
         );
+      }),
+  );
+  tool(
+    server,
+    'get_planning_documents',
+    {
+      title: 'Get planning documents',
+      description:
+        "The project's manifesto and roadmap from the Planning workspace, as markdown. Default: the approved (live) versions. Each document is capped at ~8,000 tokens. Read-only: plans are approved only by the operator in the app.",
+      inputSchema: {
+        status: z
+          .enum(['approved', 'draft', 'superseded', 'all'])
+          .optional()
+          .describe('Which versions to return (default approved).'),
+        kind: z.enum(['manifesto', 'roadmap']).optional().describe('Only this document kind.'),
+      },
+      annotations: READ_ONLY,
+    },
+    ({ status, kind }) =>
+      guard(() =>
+        ok(
+          getPlanningDocuments(db, status ?? 'approved')
+            .filter((d) => !kind || d.kind === kind)
+            .slice(0, 10)
+            .map((d) => ({
+              kind: d.kind,
+              version: d.version,
+              status: d.status,
+              session_id: d.session_id,
+              approved_at: d.approved_at,
+              content: capTokens(
+                d.content,
+                CONTEXT_MAX_TOKENS,
+                'Open the Planning tab for the full text.',
+              ).text,
+            })),
+        ),
+      ),
+  );
+
+  tool(
+    server,
+    'get_planning_session',
+    {
+      title: 'Get planning session',
+      description:
+        'One planning session (interview answers, status, staged proposal counts and any planner error), or a list of sessions when session_id is omitted. Read-only: there is no tool to approve a plan.',
+      inputSchema: {
+        session_id: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe('e.g. plan-1a2b3c4d; omit to list sessions.'),
+      },
+      annotations: READ_ONLY,
+    },
+    ({ session_id }) =>
+      guard(() => {
+        if (!session_id)
+          return ok(
+            listPlanningSessions(db).map((s) => ({
+              id: s.id,
+              title: s.title,
+              status: s.status,
+              created_at: s.created_at,
+            })),
+          );
+        const d = getPlanningSession(db, session_id);
+        const p = d.proposal;
+        return ok({
+          id: d.session.id,
+          title: d.session.title,
+          status: d.session.status,
+          idea: d.session.idea,
+          requirements: d.session.requirements,
+          last_error: d.session.last_error,
+          documents: d.documents.map((x) => ({
+            kind: x.kind,
+            version: x.version,
+            status: x.status,
+          })),
+          proposal: p
+            ? {
+                milestones: p.milestones.map((m) => ({
+                  id: m.id,
+                  title: m.title,
+                  planned_start: m.planned_start,
+                  planned_end: m.planned_end,
+                  capabilities: m.capabilities,
+                })),
+                tasks: p.tasks.length,
+                tasks_with_due_date: p.tasks.filter((t) => t.due_date).length,
+                team: p.team.map((r) => ({ id: r.id, name: r.name, milestones: r.milestones })),
+              }
+            : null,
+        });
       }),
   );
 }

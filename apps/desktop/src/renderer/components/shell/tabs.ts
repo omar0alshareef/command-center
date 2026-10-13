@@ -1,4 +1,12 @@
-import { CalendarDays, Cpu, GanttChart, LayoutGrid, Terminal, type LucideIcon } from 'lucide-react';
+import {
+  CalendarDays,
+  ClipboardList,
+  Cpu,
+  GanttChart,
+  LayoutGrid,
+  Terminal,
+  type LucideIcon,
+} from 'lucide-react';
 import type { TabId } from '../../store';
 
 export const TABS: readonly { id: TabId; label: string; icon: LucideIcon }[] = [
@@ -7,4 +15,5 @@ export const TABS: readonly { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: 'agent-hub', label: 'Agent Hub', icon: Cpu },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { id: 'terminal', label: 'Terminal', icon: Terminal },
+  { id: 'planning', label: 'Planning', icon: ClipboardList },
 ];

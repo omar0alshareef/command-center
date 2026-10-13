@@ -45,7 +45,7 @@ await step('S1 window shows the app shell', async () => {
   await page.waitForSelector('[role=tab]', { timeout: 20000 });
   check(
     'S1 window shows the app shell',
-    (await page.locator('[role=tab][id^=tab-]').count()) === 5,
+    (await page.locator('[role=tab][id^=tab-]').count()) === 6,
   );
 });
 

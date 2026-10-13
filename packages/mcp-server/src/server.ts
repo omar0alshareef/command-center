@@ -8,7 +8,7 @@ import { registerReadTools } from './tools/read';
 import type { Ctx } from './tools/shared';
 import { registerTaskTools } from './tools/task';
 
-export const TOOL_COUNT = 25;
+export const TOOL_COUNT = 28;
 
 const INSTRUCTIONS = `Command Center is the shared project board for the human operator and AI agents.
 

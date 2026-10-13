@@ -3,6 +3,13 @@ import type {
   Lesson,
   Milestone,
   NewTask,
+  PlanCounts,
+  PlannerStage,
+  PlanningDocument,
+  PlanningKind,
+  PlanningSession,
+  PlanningSessionDetail,
+  Proposal,
   Task,
   TaskHistory,
   TaskPatch,
@@ -35,6 +42,22 @@ export const CH = {
   termKill: 'terminal:kill',
   webhookStatus: 'webhook:status',
   webhookRegenerate: 'webhook:regenerate',
+  planList: 'planning:list',
+  planGet: 'planning:get',
+  planCreate: 'planning:create',
+  planAnswer: 'planning:answer',
+  planSaveDoc: 'planning:saveDocument',
+  planSaveProposal: 'planning:saveProposal',
+  planValidate: 'planning:validate',
+  planAbandon: 'planning:abandon',
+  planApprove: 'planning:approve',
+  planInterview: 'planning:interview',
+  planDraft: 'planning:draft',
+  planCancel: 'planning:cancel',
+  planApprovedDocs: 'planning:approvedDocuments',
+  planSettings: 'planning:settings',
+  planSetSettings: 'planning:setSettings',
+  planEvent: 'planning:event',
   termData: 'terminal:data',
   termExit: 'terminal:exit',
   dbChanged: 'db:changed',
@@ -99,6 +122,26 @@ export interface TerminalSessionInfo {
   cwd: string;
 }
 
+/** Streamed from the planner run (D18): stage changes, output chunks, notices, end of run. */
+export type PlannerEvent =
+  | { sessionId: string; type: 'stage'; stage: PlannerStage }
+  | { sessionId: string; type: 'chunk'; stage: PlannerStage; text: string }
+  | { sessionId: string; type: 'notice'; stage: PlannerStage; text: string }
+  | { sessionId: string; type: 'done' }
+  | { sessionId: string; type: 'error'; text: string };
+
+/** What the renderer may know about the planner runner: never the key itself (D19). */
+export interface PlannerSettings {
+  runner: 'claude-code' | 'anthropic-api';
+  model: string | null;
+  keySet: boolean;
+  keySuffix: string | null;
+  claudeFound: boolean;
+  encrypted: boolean;
+}
+
+export type PlanningView = PlanningSessionDetail & { running: PlannerStage | null };
+
 export interface Api {
   platform: string;
   project: {
@@ -141,6 +184,36 @@ export interface Api {
       patch: { rejection_reason?: string; fix_applied?: string; prevention?: string };
     }): Promise<Result<Lesson>>;
     remove(id: number): Promise<Result<null>>;
+  };
+  planning: {
+    list(): Promise<Result<PlanningSession[]>>;
+    get(id: string): Promise<Result<PlanningView>>;
+    /** Creates the session and starts the first interview round. */
+    create(req: { idea: string; title?: string }): Promise<Result<PlanningSession>>;
+    answer(req: { id: string; index: number; answer: string }): Promise<Result<PlanningSession>>;
+    saveDocument(req: {
+      id: string;
+      kind: PlanningKind;
+      content: string;
+    }): Promise<Result<PlanningDocument>>;
+    saveProposal(req: { id: string; proposal: Proposal }): Promise<Result<Proposal>>;
+    /** Problems that would block approval, each naming the item. */
+    validate(id: string): Promise<Result<string[]>>;
+    abandon(id: string): Promise<Result<PlanningSession>>;
+    /** The only call that writes a plan to the board (D15). */
+    approve(id: string): Promise<Result<PlanCounts>>;
+    /** Start a run; progress arrives through onEvent. */
+    interview(id: string): Promise<Result<null>>;
+    draft(id: string): Promise<Result<null>>;
+    cancel(id: string): Promise<Result<null>>;
+    approvedDocuments(): Promise<Result<PlanningDocument[]>>;
+    settings(): Promise<Result<PlannerSettings>>;
+    setSettings(req: {
+      runner?: PlannerSettings['runner'];
+      model?: string | null;
+      apiKey?: string | null;
+    }): Promise<Result<null>>;
+    onEvent(cb: (e: PlannerEvent) => void): () => void;
   };
   terminal: {
     shells(): Promise<ShellInfo[]>;

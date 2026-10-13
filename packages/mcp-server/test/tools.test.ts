@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { estimateTokens, getAgent, getMilestone, getTask, updateTask } from '@command-center/core';
+import {
+  approvePlan,
+  createPlanningSession,
+  estimateTokens,
+  getAgent,
+  getMilestone,
+  getTask,
+  savePlanningDocument,
+  savePlanningProposal,
+  setPlanningStatus,
+  updateTask,
+} from '@command-center/core';
 import { connect, type Harness } from './harness';
 
 const EXPECTED_TOOLS = [
@@ -13,6 +24,8 @@ const EXPECTED_TOOLS = [
   'list_agents',
   'get_activity_feed',
   'get_lessons_learned',
+  'get_planning_documents',
+  'get_planning_session',
   // task write (11)
   'start_task',
   'complete_task',
@@ -51,11 +64,11 @@ const todoId = () =>
   ).id;
 
 describe('tool surface', () => {
-  it('exposes exactly the 26 tools, each described, each parameter described', async () => {
+  it('exposes exactly the 28 tools, each described, each parameter described', async () => {
     const { tools } = await h.client.listTools();
     const undocumented: string[] = [];
     expect(tools.map((t) => t.name).sort()).toEqual([...EXPECTED_TOOLS].sort());
-    expect(tools).toHaveLength(26);
+    expect(tools).toHaveLength(28);
     for (const t of tools) {
       expect(t.description?.length ?? 0, `${t.name} description`).toBeGreaterThan(40);
       const props = (t.inputSchema.properties ?? {}) as Record<string, { description?: string }>;
@@ -68,6 +81,50 @@ describe('tool surface', () => {
 
   it('carries server instructions describing the loop', async () => {
     expect(h.client.getInstructions()).toMatch(/start_task[\s\S]*complete_task/);
+  });
+});
+
+describe('planning read tools (M13)', () => {
+  it('returns approved documents and session detail, and offers no way to approve', async () => {
+    const s = createPlanningSession(h.db, 'A yoga booking app');
+    savePlanningDocument(h.db, s.id, 'manifesto', '# Manifesto', { newVersion: true });
+    savePlanningDocument(h.db, s.id, 'roadmap', '## P1 — Launch', { newVersion: true });
+    savePlanningProposal(h.db, s.id, {
+      milestones: [
+        {
+          id: 'P1',
+          title: 'Launch',
+          domain: 'web',
+          planned_start: '2026-04-01',
+          planned_end: '2026-04-10',
+          capabilities: ['design'],
+        },
+      ],
+      tasks: [{ key: 'T1', milestone: 'P1', label: 'Logo', due_date: '2026-04-05' }],
+      team: [{ id: 'design-team', name: 'Design', milestones: ['P1'] }],
+    });
+    expect((await h.call('get_planning_documents')).json()).toEqual([]);
+    const draft = (await h.call('get_planning_session', { session_id: s.id })).json<{
+      status: string;
+      proposal: { tasks: number; tasks_with_due_date: number };
+    }>();
+    expect(draft).toMatchObject({
+      status: 'interviewing',
+      proposal: { tasks: 1, tasks_with_due_date: 1 },
+    });
+    setPlanningStatus(h.db, s.id, 'review');
+    approvePlan(h.db, s.id);
+    const docs = (await h.call('get_planning_documents', { kind: 'roadmap' })).json<
+      { status: string; content: string }[]
+    >();
+    expect(docs).toEqual([
+      expect.objectContaining({ status: 'approved', content: '## P1 — Launch' }),
+    ]);
+    const list = (await h.call('get_planning_session')).json<{ id: string; status: string }[]>();
+    expect(list).toEqual([expect.objectContaining({ id: s.id, status: 'approved' })]);
+    expect((await h.call('get_planning_session', { session_id: 'plan-nope' })).isError).toBe(true);
+    const { tools } = await h.client.listTools();
+    expect(tools.some((t) => /approve.*plan|plan.*approve/i.test(t.name))).toBe(false);
   });
 });
 
