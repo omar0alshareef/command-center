@@ -15,6 +15,22 @@
   --success: #22c55e;
   --warning: #f59e0b;
   --danger: #ef4444;
+  /* Calm-only tokens (UI/UX §4.8) with neutral defaults, so shared rules work in every theme. */
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --focus: var(--accent);
+  --scrim: rgba(5, 5, 10, 0.6);
+  --display: 'Inter', system-ui, sans-serif;
+  --radius-pill: 6px;
+  --radius-card: 12px;
+  --radius-inner: 8px;
+  --shadow-card: none;
+  /* How much of a tag's own hue its text keeps; the rest is the text colour (light themes need darker text). */
+  --tag-ink: 100%;
+}
+
+/* Light themes darken tag text toward --text. */
+:root:is([data-theme='light'], [data-theme='calm']) {
+  --tag-ink: 55%;
 }
 
 :root[data-theme='light'] {
@@ -34,6 +50,31 @@
   --danger: #c92a2a;
 }
 
+/* Calm (UI/UX §4.8): hex values marked exact in the spec come from the study, the rest are inferred there. */
+:root[data-theme='calm'] {
+  --bg: #faf9f4;
+  --surface: #ffffff;
+  --surface-2: #f3f2ec;
+  --surface-3: #eceae2;
+  --border: #e4e1d8;
+  --border-strong: #d6d3c8;
+  --muted: #5e6b63;
+  --text: #1b2a22;
+  --accent: #0f5132;
+  --accent-light: #2d7a52;
+  --accent-soft: #b7d9c1;
+  --success: #176a3d;
+  --warning: #9a4507;
+  --danger: #b42318;
+  --focus: #0f5132;
+  --scrim: rgba(27, 42, 34, 0.35);
+  --display: 'Source Serif 4', Georgia, serif;
+  --radius-pill: 999px;
+  --radius-card: 20px;
+  --radius-inner: 12px;
+  --shadow-card: 0 1px 2px rgba(27, 42, 34, 0.06), 0 8px 24px rgba(27, 42, 34, 0.06);
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -48,6 +89,8 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-accent-soft: var(--accent-soft);
+  --font-display: var(--display);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --shadow-pop: 0 8px 32px rgba(0, 0, 0, 0.45);
@@ -74,7 +117,7 @@ body {
    outline-none can still opt out (unlayered CSS would always beat them). */
 @layer base {
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
 }
@@ -146,13 +189,13 @@ dialog.modal[open] {
   animation: modal-in 150ms ease-out;
 }
 dialog.modal::backdrop {
-  background: rgba(5, 5, 10, 0.6);
+  background: var(--scrim);
   backdrop-filter: blur(6px);
 }
 .modal-body {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-pop);
 }
 @keyframes modal-in {
@@ -196,7 +239,8 @@ dialog.modal::backdrop {
 :root {
   color-scheme: dark;
 }
-:root[data-theme='light'] {
+:root[data-theme='light'],
+:root[data-theme='calm'] {
   color-scheme: light;
 }
 
@@ -210,4 +254,111 @@ dialog.modal::backdrop {
 }
 .term-host .xterm-viewport {
   background-color: transparent !important;
+}
+
+/* ---- Calm theme components (UI/UX §4.8). Tokens only; dense surfaces keep borders, not shadows. ---- */
+:root[data-theme='calm'] {
+  .modal-body {
+    box-shadow: var(--shadow-card);
+    border-color: transparent;
+  }
+  /* Display numbers and view titles: serif, medium weight (spec: one serif display font only). */
+  .font-display {
+    font-weight: 500;
+  }
+  /* Labels: wider tracking than the 0.06em used elsewhere. */
+  [class*='tracking-[0.06em]'] {
+    letter-spacing: 0.12em;
+  }
+  /* Buttons: pill; primary is forest with an ivory label and a trailing arrow. */
+  .btn {
+    border-radius: var(--radius-pill);
+  }
+  .btn[data-variant='default'] {
+    background: var(--surface);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .btn[data-variant='default']:hover {
+    background: var(--surface-2);
+  }
+  .btn[data-variant='primary'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    filter: none;
+  }
+  .btn[data-variant='primary']:hover {
+    background: var(--accent-light);
+    border-color: var(--accent-light);
+    filter: none;
+  }
+  .btn[data-variant='primary']::after {
+    content: '\2192' / '';
+    margin-left: 4px;
+  }
+  /* Inputs and selects outside dense tables: pill, surface fill, light border. */
+  input:not([type='checkbox']):not([type='radio']):not([type='date']):not(td input),
+  select:not(td select) {
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+  /* Checkbox: 18px, 6px radius, forest fill with a tick. Switch (class "switch"): 44x24 pill. */
+  input[type='checkbox']:not(.switch) {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+  }
+  input[type='checkbox']:not(.switch):checked {
+    background: var(--accent)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4.5 9.5l3 3 6-7' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / 100% no-repeat;
+    border-color: var(--accent);
+  }
+  input.switch {
+    appearance: none;
+    width: 44px;
+    height: 24px;
+    flex: none;
+    border-radius: var(--radius-pill);
+    background:
+      radial-gradient(circle 9px at 12px 12px, var(--surface) 98%, transparent 100%),
+      var(--surface-3);
+    border: 1px solid var(--border-strong);
+    transition: background-color 150ms;
+  }
+  input.switch:checked {
+    background:
+      radial-gradient(circle 9px at 32px 12px, var(--surface) 98%, transparent 100%), var(--accent);
+    border-color: var(--accent);
+  }
+  /* Segmented tabs: the active segment is a forest pill. */
+  nav[role='tablist'] {
+    padding-block: 5px;
+  }
+  nav[role='tablist'] [role='tab'] {
+    border-radius: var(--radius-pill);
+  }
+  nav[role='tablist'] [role='tab'][aria-selected='true'] {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  nav[role='tablist'] [role='tab'][aria-selected='true'] > span:not([class*='absolute']) {
+    color: var(--bg) !important;
+    background: transparent !important;
+    border-color: currentcolor !important;
+  }
+  nav[role='tablist'] [role='tab'][aria-selected='true'] > [class*='absolute'] {
+    display: none;
+  }
+  /* Notification: surface card with a soft shadow. */
+  [role='status'] > div {
+    background: var(--surface);
+    border-radius: var(--radius-inner);
+    box-shadow: var(--shadow-card);
+  }
 }

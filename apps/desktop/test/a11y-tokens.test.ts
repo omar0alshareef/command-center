@@ -24,10 +24,12 @@ const ratio = (a: string, b: string) => {
 
 const dark = tokens(':root');
 const light = { ...dark, ...tokens(":root[data-theme='light']") };
+const calm = { ...dark, ...tokens(":root[data-theme='calm']") };
 
 describe.each([
   ['dark', dark],
   ['light', light],
+  ['calm', calm],
 ])('%s theme contrast', (_name, t) => {
   const surfaces = ['bg', 'surface', 'surface-2'] as const;
   it.each(surfaces)('text and muted text on %s are >= 4.5:1', (s) => {
@@ -37,6 +39,46 @@ describe.each([
   it.each(surfaces)('status colours and the accent on %s are >= 3:1', (s) => {
     for (const k of ['accent', 'success', 'warning', 'danger'])
       expect(ratio(t[k] ?? '', t[s] ?? ''), `${k} on ${s}`).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('calm theme (UI/UX §4.8)', () => {
+  it('defines every token the other themes define', () => {
+    const own = tokens(":root[data-theme='calm']");
+    for (const k of Object.keys(dark)) expect(own[k], `--${k}`).toBeDefined();
+    expect(own['accent-soft']).toBe('#b7d9c1');
+    expect(own['accent']).toBe('#0f5132');
+    expect(own['bg']).toBe('#faf9f4');
+  });
+  it('the primary button label (bg on accent) and text on the mint tint are >= 4.5:1', () => {
+    expect(ratio(calm['bg'] ?? '', calm['accent'] ?? '')).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(calm['text'] ?? '', calm['accent-soft'] ?? '')).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(calm['accent'] ?? '', calm['surface-3'] ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+  it('status text colours are >= 4.5:1 on ivory and white, and accent-soft is never a text colour', () => {
+    for (const k of ['success', 'warning', 'danger'])
+      for (const s of ['bg', 'surface'])
+        expect(ratio(calm[k] ?? '', calm[s] ?? ''), `${k} on ${s}`).toBeGreaterThanOrEqual(4.5);
+    // Tags and chips tint their own colour ~10% over the surface they sit on: text must survive that too.
+    const mix = (a: string, b: string, p: number) =>
+      '#' +
+      [1, 3, 5]
+        .map((i) =>
+          Math.round(
+            parseInt(a.slice(i, i + 2), 16) * p + parseInt(b.slice(i, i + 2), 16) * (1 - p),
+          )
+            .toString(16)
+            .padStart(2, '0'),
+        )
+        .join('');
+    for (const k of ['success', 'warning', 'danger', 'accent'])
+      for (const s of ['surface', 'surface-2'])
+        expect(
+          ratio(calm[k] ?? '', mix(calm[k] ?? '', calm[s] ?? '', 0.1)),
+          `${k} tag on ${s}`,
+        ).toBeGreaterThanOrEqual(4.5);
+    const used = [...css.matchAll(/color:\s*var\(--accent-soft\)/g)];
+    expect(used).toHaveLength(0);
   });
 });
 

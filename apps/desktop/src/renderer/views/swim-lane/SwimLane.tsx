@@ -433,7 +433,7 @@ export function SwimLane({ tracker }: { tracker: TrackerState }) {
                       left: p.x,
                       width: p.w,
                       height: PHASE_H,
-                      color: p.color,
+                      color: 'var(--text)',
                       borderColor: p.color,
                       background: `color-mix(in srgb, ${p.color} 14%, transparent)`,
                     }}

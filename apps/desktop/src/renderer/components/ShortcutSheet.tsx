@@ -27,7 +27,7 @@ export function ShortcutSheet() {
       label="Keyboard shortcuts"
       className="w-[480px] p-5"
     >
-      <h2 className="mb-3 text-[16px] font-semibold">Keyboard shortcuts</h2>
+      <h2 className="font-display mb-3 text-[16px] font-semibold">Keyboard shortcuts</h2>
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[13px]">
         {SHORTCUTS.map(([keys, what]) => (
           <div key={keys} className="contents">

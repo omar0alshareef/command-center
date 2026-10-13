@@ -212,7 +212,7 @@ function Composer({ onCreated }: { onCreated: (s: PlanningSession) => void }) {
   return (
     <section className="flex flex-1 flex-col items-center justify-center p-8" aria-label="New plan">
       <div className="w-full max-w-[640px]">
-        <h2 className="text-[16px] font-semibold">Start a plan</h2>
+        <h2 className="font-display text-[16px] font-semibold">Start a plan</h2>
         <p className="mt-1 text-muted">
           Describe the idea in a paragraph. The planner asks questions first, then drafts a
           manifesto, roadmap, milestones, tasks and a team. Nothing reaches the board until you

@@ -23,7 +23,8 @@ export function Tag({
         className,
       )}
       style={{
-        color,
+        // Light themes pull the hue toward the text colour so palette-coloured tags stay readable.
+        color: `color-mix(in srgb, ${color} var(--tag-ink), var(--text))`,
         background: `color-mix(in srgb, ${color} 10%, transparent)`,
         borderColor: `color-mix(in srgb, ${color} 20%, transparent)`,
       }}

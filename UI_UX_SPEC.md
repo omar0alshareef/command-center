@@ -149,8 +149,8 @@ Source: the "CALM / SYSTEM" UI component study (operator-approved, 2026-10-13). 
 | `--accent` | `#0F5132` | Forest (study) |
 | `--accent-light` | `#2D7A52` | (inferred) hover state for accent |
 | `--accent-soft` | `#B7D9C1` | Mint (study); tints, selected rows, soft fills only, never text |
-| `--success` | `#1E7F4F` | (inferred) text-safe green, ≈4.7:1 on ivory; distinct from accent by lightness |
-| `--warning` | `#B45309` | matches §4.2 light override |
+| `--success` | `#176A3D` | (inferred) text-safe green, ≥4.5:1 as text and as a 10% tag tint on white and surface-2; distinct from accent by lightness (first pick `#1E7F4F` failed the tint case) |
+| `--warning` | `#9A4507` | (inferred) darker than the §4.2 light override: tags tint their own colour 10% over the surface, and `#B45309` fell to 4.45:1 there |
 | `--danger` | `#B42318` | (inferred) text-safe red |
 | `--focus` | `#0F5132` | focus ring, 2px, 2px offset |
 
@@ -183,6 +183,8 @@ Dense surfaces (Task Board columns, Swim Lane, activity feed, terminal) use `--b
 - **Segmented tabs:** pill group, active segment `--accent` fill with `--bg` text.
 - **Progress bar:** 6px tall pill, track `--surface-3`, fill `--accent`.
 - **Notification:** `--surface` card, icon disc in `--accent-soft` with `--accent` tick, title 600, body `--muted`.
+
+**Tags and chips:** the light themes (§4.2, Calm) mix a tag's own hue 55% with `--text` for the tag's text (`--tag-ink`), because palette hues such as orange and cyan are under 3:1 on ivory. Agent-avatar initials and swim-lane phase labels use `--text`; the hue stays on the ring and the tint.
 
 **Rules for this theme**
 - Small captions in the study are light grey and fail contrast. In this theme no text below 4.5:1 on its background, and captions use `--muted`, never a lighter grey.

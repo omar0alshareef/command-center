@@ -1,9 +1,22 @@
-import { Moon, Settings, Sun } from 'lucide-react';
+import { Leaf, Monitor, Moon, Settings, Sun, type LucideIcon } from 'lucide-react';
 import { overallProgress, scheduleBadge } from '../../lib/derive';
-import { useApp, type SyncState } from '../../store';
+import { nextThemePref, useApp, type SyncState, type ThemePref } from '../../store';
 import { Skeleton } from '../ui/feedback';
 import { StatusDot, Tag } from '../ui/badges';
 import { Tooltip } from '../ui/overlays';
+
+const THEME_LABEL: Record<ThemePref, string> = {
+  dark: 'Dark',
+  light: 'Light',
+  calm: 'Calm',
+  system: 'System',
+};
+const THEME_ICON: Record<ThemePref, LucideIcon> = {
+  dark: Moon,
+  light: Sun,
+  calm: Leaf,
+  system: Monitor,
+};
 
 const TONE_COLOR = {
   success: 'var(--success)',
@@ -39,7 +52,7 @@ function SyncIndicator({ sync }: { sync: SyncState }) {
 export function TitleBar() {
   const tracker = useApp((s) => s.tracker);
   const sync = useApp((s) => s.sync);
-  const theme = useApp((s) => s.theme);
+  const themePref = useApp((s) => s.themePref);
   const toggleTheme = useApp((s) => s.toggleTheme);
   const openSettings = useApp((s) => s.setSettingsOpen);
   // macOS: leave room for the inset traffic lights (frameless window).
@@ -58,7 +71,7 @@ export function TitleBar() {
           <span className="text-[13px] font-semibold">{tracker.project.name}</span>
           {badge ? <Tag color={TONE_COLOR[badge.tone]}>{badge.label}</Tag> : null}
           <span className="inline-flex items-center gap-2" title={`${pct}% of tasks done`}>
-            <span className="h-1.5 w-24 overflow-hidden rounded-full bg-border">
+            <span className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-3">
               <span
                 className="block h-full bg-accent transition-[width] duration-300"
                 style={{ width: `${pct}%` }}
@@ -75,10 +88,14 @@ export function TitleBar() {
       <button
         type="button"
         onClick={toggleTheme}
-        aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        aria-label={`Theme: ${THEME_LABEL[themePref]}. Switch to ${THEME_LABEL[nextThemePref(themePref)]}`}
+        title={`Theme: ${THEME_LABEL[themePref]}`}
         className="no-drag grid size-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text"
       >
-        {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        {(() => {
+          const Icon = THEME_ICON[nextThemePref(themePref)];
+          return <Icon size={16} aria-hidden />;
+        })()}
       </button>
       <button
         type="button"

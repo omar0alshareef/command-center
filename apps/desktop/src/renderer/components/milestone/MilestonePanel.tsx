@@ -139,7 +139,9 @@ export function MilestonePanel() {
               />
               <div className="min-w-0">
                 <div className="font-mono text-[11px] text-muted">{m.id}</div>
-                <h2 className="text-[16px] leading-tight font-semibold break-words">{m.title}</h2>
+                <h2 className="font-display text-[16px] leading-tight font-semibold break-words">
+                  {m.title}
+                </h2>
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">

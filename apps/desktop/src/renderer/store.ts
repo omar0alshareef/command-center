@@ -6,7 +6,7 @@ import { matchesFilter } from './lib/agent-hub';
 import { mergeTracker } from './lib/share';
 
 export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal' | 'planning';
-export type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light' | 'calm';
 export type ThemePref = Theme | 'system';
 export type WeekStart = 'mon' | 'sun';
 
@@ -84,6 +84,12 @@ interface AppState {
   refresh: () => Promise<void>;
   chooseProject: () => Promise<void>;
   retryProject: () => Promise<void>;
+}
+
+/** The title-bar button cycles dark -> light -> calm -> system -> dark. */
+export const THEME_CYCLE: readonly ThemePref[] = ['dark', 'light', 'calm', 'system'];
+export function nextThemePref(pref: ThemePref): ThemePref {
+  return THEME_CYCLE[(THEME_CYCLE.indexOf(pref) + 1) % THEME_CYCLE.length] ?? 'dark';
 }
 
 /** 'system' follows the OS colour scheme; the window can be told to re-resolve when it changes. */
@@ -190,8 +196,8 @@ export const useApp = create<AppState>()(
       scrollToMilestone: (scrollToMilestoneId) => set({ scrollToMilestoneId }),
       toggleTheme: () =>
         set((s) => {
-          const theme: Theme = s.theme === 'dark' ? 'light' : 'dark';
-          return { theme, themePref: theme };
+          const themePref = nextThemePref(s.themePref);
+          return { themePref, theme: resolveTheme(themePref) };
         }),
       setThemePref: (themePref) => set({ themePref, theme: resolveTheme(themePref) }),
       setWeekStart: (weekStart) => set({ weekStart }),

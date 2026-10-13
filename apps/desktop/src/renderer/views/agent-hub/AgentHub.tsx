@@ -29,7 +29,7 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
   if (connected.length === 0) {
     return (
       <section className="flex h-full flex-col gap-4 overflow-auto p-6">
-        <h1 className="text-[18px] font-semibold">Agent Hub</h1>
+        <h1 className="font-display text-[18px] font-semibold">Agent Hub</h1>
         <EmptyState
           icon={Cpu}
           title="No agents connected"

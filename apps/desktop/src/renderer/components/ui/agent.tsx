@@ -18,7 +18,8 @@ export function AgentAvatar({
         width: size,
         height: size,
         fontSize: size === 20 ? 9 : 10,
-        color: agent.color,
+        // The initials stay readable in every theme: the agent colour lives on the ring and the tint.
+        color: 'var(--text)',
         borderColor: agent.color,
         background: `color-mix(in srgb, ${agent.color} 20%, transparent)`,
       }}

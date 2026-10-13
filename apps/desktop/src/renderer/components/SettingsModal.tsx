@@ -40,7 +40,7 @@ export function SettingsModal() {
   return (
     <Modal open={open} onClose={() => set(false)} label="Settings" className="w-[640px] p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[16px] font-semibold">Settings</h2>
+        <h2 className="font-display text-[16px] font-semibold">Settings</h2>
         <Button variant="ghost" onClick={() => set(false)}>
           Close
         </Button>
@@ -61,6 +61,7 @@ export function SettingsModal() {
             >
               <option value="dark">Dark</option>
               <option value="light">Light</option>
+              <option value="calm">Calm</option>
               <option value="system">System</option>
             </select>
           </Row>
@@ -77,6 +78,7 @@ export function SettingsModal() {
           <Row label="Notify when a task enters Review or Blocked (window unfocused)">
             <input
               type="checkbox"
+              className="switch"
               checked={notifications}
               onChange={(e) => setNotifications(e.target.checked)}
             />
