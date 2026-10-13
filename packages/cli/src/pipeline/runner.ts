@@ -10,6 +10,8 @@ export interface StageRequest {
   root: string;
   task: Task;
   data: StageData;
+  /** Claude Code model for this run (`--model`), or null for the CLI default. Resolved per agent (M14). */
+  model: string | null;
 }
 
 export interface StageData {

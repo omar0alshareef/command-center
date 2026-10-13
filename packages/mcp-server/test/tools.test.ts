@@ -226,6 +226,7 @@ describe('read tools', () => {
       tool: null,
     });
     expect(agents.every((a) => ['agent', 'external', 'human'].includes(a.executor))).toBe(true);
+    expect(agents.every((a) => 'model' in a)).toBe(true);
     expect(agents.find((a) => a.id === 'test-client')?.status).toBe('active');
 
     const p1 = (await h.call('get_activity_feed', { limit: 10 })).json<{

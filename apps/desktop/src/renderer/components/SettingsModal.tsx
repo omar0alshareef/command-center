@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { FONT_MAX, FONT_MIN, useTerminal } from '../lib/terminal';
 import { useApp, type ThemePref, type WeekStart } from '../store';
 import { McpConnect } from './McpConnect';
+import { ModelListSettings } from './ModelListSettings';
 import { PlannerSettings } from './PlannerSettings';
 import { Button } from './ui/button';
 import { Modal } from './ui/overlays';
@@ -115,6 +116,7 @@ export function SettingsModal() {
           </Row>
         </section>
         <PlannerSettings open={open} />
+        <ModelListSettings />
         <section aria-label="Connections">
           <McpConnect showFolder={false} />
         </section>

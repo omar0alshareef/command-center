@@ -210,10 +210,17 @@ await step('S6 palette, settings and shortcut sheet', async () => {
   check('S6a palette: "calendar" + Enter goes to Calendar', true);
   await page.keyboard.press('Control+,');
   await page.waitForSelector('dialog[open][aria-label=Settings]');
-  check(
-    'S6b Ctrl+, opens Settings with the webhook card',
-    (await page.locator('dialog[open]').innerText()).includes('Webhook 127.0.0.1:38120'),
-  );
+  // The webhook card fetches its status after the dialog opens: wait for it instead of reading once.
+  const hasWebhook = await page
+    .waitForFunction(
+      () =>
+        document.querySelector('dialog[open]')?.textContent?.includes('Webhook 127.0.0.1:38120'),
+      null,
+      { timeout: 5000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  check('S6b Ctrl+, opens Settings with the webhook card', hasWebhook);
   await page.keyboard.press('Escape');
   await page.keyboard.press('?');
   await page.waitForSelector('dialog[open][aria-label="Keyboard shortcuts"]');

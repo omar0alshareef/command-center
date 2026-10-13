@@ -24,8 +24,7 @@ const BUILD_TOOLS = [
 
 /** The argument list for one stage (exported so tests can pin it). The system prompt travels in a file, not on the command line. */
 export function claudeArgs(
-  req: Pick<StageRequest, 'stage'> & { systemFile: string },
-  env: NodeJS.ProcessEnv = process.env,
+  req: Pick<StageRequest, 'stage' | 'model'> & { systemFile: string },
 ): string[] {
   const builder = req.stage.id === 'builder';
   const args = [
@@ -38,8 +37,8 @@ export function claudeArgs(
   ];
   if (builder) args.push('--permission-mode', 'acceptEdits', '--allowedTools', ...BUILD_TOOLS);
   else args.push('--tools', ...READ_ONLY);
-  const model = env['COMMAND_CENTER_MODEL']?.trim();
-  if (model) args.push('--model', model);
+  // The model comes from the agent doing the work (Agent Hub); no flag means the CLI default.
+  if (req.model) args.push('--model', req.model);
   return args;
 }
 
@@ -56,7 +55,7 @@ export function claudeRunner(bin: string, timeoutMs = 15 * 60_000): Runner {
           viaShell && /[\s"&|<>^]/.test(a) ? `"${a.replace(/"/g, '')}"` : a;
         const child = spawn(
           viaShell ? quote(bin) : bin,
-          claudeArgs({ stage: req.stage, systemFile }).map(quote),
+          claudeArgs({ stage: req.stage, model: req.model, systemFile }).map(quote),
           {
             cwd: req.root,
             stdio: ['pipe', 'pipe', 'pipe'],

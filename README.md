@@ -102,6 +102,10 @@ Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves
 
 The planner runs Claude Code (`claude -p`, as a child process, never in the terminal) or the Anthropic API with a key (Settings → Planner; the key is encrypted with the OS keychain and never shown). The approved manifesto and roadmap are under Settings → Planner, and each milestone's roadmap entry shows in its panel. Agents can read plans (`get_planning_documents`, `get_planning_session`) but cannot approve them.
 
+## Choose a model per agent
+
+Agent Hub → each text-runner agent has a **Model** dropdown. The options come from Settings → Claude Code models, an editable JSON list of `{ "id", "label" }` that starts with the aliases `haiku`, `sonnet` and `opus` (checked against the installed `claude` CLI; `id` is what is passed to `claude --model`, so a full model name works too). "CLI default" passes no flag. The operator CLI (`prepare`, `start`, `audit`) runs each stage on its agent's model (the builder on the task's assignee), writes the model into the run's activity entry, and warns, then uses the CLI default, if an agent's model has been removed from the list. The old `COMMAND_CENTER_MODEL` variable is no longer read: the agent decides.
+
 ## Hydrate a project from your docs
 
 Fresh clone to a populated board in a few minutes:

@@ -13,7 +13,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { CliError, type Handle } from '../context';
 import type { Runner } from './runner';
-import { ensurePipelineAgents, firstLine, runStage, type Out } from './runtime';
+import { ensurePipelineAgents, firstLine, runStage, warnModels, type Out } from './runtime';
 import { parseFiles, renderPrompt, STAGES, taskVars } from './stages';
 
 export const CONTEXT_FILE = ['.claude', 'TASK_CONTEXT.md'] as const;
@@ -79,6 +79,11 @@ export async function prepare(
   }
 
   ensurePipelineAgents(db);
+  warnModels(db, o.out, [
+    STAGES.explorer.agentId,
+    STAGES.compressor.agentId,
+    STAGES.optimizer.agentId,
+  ]);
   syncLessonsFile(db); // LESSONS_LEARNED.md exists and matches the table before agents read it
   const fail = (what: string, error: string | undefined): never => {
     throw new CliError(`${what} failed: ${error ?? 'no output'}. The task was not changed.`, 2);

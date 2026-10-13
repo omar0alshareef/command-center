@@ -32,6 +32,11 @@ const api: Api = {
     update: (req) => ipcRenderer.invoke(CH.lessonUpdate, req),
     remove: (id) => ipcRenderer.invoke(CH.lessonRemove, id),
   },
+  models: {
+    list: () => ipcRenderer.invoke(CH.modelsList),
+    setList: (list) => ipcRenderer.invoke(CH.modelsSet, list),
+    setAgentModel: (req) => ipcRenderer.invoke(CH.agentSetModel, req),
+  },
   planning: {
     list: () => ipcRenderer.invoke(CH.planList),
     get: (id) => ipcRenderer.invoke(CH.planGet, id),

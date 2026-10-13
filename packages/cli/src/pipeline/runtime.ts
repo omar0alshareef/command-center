@@ -1,4 +1,11 @@
-import { getAgent, logAction, registerAgent, type Db, type Task } from '@command-center/core';
+import {
+  getAgent,
+  logAction,
+  registerAgent,
+  resolveAgentModel,
+  type Db,
+  type Task,
+} from '@command-center/core';
 import { CliError } from '../context';
 import { claudeRunner, findClaude } from './claude';
 import { localRunner } from './local';
@@ -53,6 +60,17 @@ export interface StageRun {
   stage: Stage;
   result: StageResult;
   prompt: string;
+  /** The model the run used (null = CLI default) and, when the agent's model was removed from the list, why it fell back. */
+  model: string | null;
+  warning: string | null;
+}
+
+/** Tells the operator up front when an agent's model has been removed from the model list (the run uses the CLI default). */
+export function warnModels(db: Db, out: Out, agentIds: readonly string[]): void {
+  for (const id of new Set(agentIds)) {
+    const { warning } = resolveAgentModel(db, id);
+    if (warning) out(`warning: ${warning}`);
+  }
 }
 
 /** Runs one stage and, when it succeeded, writes its `doneAction` to the activity feed under the stage's agent. */
@@ -67,19 +85,33 @@ export async function runStage(
   describe: (output: string) => { action?: string; summary: string; tags?: string[] },
 ): Promise<StageRun> {
   const prompt = renderPrompt(stage, { ...taskVars(task), ...extraVars });
-  const result = await runner.run({ stage, prompt, system: stage.system, root, task, data });
+  // The agent doing the work chooses the model: the builder runs as the task's assignee, every other stage
+  // as its own sub-agent. A model that was removed from the list falls back to the CLI default with a warning.
+  const worker = stage.id === 'builder' && task.assignee ? task.assignee : stage.agentId;
+  const { model, warning } = resolveAgentModel(db, worker);
+  if (warning)
+    logAction(db, {
+      agentId: stage.agentId,
+      action: 'model_unavailable',
+      targetType: 'subtask',
+      targetId: task.id,
+      description: warning,
+      tags: ['model', 'warning'],
+    });
+  const result = await runner.run({ stage, prompt, system: stage.system, root, task, data, model });
   if (result.ok) {
     const d = describe(result.output);
+    // Every run records the model it used (or "CLI default") in its log entry.
     logAction(db, {
       agentId: stage.agentId,
       action: d.action ?? stage.doneAction,
       targetType: 'subtask',
       targetId: task.id,
-      description: d.summary.slice(0, 300),
+      description: `${d.summary.slice(0, 270)} [model: ${model ?? 'CLI default'}]`,
       tags: d.tags ?? [stage.id],
     });
   }
-  return { stage, result, prompt };
+  return { stage, result, prompt, model, warning };
 }
 
 export const firstLine = (s: string, n = 140): string =>

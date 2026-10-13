@@ -4,7 +4,7 @@ import { CliError, type Handle } from '../context';
 import { checksText, defaultChecks, runChecks } from './checks';
 import { contextPath, prepare } from './prepare';
 import type { Runner } from './runner';
-import { ensurePipelineAgents, runStage, type Out } from './runtime';
+import { ensurePipelineAgents, runStage, warnModels, type Out } from './runtime';
 import { PIPELINE_ORCHESTRATOR, renderPrompt, STAGES, taskVars } from './stages';
 
 export interface StartOptions {
@@ -52,6 +52,7 @@ export async function start(h: Handle, taskId: string, o: StartOptions): Promise
   }
 
   ensurePipelineAgents(db);
+  if (o.dispatch) warnModels(db, o.out, [task.assignee ?? STAGES.builder.agentId]);
   if (!haveContext)
     await prepare(h, taskId, { runner: o.runner, dryRun: false, budget: o.budget, out: o.out });
 

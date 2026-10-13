@@ -116,6 +116,8 @@ export const AgentSchema = z.object({
   /** Who does this agent's work (M13.1): a text runner, an outside tool, or the operator. */
   executor: z.enum(['agent', 'external', 'human']),
   tool: z.string().nullable(),
+  /** Claude Code model id for this agent (M14); null = the CLI default. */
+  model: z.string().nullable(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
 

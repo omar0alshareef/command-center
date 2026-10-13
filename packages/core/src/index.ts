@@ -13,3 +13,4 @@ export * from './context';
 export * from './hydrate';
 export * from './planning';
 export * from './claude-bin';
+export * from './models';

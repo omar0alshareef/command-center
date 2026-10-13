@@ -116,7 +116,7 @@ describe('stage helpers', () => {
 
 describe('claude runner', () => {
   it('builds read-only args for analysis stages and edit args for the builder', () => {
-    const a = claudeArgs({ stage: STAGES.explorer, systemFile: 'SYS.txt' }, {});
+    const a = claudeArgs({ stage: STAGES.explorer, model: null, systemFile: 'SYS.txt' });
     expect(a).toEqual(
       expect.arrayContaining([
         '-p',
@@ -131,10 +131,7 @@ describe('claude runner', () => {
       ]),
     );
     expect(a).not.toContain('Edit');
-    const b = claudeArgs(
-      { stage: STAGES.builder, systemFile: 'SYS.txt' },
-      { COMMAND_CENTER_MODEL: 'm1' },
-    );
+    const b = claudeArgs({ stage: STAGES.builder, model: 'm1', systemFile: 'SYS.txt' });
     expect(b).toEqual(
       expect.arrayContaining([
         '--permission-mode',
@@ -174,6 +171,7 @@ describe('claude runner', () => {
       root,
       task,
       data: {},
+      model: null,
     });
     expect(r.ok).toBe(true);
     expect(r.output).toContain('src/login.ts');
@@ -198,6 +196,7 @@ describe('claude runner', () => {
       root,
       task,
       data: {},
+      model: null,
     });
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/Could not run|exited/);

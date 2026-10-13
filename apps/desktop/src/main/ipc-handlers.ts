@@ -7,6 +7,7 @@ import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
 import { lessonsApi } from './lessons-api';
 import { milestoneApi } from './milestone-api';
+import { modelsApi } from './models-api';
 import { planningApi } from './planning-api';
 import type { Planner } from './planner';
 import { run, taskApi } from './task-api';
@@ -67,6 +68,11 @@ export function registerIpc(project: ProjectService): void {
   const lessons = lessonsApi(() => project.db());
   ipcMain.handle(CH.lessonUpdate, (_e, req: unknown) => lessons.update(req));
   ipcMain.handle(CH.lessonRemove, (_e, id: unknown) => lessons.remove(id));
+
+  const models = modelsApi(() => project.db());
+  ipcMain.handle(CH.modelsList, () => models.list());
+  ipcMain.handle(CH.modelsSet, (_e, list: unknown) => models.setList(list));
+  ipcMain.handle(CH.agentSetModel, (_e, req: unknown) => models.setAgentModel(req));
 
   const plan = planningApi(
     () => project.db(),

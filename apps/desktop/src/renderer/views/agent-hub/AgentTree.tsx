@@ -1,11 +1,11 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { Agent } from '@command-center/core';
+import type { Agent, ModelOption } from '@command-center/core';
 import { AgentAvatar } from '../../components/ui/agent';
 import { StatusDot, Tag } from '../../components/ui/badges';
 import { ContextMenu } from '../../components/ui/menu';
 import { agentState, buildTree, type AgentState } from '../../lib/agent-hub';
-import { useNow } from '../../lib/hooks';
+import { useClaudeModels, useNow } from '../../lib/hooks';
 import { relativeTime } from '../../lib/time';
 import { useApp } from '../../store';
 import { toast } from '../../toast';
@@ -16,6 +16,55 @@ const STATE_META: Record<AgentState, { label: string; color: string }> = {
   error: { label: 'ERROR', color: 'var(--danger)' },
 };
 
+/**
+ * The Claude Code model for one agent (M14 Slice 1). Only text-runner agents have one: agents done by an external
+ * tool or by a person show nothing. A model that was removed from the list stays visible, marked, so nothing
+ * changes silently; runs fall back to the CLI default.
+ */
+function ModelPicker({ agent, models }: { agent: Agent; models: readonly ModelOption[] | null }) {
+  const [busy, setBusy] = useState(false);
+  if (
+    agent.executor !== 'agent' ||
+    agent.type === 'human' ||
+    agent.id === 'operator' ||
+    agent.id === 'system'
+  )
+    return null;
+  const stale = agent.model !== null && !models?.some((m) => m.id === agent.model);
+  const change = async (value: string) => {
+    setBusy(true);
+    const r = await window.api.models.setAgentModel({ agentId: agent.id, model: value || null });
+    setBusy(false);
+    if (!r.ok) toast.error(r.error.message);
+  };
+  return (
+    <label className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
+      <span>Model</span>
+      <select
+        aria-label={`${agent.name} model`}
+        data-agent-model={agent.id}
+        disabled={busy || models === null}
+        value={agent.model ?? ''}
+        onChange={(e) => void change(e.target.value)}
+        title={
+          stale
+            ? `"${agent.model}" is no longer on the model list; runs use the CLI default.`
+            : undefined
+        }
+        className="min-w-0 flex-1 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-text"
+      >
+        <option value="">CLI default</option>
+        {models?.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.label}
+          </option>
+        ))}
+        {stale ? <option value={agent.model ?? ''}>{agent.model} (not on the list)</option> : null}
+      </select>
+    </label>
+  );
+}
+
 function AgentRow({
   agent,
   now,
@@ -24,8 +73,10 @@ function AgentRow({
   collapsed,
   onToggle,
   onMenu,
+  models,
 }: {
   agent: Agent;
+  models: readonly ModelOption[] | null;
   now: number;
   nested: boolean;
   collapsible: boolean;
@@ -57,63 +108,68 @@ function AgentRow({
           )}
         </button>
       ) : null}
-      <button
-        type="button"
-        aria-pressed={selected}
-        data-agent-row={agent.id}
-        data-agent-state={state}
-        onClick={() => setFilter(selected ? 'all' : agent.id)}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onMenu(e.clientX, e.clientY);
-        }}
-        className={`flex min-w-0 flex-1 items-start gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors hover:bg-surface-2 ${selected ? 'border-accent bg-surface-2' : 'border-transparent'}`}
-      >
-        <AgentAvatar agent={agent} size={24} />
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="truncate text-[12px] font-semibold">{agent.name}</span>
-            <Tag color={meta.color} className="shrink-0">
-              <StatusDot color={meta.color} pulse={state === 'active'} />
-              {meta.label}
-            </Tag>
-          </span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted">
-            <span>
-              {agent.last_action_at ? relativeTime(agent.last_action_at, now) : 'no actions yet'}
-            </span>
-            <span className="font-mono" title="Actions this session">
-              · {agent.session_action_count}
-            </span>
-          </span>
-          {agent.source_model ? (
-            <span className="block truncate text-[11px] text-muted">{agent.source_model}</span>
-          ) : null}
-          {agent.type !== 'human' && agent.id !== 'system' ? (
-            <span className="mt-1 flex" data-executor={agent.executor}>
-              <Tag>
-                {agent.executor === 'agent'
-                  ? 'agent'
-                  : agent.executor === 'human'
-                    ? 'done by you'
-                    : `external · ${agent.tool ?? 'no tool set'}`}
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          aria-pressed={selected}
+          data-agent-row={agent.id}
+          data-agent-state={state}
+          onClick={() => setFilter(selected ? 'all' : agent.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onMenu(e.clientX, e.clientY);
+          }}
+          className={`flex w-full min-w-0 items-start gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors hover:bg-surface-2 ${selected ? 'border-accent bg-surface-2' : 'border-transparent'}`}
+        >
+          <AgentAvatar agent={agent} size={24} />
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-[12px] font-semibold">{agent.name}</span>
+              <Tag color={meta.color} className="shrink-0">
+                <StatusDot color={meta.color} pulse={state === 'active'} />
+                {meta.label}
               </Tag>
             </span>
-          ) : null}
-          {perms.length > 0 ? (
-            <span className="mt-1 flex flex-wrap gap-1">
-              {perms.slice(0, 3).map((p) => (
-                <Tag key={p}>{p}</Tag>
-              ))}
-              {perms.length > 3 ? (
-                <span title={perms.slice(3).join(', ')}>
-                  <Tag>+{perms.length - 3}</Tag>
-                </span>
-              ) : null}
+            <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted">
+              <span>
+                {agent.last_action_at ? relativeTime(agent.last_action_at, now) : 'no actions yet'}
+              </span>
+              <span className="font-mono" title="Actions this session">
+                · {agent.session_action_count}
+              </span>
             </span>
-          ) : null}
-        </span>
-      </button>
+            {agent.source_model ? (
+              <span className="block truncate text-[11px] text-muted">{agent.source_model}</span>
+            ) : null}
+            {agent.type !== 'human' && agent.id !== 'system' ? (
+              <span className="mt-1 flex" data-executor={agent.executor}>
+                <Tag>
+                  {agent.executor === 'agent'
+                    ? 'agent'
+                    : agent.executor === 'human'
+                      ? 'done by you'
+                      : `external · ${agent.tool ?? 'no tool set'}`}
+                </Tag>
+              </span>
+            ) : null}
+            {perms.length > 0 ? (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {perms.slice(0, 3).map((p) => (
+                  <Tag key={p}>{p}</Tag>
+                ))}
+                {perms.length > 3 ? (
+                  <span title={perms.slice(3).join(', ')}>
+                    <Tag>+{perms.length - 3}</Tag>
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        <div className="px-2 pb-1">
+          <ModelPicker agent={agent} models={models} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -124,6 +180,7 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
   const toggle = useApp((s) => s.toggleHubCollapsed);
   const viewTasks = useApp((s) => s.viewAgentTasks);
   const now = useNow();
+  const models = useClaudeModels();
   const tree = useMemo(() => buildTree(agents), [agents]);
   const [menu, setMenu] = useState<{ agent: Agent; x: number; y: number } | null>(null);
 
@@ -142,6 +199,7 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
             <div key={agent.id}>
               <AgentRow
                 agent={agent}
+                models={models}
                 now={now}
                 nested={false}
                 collapsible={children.length > 0}
@@ -154,6 +212,7 @@ export function AgentTree({ agents }: { agents: readonly Agent[] }) {
                     <AgentRow
                       key={c.id}
                       agent={c}
+                      models={models}
                       now={now}
                       nested
                       collapsible={false}

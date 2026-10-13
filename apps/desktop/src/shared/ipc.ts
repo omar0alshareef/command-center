@@ -1,7 +1,9 @@
 import type {
   AgentLogEntry,
   Lesson,
+  Agent,
   Milestone,
+  ModelOption,
   NewTask,
   PlanCounts,
   PlannerStage,
@@ -42,6 +44,9 @@ export const CH = {
   termKill: 'terminal:kill',
   webhookStatus: 'webhook:status',
   webhookRegenerate: 'webhook:regenerate',
+  modelsList: 'models:list',
+  modelsSet: 'models:set',
+  agentSetModel: 'agents:setModel',
   planList: 'planning:list',
   planGet: 'planning:get',
   planCreate: 'planning:create',
@@ -184,6 +189,13 @@ export interface Api {
       patch: { rejection_reason?: string; fix_applied?: string; prevention?: string };
     }): Promise<Result<Lesson>>;
     remove(id: number): Promise<Result<null>>;
+  };
+  models: {
+    /** The editable Claude Code model list (settings), starting from three aliases. */
+    list(): Promise<Result<ModelOption[]>>;
+    setList(list: ModelOption[]): Promise<Result<ModelOption[]>>;
+    /** Set an agent's model (null = CLI default). Logged in the activity feed. */
+    setAgentModel(req: { agentId: string; model: string | null }): Promise<Result<Agent>>;
   };
   planning: {
     list(): Promise<Result<PlanningSession[]>>;

@@ -2,7 +2,7 @@ import { getTask, logAction, transition } from '@command-center/core';
 import { CliError, type Handle } from '../context';
 import { checksText, defaultChecks, runChecks } from './checks';
 import type { Runner, StageData } from './runner';
-import { firstLine, ensurePipelineAgents, runStage, type Out } from './runtime';
+import { firstLine, ensurePipelineAgents, runStage, warnModels, type Out } from './runtime';
 import { filesToScan, findingText, scanFiles } from './scan';
 import { criteriaText, parseVerdict, renderPrompt, STAGES, taskVars, type Stage } from './stages';
 
@@ -58,6 +58,11 @@ export async function audit(
   }
 
   ensurePipelineAgents(db);
+  warnModels(db, o.out, [
+    STAGES.quality.agentId,
+    STAGES.security.agentId,
+    STAGES.validator.agentId,
+  ]);
   const stages: AuditResult['stages'] = [];
   const data: StageData = { audit: [] };
 
