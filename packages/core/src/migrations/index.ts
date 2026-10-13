@@ -3,6 +3,7 @@ import { sql002 } from './002_additions';
 import { sql003 } from './003_started_at';
 import { sql004 } from './004_lessons_prevention';
 import { sql005 } from './005_planning';
+import { sql006 } from './006_executor';
 
 export interface Migration {
   version: number;
@@ -17,4 +18,5 @@ export const migrations: Migration[] = [
   { version: 3, name: 'started_at', sql: sql003 },
   { version: 4, name: 'lessons_prevention', sql: sql004 },
   { version: 5, name: 'planning', sql: sql005 },
+  { version: 6, name: 'executor', sql: sql006 },
 ];

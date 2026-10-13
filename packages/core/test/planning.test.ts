@@ -15,11 +15,20 @@ import {
   savePlanningDocument,
   savePlanningProposal,
   setPlanningStatus,
+  STAGE_EXECUTORS,
   validatePlan,
   type PlanMilestone,
   type PlanTask,
 } from '../src/planning';
-import { getAllTrackerState, getTask, listAgents, listMilestones, listTasks } from '../src/queries';
+import {
+  getAgent,
+  getAllTrackerState,
+  getTask,
+  listAgents,
+  listMilestones,
+  listTasks,
+} from '../src/queries';
+import { registerAgent } from '../src/agents';
 import { updateTask } from '../src/tasks';
 import { openDb } from '../src/db';
 import { tmpDb } from './helpers';
@@ -62,6 +71,8 @@ const task = (key: string, over: Partial<PlanTask> = {}): PlanTask => ({
   depends_on: [],
   assignee: null,
   acceptance_criteria: [],
+  brief: null,
+  checklist: [],
   ...over,
 });
 const tasks: PlanTask[] = [
@@ -169,9 +180,7 @@ describe('stage output validation (D20)', () => {
     const bad = JSON.stringify({ tasks: [{ ...task('T1'), due_date: 20260101 }] });
     expect(() => parseStageOutput('plan_tasks', bad)).toThrow(/plan_tasks: tasks\.0\.due_date/);
     expect(() => parseStageOutput('draft_manifesto', 'no json here')).toThrow(PlanValidationError);
-    expect(() => parseStageOutput('plan_capabilities', '{"milestones": [ }')).toThrow(
-      /not valid JSON/,
-    );
+    expect(() => parseStageOutput('plan_stages', '{"milestones": [ }')).toThrow(/not valid JSON/);
   });
 
   it('builds a first-round interview prompt that asks for at least 3 questions', () => {
@@ -371,5 +380,152 @@ describe('approvePlan (D15)', () => {
     const empty = getAllTrackerState(t.db);
     seeded();
     expect(getAllTrackerState(t.db)).toEqual(empty);
+  });
+});
+
+describe('M13.1 stage-based roster', () => {
+  const video: PlanMilestone[] = [
+    {
+      id: 'V1',
+      title: 'Episode 1',
+      domain: 'video',
+      planned_start: '2026-02-02',
+      planned_end: '2026-02-13',
+      capabilities: ['script', 'voiceover', 'edit', 'publish'],
+      dependencies: [],
+      is_key_milestone: false,
+    },
+  ];
+  const videoTasks: PlanTask[] = [
+    task('S1', { milestone: 'V1', capability: 'script' }),
+    task('S2', {
+      milestone: 'V1',
+      capability: 'voiceover',
+      depends_on: ['S1'],
+      brief: 'Record the script in a calm voice, 3-4 minutes.',
+      checklist: ['WAV at 48 kHz', 'no clipping'],
+    }),
+    task('S3', { milestone: 'V1', capability: 'publish', depends_on: ['S2'] }),
+  ];
+
+  it('stage schema accepts media stages and rejects unknown stages and executors', () => {
+    const out = parseStageOutput('plan_stages', JSON.stringify({ milestones: video }));
+    expect(out.milestones[0]?.capabilities).toEqual(['script', 'voiceover', 'edit', 'publish']);
+    expect(() =>
+      parseStageOutput(
+        'plan_stages',
+        JSON.stringify({ milestones: [{ ...video[0], capabilities: ['juggling'] }] }),
+      ),
+    ).toThrow(/plan_stages: milestones\.0\.capabilities\.0/);
+    expect(validatePlan(t.db, { team: [{ id: 'x', name: 'X', executor: 'robot' }] })[0]).toMatch(
+      /^team\.0\.executor/,
+    );
+  });
+
+  it('executor defaults live in one table', () => {
+    expect(STAGE_EXECUTORS.edit).toEqual({ executor: 'external', tool: 'Video editor' });
+    expect(STAGE_EXECUTORS.voiceover).toEqual({ executor: 'external', tool: 'Voice tool' });
+    expect(STAGE_EXECUTORS.thumbnail).toEqual({ executor: 'external', tool: 'Image tool' });
+    expect(STAGE_EXECUTORS.publish).toEqual({ executor: 'human', tool: null });
+    expect(STAGE_EXECUTORS.script.executor).toBe('agent');
+    expect(STAGE_EXECUTORS.design.executor).toBe('agent');
+  });
+
+  it('maps stages to roles with executor and tool; design only where the roadmap has it', () => {
+    const { team } = proposeTeam(
+      [milestones[0] as PlanMilestone, { ...(milestones[1] as PlanMilestone), capabilities: [] }],
+      [],
+    );
+    expect(team.filter((r) => r.milestones.includes('M1')).map((r) => r.id)).toContain(
+      'design-team',
+    );
+    expect(team.filter((r) => r.milestones.includes('M2'))).toEqual([]);
+
+    const v = proposeTeam(video, videoTasks);
+    const byId = Object.fromEntries(v.team.map((r) => [r.id, r]));
+    expect(byId['voiceover-team']).toMatchObject({ executor: 'external', tool: 'Voice tool' });
+    expect(byId['editing-team']).toMatchObject({ executor: 'external', tool: 'Video editor' });
+    expect(byId['publishing-team']).toMatchObject({ executor: 'human', tool: null });
+    expect(byId['script-team']).toMatchObject({ executor: 'agent', tool: null });
+    expect(v.tasks.map((x) => x.assignee)).toEqual([
+      'script-team',
+      'voiceover-team',
+      'publishing-team',
+    ]);
+  });
+
+  it('flags an external role without a tool', () => {
+    const { team, tasks: assigned } = proposeTeam(video, videoTasks);
+    const broken = team.map((r) => (r.id === 'voiceover-team' ? { ...r, tool: null } : r));
+    expect(validatePlan(t.db, { milestones: video, tasks: assigned, team: broken })).toEqual([
+      'Team role voiceover-team: an external role needs the name of its tool.',
+    ]);
+  });
+
+  it('interview prompt asks for decisions only, never roles or skills', () => {
+    for (const requirements of [[], [{ question: 'Deadline?', answer: 'March' }]]) {
+      const p = plannerPrompt('interview', {
+        idea: 'A YouTube channel',
+        requirements,
+        today: '2026-01-01',
+      });
+      expect(p).not.toMatch(/skill/i);
+      expect(p).not.toMatch(/\bteam\b/i);
+      for (const w of ['deadlines', 'budget', 'on camera', 'content limits', 'target audience'])
+        expect(p).toContain(w);
+    }
+    const tasksPrompt = plannerPrompt('plan_tasks', {
+      idea: 'x',
+      requirements: [],
+      today: '2026-01-01',
+    });
+    expect(tasksPrompt).toContain('voiceover (Voice tool)');
+    expect(tasksPrompt).toContain('publish (the operator in person)');
+  });
+
+  it('migration 006 applies on a 005 database; agents read back as agent; CHECK rejects others', () => {
+    registerAgent(t.db, { id: 'old-bot', name: 'Old', type: 'sub-agent' });
+    t.db.exec(
+      'ALTER TABLE agents DROP COLUMN executor; ALTER TABLE agents DROP COLUMN tool; DELETE FROM schema_version WHERE version = 6;',
+    );
+    const again = openDb(t.root);
+    try {
+      expect(getAgent(again, 'old-bot')).toMatchObject({ executor: 'agent', tool: null });
+      expect(getAgent(again, 'operator')?.executor).toBe('human');
+      expect(getAgent(again, 'system')?.executor).toBe('external');
+      expect(() =>
+        again.prepare("UPDATE agents SET executor = 'robot' WHERE id = 'old-bot'").run(),
+      ).toThrow(/CHECK constraint/);
+    } finally {
+      again.close();
+    }
+  });
+
+  it('approval with mixed executors writes executor, tool, brief and checklist in one transaction', () => {
+    const s = createPlanningSession(t.db, 'A weekly explainer video');
+    const { team, tasks: assigned } = proposeTeam(video, videoTasks);
+    savePlanningProposal(t.db, s.id, { milestones: video, tasks: assigned, team });
+    setPlanningStatus(t.db, s.id, 'review');
+    expect(() =>
+      approvePlan(t.db, s.id, {
+        fault: (at) => {
+          if (at === 'tasks') throw new Error('boom');
+        },
+      }),
+    ).toThrow('boom');
+    expect(getAgent(t.db, 'voiceover-team')).toBeNull();
+    expect(listTasks(t.db)).toEqual([]);
+
+    const r = approvePlan(t.db, s.id);
+    expect(r.stages).toEqual({ agent: 1, external: 2, human: 1 });
+    expect(getAgent(t.db, 'voiceover-team')).toMatchObject({
+      executor: 'external',
+      tool: 'Voice tool',
+    });
+    expect(getAgent(t.db, 'publishing-team')).toMatchObject({ executor: 'human', tool: null });
+    expect(getAgent(t.db, 'script-team')).toMatchObject({ executor: 'agent', tool: null });
+    const vo = getTask(t.db, r.taskIds['S2'] ?? '');
+    expect(vo?.prompt).toBe('Record the script in a calm voice, 3-4 minutes.');
+    expect(vo?.acceptance_criteria.map((c) => c.text)).toEqual(['WAV at 48 kHz', 'no clipping']);
   });
 });

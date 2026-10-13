@@ -113,6 +113,9 @@ export const AgentSchema = z.object({
   session_action_count: z.number(),
   source_model: z.string().nullable(),
   created_at: z.string(),
+  /** Who does this agent's work (M13.1): a text runner, an outside tool, or the operator. */
+  executor: z.enum(['agent', 'external', 'human']),
+  tool: z.string().nullable(),
 });
 export type Agent = z.infer<typeof AgentSchema>;
 

@@ -316,7 +316,7 @@ export class Planner {
         assumptions[kind] = out.assumptions;
         save({});
       }
-      const caps = await this.stage(sessionId, abort, 'plan_capabilities', this.context(sessionId));
+      const caps = await this.stage(sessionId, abort, 'plan_stages', this.context(sessionId));
       assumptions['milestones'] = caps.assumptions;
       save({ milestones: caps.milestones });
       const planned = await this.stage(sessionId, abort, 'plan_tasks', this.context(sessionId));

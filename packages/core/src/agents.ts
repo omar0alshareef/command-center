@@ -46,8 +46,17 @@ export const AgentInputSchema = z
     color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'use a #RRGGBB hex color'),
     permissions: z.array(z.string().max(40)).max(20),
     source_model: z.string().max(80).nullable(),
+    executor: z.enum(['agent', 'external', 'human']),
+    tool: z.string().trim().min(1).max(80).nullable(),
   })
-  .partial({ parent_id: true, color: true, permissions: true, source_model: true });
+  .partial({
+    parent_id: true,
+    color: true,
+    permissions: true,
+    source_model: true,
+    executor: true,
+    tool: true,
+  });
 export type AgentInput = z.input<typeof AgentInputSchema>;
 
 /**
@@ -73,8 +82,8 @@ export function registerAgent(db: Db, raw: AgentInput): Agent {
     const existing = getAgent(db, input.id);
     if (!existing) {
       db.prepare(
-        `INSERT INTO agents (id, name, type, parent_id, color, status, permissions, source_model, created_at)
-         VALUES (?, ?, ?, ?, ?, 'idle', ?, ?, ?)`,
+        `INSERT INTO agents (id, name, type, parent_id, color, status, permissions, source_model, executor, tool, created_at)
+         VALUES (?, ?, ?, ?, ?, 'idle', ?, ?, ?, ?, ?)`,
       ).run(
         input.id,
         input.name,
@@ -83,6 +92,8 @@ export function registerAgent(db: Db, raw: AgentInput): Agent {
         input.color ?? defaultColor(input.id),
         toJson(input.permissions ?? []),
         input.source_model ?? null,
+        input.executor ?? (input.type === 'human' ? 'human' : 'agent'),
+        input.tool ?? null,
         nowIso(),
       );
     } else {
@@ -93,6 +104,8 @@ export function registerAgent(db: Db, raw: AgentInput): Agent {
         color: input.color,
         permissions: input.permissions === undefined ? undefined : toJson(input.permissions),
         source_model: input.source_model,
+        executor: input.executor,
+        tool: input.tool,
       };
       for (const [column, value] of Object.entries(optional)) {
         if (value === undefined) continue;

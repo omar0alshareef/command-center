@@ -1,4 +1,4 @@
-import type { PlanCounts, Proposal, Task, TeamRole } from '@command-center/core';
+import type { Executor, PlanCounts, Proposal, Task, TeamRole } from '@command-center/core';
 
 // Pure helpers for the Planning view, the milestone panel and the board. The renderer may only import
 // types from core (its runtime pulls in the native SQLite module), so these small pieces live here.
@@ -34,8 +34,32 @@ export function addRole(p: Proposal, name: string): Proposal {
       .slice(0, 40) || 'role';
   let id = base;
   for (let i = 2; p.team.some((r) => r.id === id); i++) id = `${base}-${i}`;
-  const role: TeamRole = { id, name: name.trim() || id, capabilities: [], milestones: [] };
+  const role: TeamRole = {
+    id,
+    name: name.trim() || id,
+    capabilities: [],
+    milestones: [],
+    executor: 'agent',
+    tool: null,
+  };
   return { ...p, team: [...p.team, role] };
+}
+
+/** Change who does a role's work. An agent role has no tool; other roles keep the tool they have. */
+export function setExecutor(
+  p: Proposal,
+  id: string,
+  executor: Executor,
+  tool: string | null,
+): Proposal {
+  return {
+    ...p,
+    team: p.team.map((r) =>
+      r.id === id
+        ? { ...r, executor, tool: executor === 'agent' ? null : tool?.trim() || null }
+        : r,
+    ),
+  };
 }
 
 /** The roles a milestone needs, in roster order. */
@@ -49,6 +73,10 @@ export function countPlan(p: Proposal): PlanCounts {
     withDeadlines: p.tasks.filter((t) => t.due_date).length,
     dependencies: p.tasks.reduce((n, t) => n + t.depends_on.length, 0),
     agents: p.team.length,
+    stages: p.team.reduce(
+      (acc, r) => ({ ...acc, [r.executor]: acc[r.executor] + r.milestones.length }),
+      { agent: 0, external: 0, human: 0 } as Record<Executor, number>,
+    ),
   };
 }
 

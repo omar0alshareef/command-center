@@ -229,6 +229,8 @@ export function registerReadTools(server: McpServer, { db, now }: Ctx): void {
             actions: a.session_action_count,
             last_action_at: a.last_action_at,
             source_model: a.source_model,
+            executor: a.executor,
+            tool: a.tool,
           })),
         ),
       ),

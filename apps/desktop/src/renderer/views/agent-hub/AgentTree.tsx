@@ -89,6 +89,17 @@ function AgentRow({
           {agent.source_model ? (
             <span className="block truncate text-[11px] text-muted">{agent.source_model}</span>
           ) : null}
+          {agent.type !== 'human' && agent.id !== 'system' ? (
+            <span className="mt-1 flex" data-executor={agent.executor}>
+              <Tag>
+                {agent.executor === 'agent'
+                  ? 'agent'
+                  : agent.executor === 'human'
+                    ? 'done by you'
+                    : `external · ${agent.tool ?? 'no tool set'}`}
+              </Tag>
+            </span>
+          ) : null}
           {perms.length > 0 ? (
             <span className="mt-1 flex flex-wrap gap-1">
               {perms.slice(0, 3).map((p) => (

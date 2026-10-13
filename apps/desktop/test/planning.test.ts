@@ -8,6 +8,7 @@ import {
   renameRole,
   roadmapSection,
   rolesFor,
+  setExecutor,
 } from '../src/renderer/lib/planning';
 
 const p: Proposal = {
@@ -44,6 +45,8 @@ const p: Proposal = {
       depends_on: [],
       assignee: 'design-team',
       acceptance_criteria: [],
+      brief: null,
+      checklist: [],
     },
     {
       key: 'T2',
@@ -55,11 +58,27 @@ const p: Proposal = {
       depends_on: ['T1'],
       assignee: 'backend-team',
       acceptance_criteria: [],
+      brief: null,
+      checklist: [],
     },
   ],
   team: [
-    { id: 'design-team', name: 'Design', capabilities: ['design'], milestones: ['M1'] },
-    { id: 'backend-team', name: 'Backend', capabilities: ['backend'], milestones: ['M2'] },
+    {
+      id: 'design-team',
+      name: 'Design',
+      capabilities: ['design'],
+      milestones: ['M1'],
+      executor: 'agent',
+      tool: null,
+    },
+    {
+      id: 'backend-team',
+      name: 'Backend',
+      capabilities: ['backend'],
+      milestones: ['M2'],
+      executor: 'agent',
+      tool: null,
+    },
   ],
   assumptions: {},
 };
@@ -96,7 +115,20 @@ describe('team roster edits', () => {
       withDeadlines: 1,
       dependencies: 1,
       agents: 2,
+      stages: { agent: 2, external: 0, human: 0 },
     });
+  });
+
+  it('changes who does a role; an agent role has no tool; counts follow', () => {
+    const ext = setExecutor(p, 'design-team', 'external', ' Figma ');
+    expect(ext.team[0]).toMatchObject({ executor: 'external', tool: 'Figma' });
+    expect(countPlan(ext).stages).toEqual({ agent: 1, external: 1, human: 0 });
+    expect(setExecutor(ext, 'design-team', 'agent', 'Figma').team[0]?.tool).toBeNull();
+    expect(setExecutor(p, 'backend-team', 'human', '').team[1]).toMatchObject({
+      executor: 'human',
+      tool: null,
+    });
+    expect(addRole(p, 'Host').team.at(-1)).toMatchObject({ executor: 'agent', tool: null });
   });
 });
 

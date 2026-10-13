@@ -27,13 +27,16 @@ export const PLANNER_STAGES = [
   'interview',
   'draft_manifesto',
   'draft_roadmap',
-  'plan_capabilities',
+  'plan_stages',
   'plan_tasks',
   'propose_team',
 ] as const;
 export type PlannerStage = (typeof PLANNER_STAGES)[number];
 
-/** What a milestone can need (D21). Several capabilities may share one team role. */
+/**
+ * The production stages a milestone can need (D21, revised in M13.1). Internally still called
+ * capabilities. Several stages may share one team role.
+ */
 export const CAPABILITIES = [
   'frontend',
   'backend',
@@ -44,6 +47,11 @@ export const CAPABILITIES = [
   'devops',
   'qa',
   'data',
+  'script',
+  'edit',
+  'voiceover',
+  'thumbnail',
+  'publish',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -57,6 +65,36 @@ export const CAPABILITY_ROLES: Record<Capability, { id: string; name: string }> 
   devops: { id: 'devops-team', name: 'DevOps' },
   qa: { id: 'qa-team', name: 'QA' },
   data: { id: 'data-team', name: 'Data' },
+  script: { id: 'script-team', name: 'Script' },
+  edit: { id: 'editing-team', name: 'Editing' },
+  voiceover: { id: 'voiceover-team', name: 'Voice-over' },
+  thumbnail: { id: 'thumbnail-team', name: 'Thumbnail' },
+  publish: { id: 'publishing-team', name: 'Publishing' },
+};
+
+/**
+ * Who does a stage's work (D17 revised): `agent` = a text runner, `external` = a named tool outside the
+ * app (the planner writes a brief and checklist, the operator runs it), `human` = the operator in person.
+ */
+export const EXECUTORS = ['agent', 'external', 'human'] as const;
+export type Executor = (typeof EXECUTORS)[number];
+
+/** Default executor per stage. Text runners do not edit media (D41), so media stages are external. */
+export const STAGE_EXECUTORS: Record<Capability, { executor: Executor; tool: string | null }> = {
+  frontend: { executor: 'agent', tool: null },
+  backend: { executor: 'agent', tool: null },
+  database: { executor: 'agent', tool: null },
+  security: { executor: 'agent', tool: null },
+  design: { executor: 'agent', tool: null },
+  marketing: { executor: 'agent', tool: null },
+  devops: { executor: 'agent', tool: null },
+  qa: { executor: 'agent', tool: null },
+  data: { executor: 'agent', tool: null },
+  script: { executor: 'agent', tool: null },
+  edit: { executor: 'external', tool: 'Video editor' },
+  voiceover: { executor: 'external', tool: 'Voice tool' },
+  thumbnail: { executor: 'external', tool: 'Image tool' },
+  publish: { executor: 'human', tool: null },
 };
 
 // ---------- schemas ----------
@@ -97,6 +135,9 @@ export const PlanTaskSchema = z.strictObject({
   depends_on: z.array(z.string()).max(50).default([]),
   assignee: z.string().nullable().default(null),
   acceptance_criteria: strings.default([]),
+  /** For external and human stages: what to do, and how the operator checks it is done. */
+  brief: z.string().trim().max(4000).nullable().default(null),
+  checklist: strings.default([]),
 });
 export type PlanTask = z.infer<typeof PlanTaskSchema>;
 
@@ -105,6 +146,8 @@ export const TeamRoleSchema = z.strictObject({
   name: z.string().trim().min(1).max(80),
   capabilities: z.array(z.enum(CAPABILITIES)).default([]),
   milestones: z.array(z.string()).default([]),
+  executor: z.enum(EXECUTORS).default('agent'),
+  tool: z.string().trim().min(1).max(80).nullable().default(null),
 });
 export type TeamRole = z.infer<typeof TeamRoleSchema>;
 
@@ -158,7 +201,7 @@ export const StageOutputSchemas = {
     content: z.string().trim().min(1),
     assumptions: z.array(z.string()).default([]),
   }),
-  plan_capabilities: z.strictObject({
+  plan_stages: z.strictObject({
     milestones: z.array(PlanMilestoneSchema).min(1),
     assumptions: z.array(z.string()).default([]),
   }),
@@ -231,8 +274,10 @@ export function findCycle(graph: Map<string, readonly string[]>): string[] | nul
 }
 
 /**
- * Map milestone (and task) capabilities to team roles (D21): one role per distinct role id, listing
- * only the milestones that need it. Tasks with no assignee get the role of their capability.
+ * Map milestone (and task) stages to team roles (D21): one role per distinct role id, listing only the
+ * milestones that need it. Tasks with no assignee get the role of their stage. A role's executor is the
+ * most hands-on of its stages: any human stage makes it human, else any external stage makes it external
+ * (with that stage's tool), else agent.
  */
 export function proposeTeam(
   milestones: readonly PlanMilestone[],
@@ -241,13 +286,26 @@ export function proposeTeam(
   const roles = new Map<string, TeamRole>();
   const add = (cap: Capability, milestoneId: string) => {
     const def = CAPABILITY_ROLES[cap];
-    const role = roles.get(def.id) ?? { ...def, capabilities: [], milestones: [] };
+    const role: TeamRole = roles.get(def.id) ?? {
+      ...def,
+      capabilities: [],
+      milestones: [],
+      executor: 'agent',
+      tool: null,
+    };
     if (!role.capabilities.includes(cap)) role.capabilities.push(cap);
     if (!role.milestones.includes(milestoneId)) role.milestones.push(milestoneId);
     roles.set(def.id, role);
   };
   for (const m of milestones) for (const c of m.capabilities) add(c, m.id);
   for (const t of tasks) if (t.capability) add(t.capability, t.milestone);
+  for (const role of roles.values()) {
+    const defs = role.capabilities.map((c) => STAGE_EXECUTORS[c]);
+    const pick =
+      defs.find((d) => d.executor === 'human') ?? defs.find((d) => d.executor === 'external');
+    role.executor = pick?.executor ?? 'agent';
+    role.tool = pick?.tool ?? null;
+  }
   return {
     team: [...roles.values()],
     tasks: tasks.map((t) => ({
@@ -282,8 +340,11 @@ export function validatePlan(db: Db, raw: unknown): string[] {
   if (mCycle) issues.push(`Milestone dependency cycle: ${mCycle.join(' → ')}.`);
 
   const roleIds = new Set(p.team.map((r) => r.id));
-  for (const r of p.team)
+  for (const r of p.team) {
     if (RESERVED_AGENT_IDS.includes(r.id)) issues.push(`Team role ${r.id}: reserved id.`);
+    if (r.executor === 'external' && !r.tool)
+      issues.push(`Team role ${r.id}: an external role needs the name of its tool.`);
+  }
 
   const taskKeys = new Set<string>();
   for (const t of p.tasks) {
@@ -529,15 +590,20 @@ export interface PlanCounts {
   withDeadlines: number;
   dependencies: number;
   agents: number;
+  /** Milestone stages by who does them: one per (role, milestone) pair, by the role's executor. */
+  stages: Record<Executor, number>;
 }
 
 export function planCounts(p: Proposal): PlanCounts {
+  const stages: Record<Executor, number> = { agent: 0, external: 0, human: 0 };
+  for (const r of p.team) stages[r.executor] += r.milestones.length;
   return {
     milestones: p.milestones.length,
     tasks: p.tasks.length,
     withDeadlines: p.tasks.filter((t) => t.due_date).length,
     dependencies: p.tasks.reduce((n, t) => n + t.depends_on.length, 0),
     agents: p.team.length,
+    stages,
   };
 }
 
@@ -593,7 +659,14 @@ export function approvePlan(
     opts.fault?.('documents');
 
     for (const r of proposal.team)
-      registerAgent(db, { id: r.id, name: r.name, type: 'sub-agent', permissions: r.capabilities });
+      registerAgent(db, {
+        id: r.id,
+        name: r.name,
+        type: 'sub-agent',
+        permissions: r.capabilities,
+        executor: r.executor,
+        tool: r.tool,
+      });
     log('plan_team_registered', `Team: ${proposal.team.map((r) => r.name).join(', ') || 'none'}`);
     opts.fault?.('agents');
 
@@ -647,9 +720,14 @@ export function approvePlan(
           label: t.label,
           priority: t.priority,
           assignee: t.assignee,
+          // An external or human stage carries the planner's brief as the task prompt, and its
+          // checklist joins the acceptance criteria (no new table).
           fields: {
             due_date: t.due_date,
-            acceptance_criteria: t.acceptance_criteria.map((text) => ({ text, done: false })),
+            ...(t.brief ? { prompt: t.brief } : {}),
+            acceptance_criteria: [...new Set([...t.acceptance_criteria, ...t.checklist])].map(
+              (text) => ({ text, done: false }),
+            ),
           },
         },
         'operator',
@@ -695,6 +773,15 @@ const qa = (reqs: Requirement[]) =>
         .map((r, i) => `Q${i + 1}: ${r.question}\nA${i + 1}: ${r.answer ?? '(not answered)'}`)
         .join('\n\n');
 
+/** The stages a person or an outside tool does, for the plan_tasks prompt. */
+const handsOn = () =>
+  CAPABILITIES.filter((c) => STAGE_EXECUTORS[c].executor !== 'agent')
+    .map((c) => {
+      const d = STAGE_EXECUTORS[c];
+      return `${c} (${d.executor === 'human' ? 'the operator in person' : (d.tool ?? 'outside tool')})`;
+    })
+    .join(', ');
+
 const JSON_ONLY =
   'Reply with ONE JSON object and nothing else (no prose, no code fence). Strings may contain markdown.';
 
@@ -713,10 +800,12 @@ ${qa(c.requirements)}
     case 'interview': {
       const first = c.requirements.length === 0;
       return `${base}
-Decide whether you know enough to draft a manifesto, roadmap, milestones with dates, tasks with
-deadlines and a team. ${first ? 'This is the first round: ask at least 3 questions.' : 'Ask only what is still missing.'}
-Good questions cover goal and audience, scope and non-goals, deadlines and fixed dates, team and
-skills, constraints (stack, budget, compliance).
+Decide whether you know enough to draft a manifesto, roadmap, milestones with dates and tasks with
+deadlines. ${first ? 'This is the first round: ask at least 3 questions.' : 'Ask only what is still missing.'}
+Ask only for decisions the operator must make: the goal and target audience, deadlines and fixed
+dates, budget, whether anyone appears on camera or records in their own voice, and content limits
+(what must not be shown or said). Do not ask who should do the work or which roles, people or
+abilities are needed: the plan works that out from the stages.
 ${JSON_ONLY}
 { "ready": false, "questions": ["...", "..."] }
 Set "ready": true with "questions": [] when you can draft.`;
@@ -736,13 +825,14 @@ Write the roadmap in markdown. Give each milestone its own heading that starts w
 "## M1 — Accounts", followed by its goal, deliverables and dates. Respect every deadline the operator gave.
 ${JSON_ONLY}
 { "content": "# Roadmap\\n## M1 — ...", "assumptions": ["..."] }`;
-    case 'plan_capabilities':
+    case 'plan_stages':
       return `${base}
 === ROADMAP ===
 ${c.roadmap ?? ''}
 
-List the roadmap's milestones with real dates and the capabilities each one needs. Capabilities:
-${CAPABILITIES.join(', ')}. Not every milestone needs every capability; use [] when none apply.
+List the roadmap's milestones with real dates and the production stages each one needs, in the
+"capabilities" field. Stages: ${CAPABILITIES.join(', ')}. Not every milestone needs every stage; use []
+when none apply.
 Dependencies name earlier milestone ids.
 ${JSON_ONLY}
 { "milestones": [ { "id": "M1", "title": "...", "domain": "one swim-lane name", "planned_start": "YYYY-MM-DD",
@@ -758,10 +848,14 @@ ${JSON.stringify(c.milestones ?? [], null, 1)}
 
 Break every milestone into concrete tasks. Give each task a short unique "key" (T1, T2, ...), its
 milestone id, priority P0-P3, a "due_date" (YYYY-MM-DD, required when the requirements imply a deadline,
-otherwise null), the one capability it needs (or null), "depends_on" as other task keys, and 1-5
-verifiable acceptance criteria.
+otherwise null), the one stage it belongs to in "capability" (or null), "depends_on" as other task keys,
+and 1-5 verifiable acceptance criteria.
+These stages are not done by a text runner: ${handsOn()}. For a task in one of them, also write a
+"brief" (what to make, with every fact the person needs) and a "checklist" (how the operator checks it
+is done). Leave "brief": null and "checklist": [] for every other task.
 ${JSON_ONLY}
 { "tasks": [ { "key": "T1", "milestone": "M1", "label": "...", "priority": "P1", "due_date": "YYYY-MM-DD",
-  "capability": "backend", "depends_on": [], "acceptance_criteria": ["..."] } ], "assumptions": ["..."] }`;
+  "capability": "backend", "depends_on": [], "acceptance_criteria": ["..."], "brief": null, "checklist": [] } ],
+  "assumptions": ["..."] }`;
   }
 }

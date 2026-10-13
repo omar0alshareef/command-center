@@ -218,7 +218,14 @@ describe('read tools', () => {
     }>();
     expect(hist.log[0]?.action).toBe('task_started');
 
-    const agents = (await h.call('list_agents')).json<{ id: string; status: string }[]>();
+    const agents = (await h.call('list_agents')).json<
+      { id: string; status: string; executor: string; tool: string | null }[]
+    >();
+    expect(agents.find((a) => a.id === 'operator')).toMatchObject({
+      executor: 'human',
+      tool: null,
+    });
+    expect(agents.every((a) => ['agent', 'external', 'human'].includes(a.executor))).toBe(true);
     expect(agents.find((a) => a.id === 'test-client')?.status).toBe('active');
 
     const p1 = (await h.call('get_activity_feed', { limit: 10 })).json<{

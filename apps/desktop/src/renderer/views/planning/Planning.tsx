@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { ClipboardList, Plus, Square } from 'lucide-react';
 import type { PlannerStage, PlanningSession } from '@command-center/core';
 import type { PlannerEvent, PlanningView } from '../../../shared/ipc';
@@ -22,7 +22,7 @@ const STAGE_LABEL: Record<PlannerStage, string> = {
   interview: 'Thinking of questions',
   draft_manifesto: 'Drafting the manifesto',
   draft_roadmap: 'Drafting the roadmap',
-  plan_capabilities: 'Planning milestones and capabilities',
+  plan_stages: 'Planning milestones and stages',
   plan_tasks: 'Planning tasks',
   propose_team: 'Proposing the team',
 };
@@ -181,10 +181,11 @@ export function Planning() {
           }}
         />
       ) : view ? (
-        <>
-          <Interview key={view.session.id} view={view} live={live[view.session.id]} />
+        // One key for the pair: a new session remounts both (fresh drafts, fresh edit state).
+        <Fragment key={view.session.id}>
+          <Interview view={view} live={live[view.session.id]} />
           <DraftPanel view={view} />
-        </>
+        </Fragment>
       ) : (
         <div className="flex flex-1 items-center justify-center">
           <EmptyState

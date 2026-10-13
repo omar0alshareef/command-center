@@ -1,14 +1,28 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import type { PlanningKind, PlanMilestone, PlanTask, Proposal } from '@command-center/core';
+import type {
+  Executor,
+  PlanningKind,
+  PlanMilestone,
+  PlanTask,
+  Proposal,
+} from '@command-center/core';
 import type { PlanningView } from '../../../shared/ipc';
 import { Button } from '../../components/ui/button';
 import { Markdown } from '../../components/ui/markdown';
 import { ConfirmDialog } from '../../components/ui/overlays';
 import { cn } from '../../lib/cn';
-import { addRole, countPlan, removeRole, renameRole, rolesFor } from '../../lib/planning';
+import {
+  addRole,
+  countPlan,
+  removeRole,
+  renameRole,
+  rolesFor,
+  setExecutor,
+} from '../../lib/planning';
 import { toast } from '../../toast';
 
+const EMPTY: Proposal = { milestones: [], tasks: [], team: [], assumptions: {} };
 const TABS = ['manifesto', 'roadmap', 'milestones', 'tasks', 'team'] as const;
 type DraftTab = (typeof TABS)[number];
 const PRIORITIES = ['P0', 'P1', 'P2', 'P3'] as const;
@@ -109,15 +123,40 @@ export function DraftPanel({ view }: { view: PlanningView }) {
     };
   }, [id, session.status, proposal]);
 
-  const save = async (next: Proposal) => {
-    const r = await window.api.planning.saveProposal({ id, proposal: next });
-    if (!r.ok) toast.error(r.error.message);
+  // Edits apply to the newest local copy, so two quick edits never build on a stale proposal; the
+  // copy follows the stored proposal again once every save has landed.
+  const [local, setLocal] = useState(proposal);
+  const [base, setBase] = useState(proposal);
+  const [pending, setPending] = useState(0);
+  if (proposal !== base && pending === 0) {
+    setBase(proposal);
+    setLocal(proposal);
+  }
+  const latest = useRef(local);
+  useEffect(() => {
+    latest.current = local;
+  }, [local]);
+  const update = (fn: (cur: Proposal) => Proposal) => {
+    const next = fn(latest.current ?? EMPTY);
+    latest.current = next;
+    setLocal(next);
+    setPending((n) => n + 1);
+    void window.api.planning.saveProposal({ id, proposal: next }).then((r) => {
+      setPending((n) => n - 1);
+      if (!r.ok) toast.error(r.error.message);
+    });
   };
-  const p: Proposal = proposal ?? { milestones: [], tasks: [], team: [], assumptions: {} };
+  const p: Proposal = local ?? EMPTY;
   const setMilestone = (i: number, patch: Partial<PlanMilestone>) =>
-    void save({ ...p, milestones: p.milestones.map((m, j) => (j === i ? { ...m, ...patch } : m)) });
+    update((cur) => ({
+      ...cur,
+      milestones: cur.milestones.map((m, j) => (j === i ? { ...m, ...patch } : m)),
+    }));
   const setTask = (i: number, patch: Partial<PlanTask>) =>
-    void save({ ...p, tasks: p.tasks.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
+    update((cur) => ({
+      ...cur,
+      tasks: cur.tasks.map((t, j) => (j === i ? { ...t, ...patch } : t)),
+    }));
   const counts = countPlan(p);
 
   const approve = async () => {
@@ -207,7 +246,7 @@ export function DraftPanel({ view }: { view: PlanningView }) {
                     <Th className="w-24">Domain</Th>
                     <Th className="w-32">Start</Th>
                     <Th className="w-32">End</Th>
-                    <Th className="w-28">Capabilities</Th>
+                    <Th className="w-28">Stages</Th>
                     <Th className="w-28">Roles</Th>
                   </tr>
                 </thead>
@@ -371,7 +410,7 @@ export function DraftPanel({ view }: { view: PlanningView }) {
             )}
           </>
         ) : (
-          <TeamEditor p={p} editable={editable} save={(next) => void save(next)} />
+          <TeamEditor p={p} editable={editable} update={update} />
         )}
       </div>
       <footer className="border-t border-border px-4 py-2">
@@ -408,7 +447,7 @@ export function DraftPanel({ view }: { view: PlanningView }) {
       <ConfirmDialog
         open={confirm}
         title="Approve this plan?"
-        body={`This writes ${counts.milestones} milestones, ${counts.tasks} tasks (${counts.withDeadlines} with deadlines), ${counts.dependencies} dependencies and ${counts.agents} agents to the board in one step, and marks the manifesto and roadmap approved.`}
+        body={`This writes ${counts.milestones} milestones, ${counts.tasks} tasks (${counts.withDeadlines} with deadlines), ${counts.dependencies} dependencies and ${counts.agents} agents to the board in one step, and marks the manifesto and roadmap approved. Stages: ${counts.stages.agent} by agents, ${counts.stages.external} with external tools, ${counts.stages.human} by you.`}
         confirmLabel="Approve plan"
         onCancel={() => setConfirm(false)}
         onConfirm={() => void approve()}
@@ -486,11 +525,11 @@ function DocEditor({
 function TeamEditor({
   p,
   editable,
-  save,
+  update,
 }: {
   p: Proposal;
   editable: boolean;
-  save: (next: Proposal) => void;
+  update: (fn: (cur: Proposal) => Proposal) => void;
 }) {
   const [name, setName] = useState('');
   const slug = (s: string) =>
@@ -502,16 +541,20 @@ function TeamEditor({
   return (
     <>
       <p className="mb-3 text-[12px] text-muted">
-        One agent per role, derived from the capabilities each milestone needs. Confirm the roster
-        before approving: rename, remove or add roles. Removing a role unassigns its tasks.
+        One agent per role, derived from the stages each milestone needs. Each role says who does
+        the work: an agent (a text runner), an external tool you run, or you in person. Confirm the
+        roster before approving: rename, remove or add roles, or change who does the work. Removing
+        a role unassigns its tasks.
       </p>
       <table className="w-full table-fixed text-[12px]">
         <thead>
           <tr>
             <Th>Role</Th>
-            <Th className="w-36">Agent id</Th>
-            <Th className="w-32">Capabilities</Th>
-            <Th className="w-28">Milestones</Th>
+            <Th className="w-32">Agent id</Th>
+            <Th className="w-24">Done by</Th>
+            <Th className="w-28">Tool</Th>
+            <Th className="w-28">Stages</Th>
+            <Th className="w-20">Milestones</Th>
             <Th className="w-12">Tasks</Th>
             <Th className="w-10">
               <span className="sr-only">Remove</span>
@@ -530,11 +573,41 @@ function TeamEditor({
                     const id = slug(v) || r.id;
                     if (id !== r.id && p.team.some((x) => x.id === id))
                       return toast.error(`A role with id ${id} already exists`);
-                    save(renameRole(p, r.id, { id, name: v.trim() || r.name }));
+                    update((cur) => renameRole(cur, r.id, { id, name: v.trim() || r.name }));
                   }}
                 />
               </td>
-              <td className="px-1 py-1 font-mono">{r.id}</td>
+              <td className="truncate px-1 py-1 font-mono" title={r.id}>
+                {r.id}
+              </td>
+              <td>
+                <select
+                  aria-label={`${r.id} done by`}
+                  disabled={!editable}
+                  value={r.executor}
+                  onChange={(e) =>
+                    update((cur) => setExecutor(cur, r.id, e.target.value as Executor, r.tool))
+                  }
+                  className={cell}
+                >
+                  <option value="agent">Agent</option>
+                  <option value="external">External tool</option>
+                  <option value="human">You</option>
+                </select>
+              </td>
+              <td>
+                {r.executor === 'agent' ? (
+                  <span className="px-1 text-muted">—</span>
+                ) : (
+                  <Cell
+                    label={`${r.id} tool`}
+                    value={r.tool ?? ''}
+                    disabled={!editable}
+                    onCommit={(v) => update((cur) => setExecutor(cur, r.id, r.executor, v))}
+                    className={r.executor === 'external' && !r.tool ? 'border-danger' : undefined}
+                  />
+                )}
+              </td>
               <td className="px-1 py-1 text-muted">{r.capabilities.join(', ') || '—'}</td>
               <td className="px-1 py-1 font-mono">{r.milestones.join(', ') || '—'}</td>
               <td className="px-1 py-1 font-mono">
@@ -546,7 +619,7 @@ function TeamEditor({
                     variant="ghost"
                     aria-label={`Remove role ${r.name}`}
                     title="Remove role"
-                    onClick={() => save(removeRole(p, r.id))}
+                    onClick={() => update((cur) => removeRole(cur, r.id))}
                   >
                     <Trash2 size={13} aria-hidden />
                   </Button>
@@ -562,7 +635,7 @@ function TeamEditor({
           onSubmit={(e) => {
             e.preventDefault();
             if (!name.trim()) return;
-            save(addRole(p, name));
+            update((cur) => addRole(cur, name));
             setName('');
           }}
         >
