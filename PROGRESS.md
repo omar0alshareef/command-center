@@ -142,3 +142,5 @@ Dated entries for every change, decision and operator instruction. Newest at the
 - Open items carried over: the `claude -p` hang under ConPTY (noted in the M12 verdict, needs the operator's login to reproduce), and the M12 carry-overs listed above.
 - 2026-10-13 · Operator said "continue": M13 (Planning Workspace) started.
 - 2026-10-13 · M13 built and verified (355 unit tests, live 40/40, smoke 19/19); decisions above under "M13 ...". Committed as `feat(M13)`. M14 waits for the operator.
+- 2026-10-13 · Supervisor verdict on M13: APPROVED with carry-overs (real `claude -p` planner run, tool count 28 vs 27 to confirm, m13-fake fixtures to move, partial visual review). M14 still waits for "continue".
+- 2026-10-13 · Operator ran `echo ... | claude -p` in PowerShell: returned "ready". Real `claude -p` path works from the pipe. In-app planner run still to do.
