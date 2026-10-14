@@ -11,6 +11,8 @@ function run(action: () => Promise<void>) {
 /** First run: no project folder known yet (UI/UX §7.5). */
 export function Welcome() {
   const chooseProject = useApp((s) => s.chooseProject);
+  const setNewProjectOpen = useApp((s) => s.setNewProjectOpen);
+  const setSwitcherOpen = useApp((s) => s.setSwitcherOpen);
   return (
     <main className="grid h-full place-items-center">
       <EmptyState
@@ -18,9 +20,15 @@ export function Welcome() {
         title="Choose your project folder"
         help="Command Center keeps its database (command-center.db) in your project folder. Pick the folder to track, or a new empty one."
         action={
-          <Button variant="primary" onClick={() => run(chooseProject)}>
-            Choose folder…
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="primary" onClick={() => run(chooseProject)}>
+              Choose folder…
+            </Button>
+            <Button onClick={() => setNewProjectOpen(true)}>New project…</Button>
+            <Button variant="ghost" onClick={() => setSwitcherOpen(true)}>
+              Known projects
+            </Button>
+          </div>
         }
       />
     </main>

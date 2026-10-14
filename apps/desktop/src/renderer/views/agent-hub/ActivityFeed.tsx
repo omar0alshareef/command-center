@@ -61,7 +61,7 @@ const Entry = memo(function Entry({
       <button
         type="button"
         onClick={() => open(target)}
-        className="font-mono text-[11px] text-accent hover:underline"
+        className="text-ink-accent font-mono text-[11px] hover:underline"
       >
         {target}
       </button>

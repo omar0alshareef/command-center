@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { McpLaunch } from '../shared/ipc';
+import { libraryDir } from './library-service';
 
 /**
  * Where the MCP server bundle lives. Packaged installs ship it inside the app (out/bundles, copied by
@@ -10,6 +11,12 @@ import type { McpLaunch } from '../shared/ipc';
  * `command-center-mcp` is on PATH.
  */
 export function mcpLaunch(): McpLaunch {
+  // The agent library is read-only for the MCP server; it needs to know where the app keeps it (M15).
+  const base = mcpBundle();
+  return { ...base, env: { ...base.env, COMMAND_CENTER_LIBRARY: libraryDir() } };
+}
+
+function mcpBundle(): McpLaunch {
   if (app.isPackaged) {
     const bundle = join(app.getAppPath(), 'out', 'bundles', 'mcp.mjs');
     if (existsSync(bundle))

@@ -3,8 +3,8 @@ import { InvalidInputError, LessonNotFoundError } from './errors';
 import { getLibraryAgent } from './library/agents';
 import type { LibraryDb } from './library/db';
 import { addLibraryLesson, LibraryLessonSchema, type LibraryLesson } from './library/lessons';
-import { getLesson, syncLessonsFile, tokens } from './lessons';
-import { logAction } from './queries';
+import { addLesson, getLesson, syncLessonsFile, tokens } from './lessons';
+import { getTask, logAction } from './queries';
 import { LessonSchema, type Lesson } from './types';
 
 // Lesson scopes and required reading (D37, D38, D40). A rejection makes a `project` lesson. The operator can promote it to
@@ -74,6 +74,41 @@ export function promoteLesson(
   });
   syncLessonsFile(db);
   return made;
+}
+
+/**
+ * An agent proposes a lesson after its own mistake was pointed out (MCP `propose_lesson`). It is ALWAYS a draft: the check the
+ * agent suggests is kept as text in the prevention field, never activated, so an agent cannot give itself a rule that applies
+ * to others or loosen one. A human edits it, adds the real check and promotes it from the app.
+ */
+export function proposeLesson(
+  db: Db,
+  taskId: string,
+  o: { reason: string; fix?: string; check?: string; agentId: string },
+): Lesson {
+  const reason = o.reason.trim();
+  if (!reason) throw new InvalidInputError('A lesson needs a reason.');
+  const task = getTask(db, taskId);
+  if (!task) throw new InvalidInputError(`Task ${taskId} does not exist.`);
+  const check = o.check?.trim() ?? '';
+  const id = addLesson(
+    db,
+    taskId,
+    reason.slice(0, 2000),
+    (o.fix ?? '').trim().slice(0, 2000),
+    nowIso(),
+    check ? `Proposed check (not active): ${check.slice(0, 500)}` : '',
+  );
+  logAction(db, {
+    agentId: o.agentId,
+    action: 'lesson_proposed',
+    targetType: 'task',
+    targetId: taskId,
+    description: `${o.agentId} proposed lesson #${id} (draft)`,
+    tags: ['lesson', taskId],
+  });
+  syncLessonsFile(db);
+  return getLesson(db, id) as Lesson;
 }
 
 /** A project lesson set to `retired` stops being injected; it stays in the table. */

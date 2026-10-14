@@ -30,6 +30,12 @@ const TransitionRequestSchema = z.object({
       blockedBy: z.string().optional(),
       force: z.boolean().optional(),
       skipSteps: z.boolean().optional(),
+      // M15: a reviewer's rejection can carry the prevention check and say it is a mistake that was already written down.
+      check: z.string().max(1000).optional(),
+      checkType: z.enum(['automatic', 'manual']).optional(),
+      triggerKeywords: z.string().max(500).optional(),
+      sameAs: z.number().int().positive().optional(),
+      noLesson: z.boolean().optional(),
     })
     .strict()
     .optional(),

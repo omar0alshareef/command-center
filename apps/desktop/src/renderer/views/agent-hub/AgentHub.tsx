@@ -11,6 +11,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { AgentTree } from './AgentTree';
 import { Lessons } from './Lessons';
 import { Performance } from './Performance';
+import { ProjectAgentsPanel } from './ProjectAgents';
 import { ContextPreview, SharedState, TodaySummary } from './SideCards';
 
 /** Agent Hub (UI/UX §6.3): who is doing what, and what has happened. */
@@ -31,6 +32,7 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
     return (
       <section className="flex h-full flex-col gap-4 overflow-auto p-6">
         <h1 className="font-display text-[18px] font-semibold">Agent Hub</h1>
+        <ProjectAgentsPanel />
         <EmptyState
           icon={Cpu}
           title="No agents connected"
@@ -59,6 +61,7 @@ export function AgentHub({ tracker }: { tracker: TrackerState }) {
           </h2>
           <OrchestratorControls />
         </section>
+        <ProjectAgentsPanel />
         <AgentTree agents={tracker.agents} />
         <SharedState tracker={tracker} />
         <ContextPreview tracker={tracker} />

@@ -1,4 +1,4 @@
-import { Leaf, Monitor, Moon, MoonStar, Settings, Sun, type LucideIcon } from 'lucide-react';
+import { ChevronDown, Leaf, Monitor, Moon, MoonStar, Settings, Sun, type LucideIcon } from 'lucide-react';
 import { overallProgress, scheduleBadge } from '../../lib/derive';
 import { nextThemePref, useApp, type SyncState, type ThemePref } from '../../store';
 import { Skeleton } from '../ui/feedback';
@@ -53,10 +53,12 @@ function SyncIndicator({ sync }: { sync: SyncState }) {
 
 export function TitleBar() {
   const tracker = useApp((s) => s.tracker);
+  const project = useApp((s) => s.project);
   const sync = useApp((s) => s.sync);
   const themePref = useApp((s) => s.themePref);
   const toggleTheme = useApp((s) => s.toggleTheme);
   const openSettings = useApp((s) => s.setSettingsOpen);
+  const openSwitcher = useApp((s) => s.setSwitcherOpen);
   // macOS: leave room for the inset traffic lights (frameless window).
   const darwin = window.api.platform === 'darwin';
 
@@ -70,7 +72,16 @@ export function TitleBar() {
     >
       {tracker ? (
         <>
-          <span className="text-[13px] font-semibold">{tracker.project.name}</span>
+          <button
+            type="button"
+            onClick={() => openSwitcher(true)}
+            aria-label={`Project: ${project?.projectName ?? tracker.project.name}. Switch project`}
+            data-project-switcher
+            className="no-drag inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[13px] font-semibold hover:bg-surface-2"
+          >
+            {project?.projectName ?? tracker.project.name}
+            <ChevronDown size={14} className="text-muted" aria-hidden />
+          </button>
           {badge ? <Tag color={TONE_COLOR[badge.tone]}>{badge.label}</Tag> : null}
           <span className="inline-flex items-center gap-2" title={`${pct}% of tasks done`}>
             <span className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-3">

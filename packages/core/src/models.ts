@@ -133,6 +133,17 @@ const refuse = (agent: Agent) =>
  * Set (or clear with null) an agent's model. The id must be on its provider's list (local models are whatever the
  * server has, so any id is accepted there); an agent that cannot run on a model is refused. Writes an `agent_model_changed` entry.
  */
+/** An agent linked from the library takes its provider and model from the library (edit it once there, D33): the project may not override it. */
+function refuseIfLibraryManaged(db: Db, agent: Agent): void {
+  const linked = db
+    .prepare('SELECT 1 FROM project_agents WHERE library_agent_id = ? AND removed_at IS NULL')
+    .get(agent.id);
+  if (linked)
+    throw new InvalidInputError(
+      `${agent.name} comes from the agent library: change its provider and model there, and every project follows.`,
+    );
+}
+
 export function setAgentModel(
   db: Db,
   agentId: string,
@@ -144,6 +155,7 @@ export function setAgentModel(
     const agent = getAgent(db, agentId);
     if (!agent) throw new AgentNotFoundError(agentId);
     if (!canChooseModel(agent)) throw refuse(agent);
+    refuseIfLibraryManaged(db, agent);
     const provider = agentProvider(agent);
     if (id !== null && provider !== 'local') {
       const list = getModelList(db, provider);
@@ -184,6 +196,7 @@ export function setAgentProvider(
     const agent = getAgent(db, agentId);
     if (!agent) throw new AgentNotFoundError(agentId);
     if (!canChooseModel(agent)) throw refuse(agent);
+    refuseIfLibraryManaged(db, agent);
     const before = agentProvider(agent);
     const stored = next === DEFAULT_PROVIDER ? null : next;
     db.prepare('UPDATE agents SET provider = ?, model = NULL WHERE id = ?').run(stored, agentId);

@@ -452,3 +452,12 @@ dialog.modal::backdrop {
 .done-mark {
   display: none;
 }
+
+/* Text in the accent or warning hue that must read as text (4.5:1) on every theme's surfaces: the same pull toward the text
+   colour the tags use (--tag-ink), so no new colour is introduced (UI/UX §4). */
+.text-ink-accent {
+  color: color-mix(in srgb, var(--accent-light) var(--tag-ink), var(--text));
+}
+.text-ink-warning {
+  color: color-mix(in srgb, var(--warning) var(--tag-ink), var(--text));
+}

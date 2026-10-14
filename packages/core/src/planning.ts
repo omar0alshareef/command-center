@@ -362,6 +362,23 @@ export function validatePlan(db: Db, raw: unknown): string[] {
     }
     if (t.assignee && !roleIds.has(t.assignee) && !getAgent(db, t.assignee))
       issues.push(`${name}: assignee ${t.assignee} is not on the team.`);
+    // An external or human task has no text runner to read the card: it must carry what to make and how it is checked.
+    const executor = t.capability
+      ? STAGE_EXECUTORS[t.capability].executor
+      : ((t.assignee
+          ? (p.team.find((r) => r.id === t.assignee)?.executor ??
+            getAgent(db, t.assignee)?.executor)
+          : null) ?? 'agent');
+    if (executor !== 'agent') {
+      if (!t.brief?.trim())
+        issues.push(
+          `${name}: ${executor === 'external' ? 'an' : 'a'} ${executor} task needs a brief (what to make, with every fact the person needs).`,
+        );
+      if (t.checklist.length === 0)
+        issues.push(
+          `${name}: ${executor === 'external' ? 'an' : 'a'} ${executor} task needs a checklist (how you check it is done).`,
+        );
+    }
   }
   const tCycle = findCycle(new Map(p.tasks.map((t) => [t.key, t.depends_on])));
   if (tCycle) issues.push(`Task dependency cycle: ${tCycle.join(' → ')}.`);
@@ -764,6 +781,9 @@ export interface PlannerContext {
   manifesto?: string;
   roadmap?: string;
   milestones?: PlanMilestone[];
+  /** M15: the project's AGENTS.md and the lessons that apply, read before anything is proposed. Absent when there are none. */
+  projectRules?: string;
+  lessons?: string;
 }
 
 const qa = (reqs: Requirement[]) =>
@@ -795,7 +815,21 @@ ${c.idea}
 
 === OPERATOR ANSWERS ===
 ${qa(c.requirements)}
-`;
+${
+  c.projectRules
+    ? `
+=== PROJECT RULES (AGENTS.md) ===
+The plan must respect these rules.
+${c.projectRules}
+`
+    : ''
+}${
+    c.lessons
+      ? `
+${c.lessons}
+`
+      : ''
+  }`;
   switch (stage) {
     case 'interview': {
       const first = c.requirements.length === 0;

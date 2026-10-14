@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { resolveProjectRoot } from './config';
 import { orchestrator, planner, projectEvents, pty, registerIpc, webhook } from './ipc-handlers';
+import { closeLibrary } from './library-service';
 import { ProjectService } from './project';
 import { loadSavedRoot } from './settings';
 import { buildWindowOptions } from './window-options';
@@ -65,6 +66,7 @@ app.on('before-quit', (event) => {
   planner?.cancelAll();
   webhook.stop();
   project.close();
+  closeLibrary();
 });
 
 app.on('window-all-closed', () => {

@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { nowIso, write, type Db } from './db';
 import { InvalidInputError, LessonNotFoundError } from './errors';
 import { validateCheck } from './lesson-checks';
-import { LESSON_STATUSES, LessonSchema, type Lesson } from './types';
+import { LessonSchema, type LESSON_STATUSES, type Lesson } from './types';
 
 // Self-improving memory (blueprint Phase 12). The `lessons_learned` table is the source of truth;
 // `.claude/LESSONS_LEARNED.md` is a rendered view of it that is rewritten after every change, so the two

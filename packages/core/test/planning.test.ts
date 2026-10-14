@@ -405,7 +405,13 @@ describe('M13.1 stage-based roster', () => {
       brief: 'Record the script in a calm voice, 3-4 minutes.',
       checklist: ['WAV at 48 kHz', 'no clipping'],
     }),
-    task('S3', { milestone: 'V1', capability: 'publish', depends_on: ['S2'] }),
+    task('S3', {
+      milestone: 'V1',
+      capability: 'publish',
+      depends_on: ['S2'],
+      brief: 'Upload the video to the channel with the approved title and description.',
+      checklist: ['Title matches the plan', 'Scheduled for Monday 09:00'],
+    }),
   ];
 
   it('stage schema accepts media stages and rejects unknown stages and executors', () => {
@@ -452,6 +458,19 @@ describe('M13.1 stage-based roster', () => {
       'voiceover-team',
       'publishing-team',
     ]);
+  });
+
+  it('requires a brief and a checklist for every external and human task (M13.1 carry-over)', () => {
+    const { team, tasks: assigned } = proposeTeam(video, videoTasks);
+    const stripped = assigned.map((x) =>
+      x.key === 'S2' ? { ...x, brief: null } : x.key === 'S3' ? { ...x, checklist: [] } : x,
+    );
+    expect(validatePlan(t.db, { milestones: video, tasks: stripped, team })).toEqual([
+      'Task S2 ("Task S2"): an external task needs a brief (what to make, with every fact the person needs).',
+      'Task S3 ("Task S3"): a human task needs a checklist (how you check it is done).',
+    ]);
+    // Agent tasks need neither.
+    expect(validatePlan(t.db, { milestones: video, tasks: assigned, team })).toEqual([]);
   });
 
   it('flags an external role without a tool', () => {

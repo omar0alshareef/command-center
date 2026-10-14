@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { migrate, type Db } from '../db';
 
@@ -8,6 +9,24 @@ import { migrate, type Db } from '../db';
 
 export const LIBRARY_FILENAME = 'library.db';
 export type LibraryDb = Db;
+
+/**
+ * Where the library lives unless COMMAND_CENTER_LIBRARY says otherwise: a folder named "Command Center" in the OS's per-user
+ * application data folder. Spelled out here (not taken from Electron) so the app, the CLI and the MCP server agree.
+ *   Windows %APPDATA%\Command Center · macOS ~/Library/Application Support/Command Center · Linux ~/.config/Command Center
+ */
+export function defaultLibraryDir(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  home: string = homedir(),
+): string {
+  const given = env['COMMAND_CENTER_LIBRARY']?.trim();
+  if (given) return given;
+  if (platform === 'win32')
+    return join(env['APPDATA']?.trim() || join(home, 'AppData', 'Roaming'), 'Command Center');
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'Command Center');
+  return join(env['XDG_CONFIG_HOME']?.trim() || join(home, '.config'), 'Command Center');
+}
 
 export const libraryPath = (dir: string): string => join(dir, LIBRARY_FILENAME);
 

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { TrackerState } from '@command-center/core';
 import type { TabId } from '../store';
 import { AgentHub } from './agent-hub/AgentHub';
+import { Agents } from './agents/Agents';
 import { Calendar } from './calendar/Calendar';
 import { Planning } from './planning/Planning';
 import { SwimLane } from './swim-lane/SwimLane';
@@ -15,6 +16,7 @@ const VIEWS: Record<TabId, ((t: TrackerState) => ReactNode) | null> = {
   calendar: (t) => <Calendar tracker={t} />,
   terminal: null,
   planning: () => <Planning />,
+  agents: () => <Agents />,
 };
 
 export function ActiveView({ tab, tracker }: { tab: TabId; tracker: TrackerState }) {

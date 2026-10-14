@@ -1,4 +1,12 @@
-import { dbPath, openDb, type Db } from '@command-center/core';
+import {
+  dbPath,
+  defaultLibraryDir,
+  libraryPath,
+  openDb,
+  openLibraryReadonly,
+  type Db,
+  type LibraryDb,
+} from '@command-center/core';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
@@ -32,6 +40,12 @@ export function findRoot(
     if (exists(dbPath(dir))) return dir;
     if (dirname(dir) === dir) return null;
   }
+}
+
+/** The app-wide library, read-only, or null when the app has not created it yet (COMMAND_CENTER_LIBRARY overrides the folder). */
+export function openLibraryIfAny(env: NodeJS.ProcessEnv = process.env): LibraryDb | null {
+  const dir = defaultLibraryDir(env);
+  return existsSync(libraryPath(dir)) ? openLibraryReadonly(dir) : null;
 }
 
 /** Opens the project's board. Never creates one: a typo in the folder must not produce an empty database. */

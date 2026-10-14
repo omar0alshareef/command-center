@@ -10,6 +10,7 @@ import {
   type ProviderId,
 } from '@command-center/core';
 import type { OrchestratorView } from '../shared/ipc';
+import { getLibrary } from './library-service';
 import { readBaseUrl, readProviderKey } from './provider-settings';
 
 // Owns the one Orchestrator for the open project (M14). It rebuilds it when the project changes, ticks it every 5 s
@@ -55,11 +56,44 @@ export class OrchestratorLoop {
       projectRoot: root,
       providers: this.providers,
       getKey: (id) => readProviderKey(db, id),
+      library: this.library(),
     });
     this.forDb = db;
     this.orch.recoverStale();
     void this.orch.refreshProviders().then(() => this.push());
     return this.orch;
+  }
+
+  /** A library that cannot open must not stop a project from running: agents the library does not manage still dispatch. */
+  private library() {
+    try {
+      return getLibrary();
+    } catch {
+      return null;
+    }
+  }
+
+  /** How many runs are in flight for the open project. */
+  runningCount(): number {
+    return this.orch?.status().running ?? 0;
+  }
+
+  /**
+   * Before another project is opened (M15 switcher): stop dispatching for this one, optionally end the runs in flight, wait
+   * (bounded) for their last rows, and forget the orchestrator so the next project gets its own. The paused mode stays in
+   * this project's database, so coming back finds it paused until the operator resumes.
+   */
+  async releaseForSwitch(cancelRunning: boolean): Promise<{ running: number; cancelled: boolean }> {
+    const o = this.orch;
+    if (!o) return { running: 0, cancelled: false };
+    const running = o.status().running;
+    // The project's database is about to close, so runs cannot be left going: they end (and say so in their task) either way.
+    cancelRunning = cancelRunning || running > 0;
+    o.pause({ cancelRunning });
+    if (cancelRunning) await Promise.race([o.idle(), new Promise((r) => setTimeout(r, 4000))]);
+    this.orch = null;
+    this.forDb = null;
+    return { running, cancelled: cancelRunning && running > 0 };
   }
 
   /** The orchestrator, for the IPC handlers. Null while no project is open. */

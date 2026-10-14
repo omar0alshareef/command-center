@@ -6,6 +6,9 @@ import { TitleBar } from './components/shell/TitleBar';
 import { CommandPalette } from './components/CommandPalette';
 import { SettingsModal } from './components/SettingsModal';
 import { ShortcutSheet } from './components/ShortcutSheet';
+import { NewProjectDialog } from './components/project/NewProjectDialog';
+import { ProjectNotices } from './components/project/ProjectNotices';
+import { ProjectSwitcher } from './components/project/ProjectSwitcher';
 import { useHotkeys } from './components/shell/useHotkeys';
 import { useNotifications } from './components/shell/useNotifications';
 import { MilestonePanel } from './components/milestone/MilestonePanel';
@@ -67,9 +70,26 @@ export function App() {
     const offStatus = window.api.onDbStatus((s) =>
       setSync(s.state === 'live' ? { state: 'live' } : { state: 'disconnected', error: s.error }),
     );
+    // Files can change without a database change (the operator edits AGENTS.md or project.json): look again now and then.
+    const poll = setInterval(
+      () =>
+        void useApp
+          .getState()
+          .refreshProjectInfo()
+          .catch(() => undefined),
+      4000,
+    );
+    const onFocus = () =>
+      void useApp
+        .getState()
+        .refreshProjectInfo()
+        .catch(() => undefined);
+    window.addEventListener('focus', onFocus);
     return () => {
       offChanged();
       offStatus();
+      clearInterval(poll);
+      window.removeEventListener('focus', onFocus);
     };
   }, [init, refresh, setSync]);
 
@@ -84,6 +104,7 @@ export function App() {
         <div className="flex h-screen flex-col bg-bg text-text">
           <TitleBar />
           <TabBar />
+          <ProjectNotices />
           {tracker && error ? (
             <div
               role="alert"
@@ -117,6 +138,8 @@ export function App() {
           <SettingsModal />
           <CommandPalette />
           <ShortcutSheet />
+          <ProjectSwitcher />
+          <NewProjectDialog />
           <ToastHost />
         </div>
       </MotionConfig>
@@ -126,6 +149,8 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="h-screen bg-bg text-text">{body}</div>
+      <ProjectSwitcher />
+      <NewProjectDialog />
       <ToastHost />
     </MotionConfig>
   );

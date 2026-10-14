@@ -1,5 +1,13 @@
 import {
   getActivityFeed,
+  listAssignments,
+  listLibraryAgents,
+  listLibraryLessons,
+  listProjects,
+  projectHealth,
+  projectDispatchBlock,
+  readProjectFile,
+  readSpec,
   getLessonsForTask,
   getRelevantLessons,
   getProjectStatus,
@@ -14,7 +22,7 @@ import {
   getOrchestratorConfig,
   type OrchestratorStatus,
 } from '@command-center/core';
-import { CliError, type Handle } from './context';
+import { CliError, openLibraryIfAny, type Handle } from './context';
 import { ago, clip, table } from './format';
 
 export type Out = (line: string) => void;
@@ -39,6 +47,115 @@ export function statusCommand({ db }: Handle, json: boolean, out: Out): void {
     out('\nBlocked:');
     for (const t of s.blocked)
       out(`  ${t.id}  ${clip(t.label, 50)}  (${t.reason ?? 'no reason given'})`);
+  }
+}
+
+/** `agents --library`: the app-wide library (read-only), not just this project's agents. */
+export function libraryAgentsCommand(json: boolean, out: Out): void {
+  const lib = openLibraryIfAny();
+  if (!lib) return out('No agent library yet. Open the Command Center app once to create it.');
+  try {
+    const agents = listLibraryAgents(lib, { status: 'all' });
+    if (json) return out(JSON.stringify(agents, null, 2));
+    if (agents.length === 0) return out('The library has no agents. Create them in the app.');
+    out(
+      table(
+        ['AGENT', 'ROLE', 'TYPE', 'STATUS', 'RUNS ON'],
+        agents.map((a) => [
+          a.id,
+          a.role,
+          a.type,
+          a.status,
+          a.executor === 'agent'
+            ? `${a.provider ?? 'claude-code'}${a.model ? `/${a.model}` : ''}`
+            : a.executor,
+        ]),
+      ),
+    );
+  } finally {
+    lib.close();
+  }
+}
+
+/** `projects`: the registry of known projects, with the reason one cannot be opened. */
+export function projectsCommand(json: boolean, out: Out): void {
+  const lib = openLibraryIfAny();
+  if (!lib) return out('No project registry yet. Open the Command Center app once to create it.');
+  try {
+    const rows = listProjects(lib).map((p) => {
+      const h = projectHealth(p.path);
+      return { ...p, openable: h.openable, error: h.error, dispatch_block: h.dispatchBlock };
+    });
+    if (json) return out(JSON.stringify(rows, null, 2));
+    if (rows.length === 0) return out('No projects registered yet.');
+    out(
+      table(
+        ['PROJECT', 'FOLDER', 'LAST OPENED', 'STATE'],
+        rows.map((r) => [
+          r.name,
+          r.path,
+          r.last_opened ? r.last_opened.slice(0, 10) : '',
+          r.error ?? (r.dispatch_block ? 'dispatch blocked' : 'ok'),
+        ]),
+      ),
+    );
+  } finally {
+    lib.close();
+  }
+}
+
+/** `project status`: the folder, the spec, who is assigned, and how many lessons there are. */
+export function projectStatusCommand({ db, root }: Handle, json: boolean, out: Out): void {
+  const file = readProjectFile(root);
+  const spec = readSpec(root, file.ok ? file.project : null);
+  const lib = openLibraryIfAny();
+  try {
+    const names = new Map(
+      (lib ? listLibraryAgents(lib, { status: 'all' }) : []).map((a) => [a.id, a]),
+    );
+    const assigned = listAssignments(db).map((l) => ({
+      id: l.library_agent_id,
+      name: names.get(l.library_agent_id)?.name ?? l.library_agent_id,
+      enabled: l.enabled,
+      allowed_task_types: l.allowed_task_types,
+    }));
+    const lessons = listLessons(db);
+    const by = (s: string) => lessons.filter((l) => l.status === s).length;
+    const libraryLessons = lib ? listLibraryLessons(lib).length : 0;
+    const report = {
+      folder: root,
+      project: file.ok ? file.project.name : null,
+      project_file: file.ok ? 'ok' : file.issues,
+      dispatch_block: projectDispatchBlock(root),
+      spec: { status: spec.status, path: spec.path, hash: spec.hash },
+      agents: assigned,
+      lessons: {
+        project: lessons.length,
+        active: by('active'),
+        draft: by('draft'),
+        needs_rewrite: by('needs_rewrite'),
+        library: libraryLessons,
+      },
+    };
+    if (json) return out(JSON.stringify(report, null, 2));
+    out(`${report.project ?? '(no valid project.json)'}  ${root}`);
+    if (!file.ok) for (const i of file.issues) out(`  ! ${i}`);
+    if (report.dispatch_block) out(`  ! ${report.dispatch_block}`);
+    out(
+      spec.status === 'ok'
+        ? `Project spec: ${spec.path} (${spec.hash?.slice(0, 12)})`
+        : `Project spec: ${spec.status} (${spec.path}). Runs start without it.`,
+    );
+    out(
+      assigned.length
+        ? `Agents: ${assigned.map((a) => `${a.name}${a.enabled ? '' : ' (disabled)'}`).join(', ')}`
+        : 'Agents: none from the library',
+    );
+    out(
+      `Lessons: ${report.lessons.project} in this project (${report.lessons.active} active, ${report.lessons.draft} draft, ${report.lessons.needs_rewrite} need a rewrite), ${libraryLessons} in the library`,
+    );
+  } finally {
+    lib?.close();
   }
 }
 
@@ -83,9 +200,23 @@ export function logCommand(
 
 export function lessonsCommand(
   { db }: Handle,
-  o: { task?: string; query?: string; limit: number; json: boolean },
+  o: { task?: string; query?: string; limit: number; json: boolean; needsRewrite?: boolean },
   out: Out,
 ): void {
+  if (o.needsRewrite) {
+    // Project lessons and library lessons whose mistake came back: the ones to rewrite.
+    const mine = listLessons(db).filter((l) => l.status === 'needs_rewrite');
+    const lib = openLibraryIfAny();
+    const shared = lib ? listLibraryLessons(lib, { status: 'needs_rewrite' }) : [];
+    lib?.close();
+    if (o.json) return out(JSON.stringify({ project: mine, library: shared }, null, 2));
+    if (mine.length + shared.length === 0) return out('No lessons need a rewrite.');
+    for (const l of mine)
+      out(`project #${l.id}  ${l.occurrences}x  ${clip(l.rejection_reason, 90)}`);
+    for (const l of shared)
+      out(`${l.scope} #${l.id}  ${l.occurrences}x  ${clip(l.rejection_reason, 90)}`);
+    return;
+  }
   let lessons;
   if (o.task) {
     const t = getTask(db, o.task);

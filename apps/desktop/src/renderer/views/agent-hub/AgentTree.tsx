@@ -14,6 +14,7 @@ import {
   useOrch,
   useProviderModels,
 } from '../../lib/orchestrator';
+import { useProjectAgents } from '../../lib/library';
 import { relativeTime } from '../../lib/time';
 import { useApp } from '../../store';
 import { toast } from '../../toast';
@@ -34,7 +35,20 @@ function AgentRouting({ agent }: { agent: Agent }) {
   const [busy, setBusy] = useState(false);
   const provider = agent.provider ?? 'claude-code';
   const models = useProviderModels(provider);
+  // Read from the shared store (the Project agents panel keeps it current): one listener, not one per row.
+  const linked = useProjectAgents((s) => s.items);
   if (!canRoute(agent)) return null;
+  // A library agent's provider and model are edited once in the library (every project follows); here they are read-only.
+  if (linked?.some((l) => l.library.id === agent.id))
+    return (
+      <p
+        className="mt-1 text-[11px] text-muted"
+        data-agent-routing-readonly={agent.id}
+        title="Change this on the Agents page (agent library)."
+      >
+        {providerLabel(provider)} · {agent.model ?? 'default model'} · set in the library
+      </p>
+    );
   const stale =
     agent.model !== null &&
     provider !== 'local' &&

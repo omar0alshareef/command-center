@@ -13,6 +13,7 @@ import {
   savePlanningProposal,
   validatePlan,
   type Db,
+  type LibraryDb,
 } from '@command-center/core';
 import { z } from 'zod';
 import type { PlannerEvent, PlannerSettings, Result } from '../shared/ipc';
@@ -60,8 +61,12 @@ const SettingsPatch = z
   .partial()
   .strict();
 
-export function planningApi(getDb: () => Db, emit: (e: PlannerEvent) => void) {
-  const planner = new Planner(getDb, () => storeSettings(getDb()), emit);
+export function planningApi(
+  getDb: () => Db,
+  emit: (e: PlannerEvent) => void,
+  source?: () => { root: string | null; lib: LibraryDb | null },
+) {
+  const planner = new Planner(getDb, () => storeSettings(getDb()), emit, source);
   const start = (id: unknown, fn: (id: string) => Promise<void>): Result<null> =>
     run(() => {
       const sid = Id.parse(id);

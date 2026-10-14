@@ -4,6 +4,9 @@ import { Command, InvalidArgumentError } from 'commander';
 import {
   agentsCommand,
   lessonsCommand,
+  libraryAgentsCommand,
+  projectsCommand,
+  projectStatusCommand,
   logCommand,
   orchestrateCommand,
   runsCommand,
@@ -71,6 +74,16 @@ function action<A extends unknown[]>(
   };
 }
 
+/** Like `action`, for commands that read the app-wide library and need no project folder. */
+function plain(fn: () => void) {
+  try {
+    fn();
+  } catch (e) {
+    console.error(`error: ${e instanceof Error ? e.message : String(e)}`);
+    process.exitCode = e instanceof CliError ? e.exitCode : 3;
+  }
+}
+
 program
   .command('status')
   .description('Project status: week, phase, progress, what needs review, what is blocked')
@@ -81,10 +94,32 @@ program
 
 program
   .command('agents')
-  .description('List agents and whether they are active')
+  .description('List agents and whether they are active (--library: the app-wide agent library)')
+  .option('--library', 'list the agent library instead of this project’s agents')
+  .option('--json', 'machine-readable output')
+  .action((o: { json?: boolean; library?: boolean }) => {
+    if (o.library) return plain(() => libraryAgentsCommand(Boolean(o.json), out));
+    return action(
+      (h, x: { json?: boolean }) => (agentsCommand(h, Boolean(x.json), out), undefined),
+    )(o);
+  });
+
+program
+  .command('projects')
+  .description('The registry of known projects: folder, last opened, and why one cannot be opened')
+  .option('--json', 'machine-readable output')
+  .action((o: { json?: boolean }) => plain(() => projectsCommand(Boolean(o.json), out)));
+
+program
+  .command('project')
+  .description('Project commands')
+  .command('status')
+  .description('This project: folder, spec status, assigned agents and lesson counts')
   .option('--json', 'machine-readable output')
   .action(
-    action((h, o: { json?: boolean }) => (agentsCommand(h, Boolean(o.json), out), undefined)),
+    action(
+      (h, o: { json?: boolean }) => (projectStatusCommand(h, Boolean(o.json), out), undefined),
+    ),
   );
 
 program
@@ -146,13 +181,20 @@ program
   .option('--task <id>', 'lessons that apply to this task')
   .option('--query <text>', 'search past rejection reasons, fixes and preventions')
   .option('--limit <n>', 'how many lessons', int(1, 50), 10)
+  .option('--needs-rewrite', 'only lessons whose mistake came back and that need rewriting')
   .option('--json', 'machine-readable output')
   .action(
     action(
-      (h, o: { task?: string; query?: string; limit: number; json?: boolean }) => (
-        lessonsCommand(h, { ...o, json: Boolean(o.json) }, out),
-        undefined
-      ),
+      (
+        h,
+        o: {
+          task?: string;
+          query?: string;
+          limit: number;
+          json?: boolean;
+          needsRewrite?: boolean;
+        },
+      ) => (lessonsCommand(h, { ...o, json: Boolean(o.json) }, out), undefined),
     ),
   );
 

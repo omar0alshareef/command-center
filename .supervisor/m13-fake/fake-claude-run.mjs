@@ -14,7 +14,7 @@ process.stdin.on('end', () => {
   const modelIdx = process.argv.indexOf('--model');
   appendFileSync(
     process.env.FAKE_CLAUDE_LOG,
-    JSON.stringify({ id, model: modelIdx < 0 ? null : process.argv[modelIdx + 1], cwd: process.cwd(), args: process.argv.slice(2), at: Date.now() }) + '\n',
+    JSON.stringify({ id, model: modelIdx < 0 ? null : process.argv[modelIdx + 1], cwd: process.cwd(), args: process.argv.slice(2), prompt, at: Date.now() }) + '\n',
   );
   if (label.includes('[fail]')) {
     console.error('simulated provider failure');

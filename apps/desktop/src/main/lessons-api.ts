@@ -8,7 +8,15 @@ const Text = z.string().max(4000);
 const UpdateRequest = z.object({
   id: z.number().int().positive(),
   patch: z
-    .object({ rejection_reason: Text, fix_applied: Text, prevention: Text })
+    .object({
+      rejection_reason: Text,
+      fix_applied: Text,
+      prevention: Text,
+      trigger_keywords: z.string().max(500),
+      check_text: z.string().max(1000),
+      check_type: z.enum(['automatic', 'manual', 'none']),
+      status: z.enum(['draft', 'active', 'needs_rewrite', 'retired']),
+    })
     .partial()
     .strict(),
 });

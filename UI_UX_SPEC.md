@@ -68,7 +68,7 @@ App Shell
 
 Left → right:
 
-- App mark + **project name** (click to open project switcher/settings later; v1: plain text)
+- App mark + **project name** — a button (chevron) that opens the **project switcher** (M15, §6.6): registered projects with their folder and last-opened date; a project whose folder is missing or whose database cannot open shows its error and its Open button is disabled; **New project…** and **Add existing…** at the top; a trash button removes a project from the list only (never deletes files). The name shown is the one in `project.json`.
 - **Schedule pill**: `ON TRACK` (green) / `AT RISK` (amber) / `BEHIND · 6d` (red). Derived from `project.schedule_status` + max drift.
 - **Overall progress**: thin 96px bar + `42%` in mono.
 - Spacer
@@ -84,7 +84,7 @@ Left → right:
   - Task Board: count of **Review** tasks (amber) and **Blocked** (red) — shown only when > 0.
   - Agent Hub: count of **ACTIVE** agents (green dot + number).
   - Terminal: count of open sessions.
-- Shortcuts: `Ctrl/Cmd+1…5` jump to tab; `Ctrl/Cmd+Tab` cycles.
+- Shortcuts: `Ctrl/Cmd+1…7` jump to tab; `Ctrl/Cmd+Tab` cycles. (M15 added the 7th tab, **Agents**, after Planning so the existing numbers did not move.)
 
 ### 3.4 Status bar (height 24px, mono 11px, `--muted`)
 
@@ -439,7 +439,19 @@ WEEK_W 100 · LANE_H 200 · LABEL_W 140 · HEADER_H 44 · NODE_R 20 · KEY_NODE_
 2. **Agent Performance (this calendar week)**
    - Per-agent card: total actions (large mono number), tag breakdown as horizontal mini bars, comparison arrow vs. previous week (optional v1.1).
 
+**M15 additions to the left column.** A **Project agents** card sits above Connected Agents: the library agents this project uses (avatar, name, role, an *Enabled* switch, collapsible *Project settings*: task types it may take as swim-lane names, extra constraints, one per line), **Add** (opens the library picker: multi-select, role and provider shown, archived agents not offered), **Project spec** (opens `AGENTS.md`), and a remove button with a confirm that says the agent stays in the library. For an agent that comes from the library the provider/model dropdowns are replaced by a read-only line "set in the library". The **Lessons** panel (right column) has scope filters (All / Project / Agent / Global) and the status filters **Needs rewrite** and **Draft** with counts; each row shows scope, status, check type, "N× repeated", a warning line for *needs rewrite*, and actions: edit, **promote** (to an agent or to everybody; for a draft or a lesson with no check the control is replaced by the explanation "no prevention check, so it can only apply in this project"), retire, delete (project lessons). Rejecting a task opens a dialog with the reason, "same mistake as lesson #…", the prevention check (manual or automatic, with the accepted forms) and trigger keywords. Text that has to read as text in the accent, warning, danger or success hue uses the `--tag-ink` pull toward `--text` (`.text-ink-accent`, `.text-ink-warning`) so it keeps 4.5:1 in all four themes.
+
+**Run entries.** Expanding a run (Output) opens a dialog instead of expanding the row inline (decided in M14; recorded here at the supervisor's request).
+
 **States:** *No agents* — "No agents connected. Add the MCP server to Claude Code and it will register itself." + copyable MCP config snippet with the user's real `PROJECT_ROOT`. *No activity* — "Waiting for the first agent action…" with a live pulse.
+
+### 6.6 Agents (the library) and project switcher (M15)
+
+**Agents tab** (`Ctrl/Cmd+7`). The only place agents are created or edited. Header: title, search, role filter, status filter (Active / Archived / All), **New agent**. Body: agents grouped by role (uppercase muted group label), one row each: avatar, name (+ *Archived* tag), "provider · model · N projects · N runs" (or "External: tool" / "Done by a person"), **Edit**, archive/restore, delete. Delete explains D35 before confirming: an agent in no project and with no runs is deleted, otherwise it is archived. The editor is a dialog: template picker (create only), name, role, type, who does the work, provider and model (agents run by a model only), colour, default permissions, base instructions, and the version history. *Empty:* "The library is empty" with a New agent action.
+
+**Project switcher** (title bar). A dialog listing registered projects (see §3.2). Switching pauses dispatch for the project being left and says so in a toast; if runs are in progress the dialog says they will be cancelled and asks to confirm. **New project…** opens a dialog: folder (picker), name, optional code repository (LICENSE is copied from it); *Review changes* lists every file that would be written (created / already there / already there but different) with a diff for a different one and a "replace" tick; nothing is overwritten unless ticked.
+
+**Project notices** (under the tab bar): a *no project spec* line with an **Open project spec** button (runs still start), and a *dispatch blocked* warning that names the bad field of a malformed `project.json`.
 
 ### 6.4 Calendar
 
@@ -490,7 +502,7 @@ WEEK_W 100 · LANE_H 200 · LABEL_W 140 · HEADER_H 44 · NODE_R 20 · KEY_NODE_
 | Keys | Action |
 |---|---|
 | `Ctrl/Cmd+K` | Command palette |
-| `Ctrl/Cmd+1…5` | Switch tab |
+| `Ctrl/Cmd+1…7` | Switch tab |
 | `/` | Focus search in current view |
 | `Esc` | Close top-most overlay |
 | `T` | Today (Swim Lane / Calendar) |

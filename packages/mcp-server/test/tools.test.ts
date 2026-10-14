@@ -48,6 +48,11 @@ const EXPECTED_TOOLS = [
   'add_milestone_task',
   // agent (1)
   'register_agent',
+  // library and spec (M15): three reads and one draft-only write
+  'list_library_agents',
+  'get_project_spec',
+  'get_lessons_for_task',
+  'propose_lesson',
 ];
 
 let h: Harness;
@@ -66,11 +71,11 @@ const todoId = () =>
   ).id;
 
 describe('tool surface', () => {
-  it('exposes exactly the 30 tools, each described, each parameter described', async () => {
+  it('exposes exactly the 34 tools, each described, each parameter described', async () => {
     const { tools } = await h.client.listTools();
     const undocumented: string[] = [];
     expect(tools.map((t) => t.name).sort()).toEqual([...EXPECTED_TOOLS].sort());
-    expect(tools).toHaveLength(30);
+    expect(tools).toHaveLength(34);
     for (const t of tools) {
       expect(t.description?.length ?? 0, `${t.name} description`).toBeGreaterThan(40);
       const props = (t.inputSchema.properties ?? {}) as Record<string, { description?: string }>;

@@ -41,9 +41,18 @@ export function listLibraryLessons(
 ): LibraryLesson[] {
   const where: string[] = [];
   const params: unknown[] = [];
-  if (f.scope) (where.push('scope = ?'), params.push(f.scope));
-  if (f.agentId) (where.push('agent_id = ?'), params.push(f.agentId));
-  if (f.status) (where.push('status = ?'), params.push(f.status));
+  if (f.scope) {
+    where.push('scope = ?');
+    params.push(f.scope);
+  }
+  if (f.agentId) {
+    where.push('agent_id = ?');
+    params.push(f.agentId);
+  }
+  if (f.status) {
+    where.push('status = ?');
+    params.push(f.status);
+  }
   return LibraryLessonSchema.array().parse(
     lib
       .prepare(

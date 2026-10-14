@@ -5,7 +5,8 @@ import type { ProjectInfo } from '../shared/ipc';
 import { matchesFilter } from './lib/agent-hub';
 import { mergeTracker } from './lib/share';
 
-export type TabId = 'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal' | 'planning';
+export type TabId =
+  'swim-lane' | 'task-board' | 'agent-hub' | 'calendar' | 'terminal' | 'planning' | 'agents';
 export type Theme = 'dark' | 'light' | 'calm' | 'calm-dark';
 export type ThemePref = Theme | 'system';
 export type WeekStart = 'mon' | 'sun';
@@ -41,6 +42,9 @@ interface AppState {
   /** OS notification when a task newly enters Review / Blocked while the window is unfocused. */
   notifications: boolean;
   settingsOpen: boolean;
+  /** M15: the project switcher and the New/Open project dialog. */
+  switcherOpen: boolean;
+  newProjectOpen: boolean;
   paletteOpen: boolean;
   shortcutsOpen: boolean;
   firstRunDismissed: boolean;
@@ -73,6 +77,10 @@ interface AppState {
   setWeekStart: (w: WeekStart) => void;
   setNotifications: (on: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
+  setSwitcherOpen: (open: boolean) => void;
+  setNewProjectOpen: (open: boolean) => void;
+  /** Another project was opened in the main process (switcher, New project): drop every view's data and load the new one. */
+  adoptProject: (project: ProjectInfo) => Promise<void>;
   setPaletteOpen: (open: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;
   dismissFirstRun: () => void;
@@ -85,6 +93,8 @@ interface AppState {
   releaseSync: () => void;
   init: () => Promise<void>;
   refresh: () => Promise<void>;
+  /** project.json and the spec file can change on disk without a database change: re-read what the notices show. */
+  refreshProjectInfo: () => Promise<void>;
   chooseProject: () => Promise<void>;
   retryProject: () => Promise<void>;
 }
@@ -183,6 +193,8 @@ export const useApp = create<AppState>()(
       weekStart: 'mon',
       notifications: true,
       settingsOpen: false,
+      switcherOpen: false,
+      newProjectOpen: false,
       paletteOpen: false,
       shortcutsOpen: false,
       firstRunDismissed: false,
@@ -208,6 +220,8 @@ export const useApp = create<AppState>()(
       setWeekStart: (weekStart) => set({ weekStart }),
       setNotifications: (notifications) => set({ notifications }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      setSwitcherOpen: (switcherOpen) => set({ switcherOpen }),
+      setNewProjectOpen: (newProjectOpen) => set({ newProjectOpen }),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
       dismissFirstRun: () => set({ firstRunDismissed: true }),
@@ -239,6 +253,18 @@ export const useApp = create<AppState>()(
         }
       },
 
+      refreshProjectInfo: async () => {
+        const p = await window.api.project.get();
+        set((s) =>
+          s.project &&
+          s.project.root === p.root &&
+          JSON.stringify([s.project.spec, s.project.dispatchBlock, s.project.projectName]) ===
+            JSON.stringify([p.spec, p.dispatchBlock, p.projectName])
+            ? s
+            : { project: p },
+        );
+      },
+
       refresh: async () => {
         if (inflight || holds > 0) {
           queued = true;
@@ -247,6 +273,7 @@ export const useApp = create<AppState>()(
         inflight = true;
         if (get().tracker) get().setSync({ state: 'syncing' });
         try {
+          void get().refreshProjectInfo();
           const fresh = await window.api.db.getAll();
           set((s) => ({
             tracker: s.tracker ? mergeTracker(s.tracker, fresh) : fresh,
@@ -267,6 +294,27 @@ export const useApp = create<AppState>()(
             void get().refresh();
           }
         }
+      },
+
+      adoptProject: async (project) => {
+        set({
+          project,
+          tracker: null,
+          loading: true,
+          error: null,
+          openTaskId: null,
+          openRunId: null,
+          openMilestoneId: null,
+          selectedMilestoneId: null,
+          boardAssignee: null,
+          olderLog: [],
+          olderDone: [],
+          hubFilter: 'all',
+          switcherOpen: false,
+          newProjectOpen: false,
+        });
+        if (project.root && !project.error) await get().refresh();
+        else set({ loading: false });
       },
 
       chooseProject: async () => {

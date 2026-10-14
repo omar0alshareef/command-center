@@ -270,12 +270,14 @@ export function lineDiff(current: string, next: string): string {
   const dp: number[][] = Array.from({ length: a.length + 1 }, () =>
     new Array<number>(b.length + 1).fill(0),
   );
-  for (let i = a.length - 1; i >= 0; i--)
+  for (let i = a.length - 1; i >= 0; i--) {
+    const row = dp[i] as number[];
     for (let j = b.length - 1; j >= 0; j--)
-      dp[i]![j] =
+      row[j] =
         a[i] === b[j]
           ? (dp[i + 1]?.[j + 1] ?? 0) + 1
-          : Math.max(dp[i + 1]?.[j] ?? 0, dp[i]?.[j + 1] ?? 0);
+          : Math.max(dp[i + 1]?.[j] ?? 0, row[j + 1] ?? 0);
+  }
   const out: string[] = [];
   let i = 0;
   let j = 0;

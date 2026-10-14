@@ -1,6 +1,15 @@
 import type {
   AgentLogEntry,
+  AgentTemplate,
+  AgentVersion,
   Lesson,
+  LibraryAgent,
+  LibraryAgentFilter,
+  LibraryAgentPatch,
+  LibraryLesson,
+  NewLibraryAgent,
+  ProjectAgent,
+  AssignmentPatch,
   Agent,
   Milestone,
   ModelOption,
@@ -39,6 +48,30 @@ export const CH = {
   activityOlder: 'activity:older',
   lessonUpdate: 'lessons:update',
   lessonRemove: 'lessons:remove',
+  lessonPromote: 'lessons:promote',
+  lessonRetire: 'lessons:retire',
+  libLessons: 'library:lessons',
+  libLessonUpdate: 'library:lessonUpdate',
+  projList: 'projects:list',
+  projPick: 'projects:pick',
+  projPlan: 'projects:plan',
+  projCreate: 'projects:create',
+  projAdd: 'projects:add',
+  projRemove: 'projects:remove',
+  projSwitch: 'projects:switch',
+  libAgents: 'library:agents',
+  libTemplates: 'library:templates',
+  libCreate: 'library:create',
+  libUpdate: 'library:update',
+  libArchive: 'library:archive',
+  libRestore: 'library:restore',
+  libDelete: 'library:delete',
+  libVersions: 'library:versions',
+  pagList: 'projectAgents:list',
+  pagAssign: 'projectAgents:assign',
+  pagRemove: 'projectAgents:remove',
+  pagUpdate: 'projectAgents:update',
+  specOpen: 'project:openSpec',
   termShells: 'terminal:shells',
   termCreate: 'terminal:create',
   termWrite: 'terminal:write',
@@ -102,6 +135,15 @@ export interface ProjectInfo {
   error: string | null;
   appVersion: string;
   mcp: McpLaunch;
+  /** M15: the registry id and the name from project.json (or the folder name). */
+  projectId: string | null;
+  projectName: string | null;
+  /** The project spec (AGENTS.md): missing is only a notice (D36). */
+  spec: { status: 'ok' | 'missing' | 'unreadable'; path: string; hash: string | null } | null;
+  /** Why dispatch is blocked for this project (a malformed project.json), or null. */
+  dispatchBlock: string | null;
+  /** Where the app-wide library lives. */
+  libraryDir: string;
 }
 
 export interface WebhookStatus {
@@ -181,6 +223,52 @@ export interface PlannerSettings {
   encrypted: boolean;
 }
 
+/** One registered project as the switcher lists it (M15). */
+export interface ProjectEntry {
+  id: string;
+  name: string;
+  slug: string;
+  path: string;
+  last_opened: string | null;
+  /** False when the folder is missing or its database cannot open: `error` says why and the switcher will not open it. */
+  openable: boolean;
+  error: string | null;
+  /** A malformed project.json: it can be opened to fix it, but nothing is dispatched. */
+  dispatchBlock: string | null;
+  current: boolean;
+}
+
+export interface ScaffoldPreview {
+  path: string;
+  kind: 'file' | 'dir' | 'license-copy';
+  action: 'create' | 'same' | 'differs';
+  /** For `differs`: current -> template, `-` removed and `+` added. */
+  diff: string | null;
+}
+
+export interface ScaffoldPlan {
+  path: string;
+  name: string;
+  /** The folder already holds a valid project.json (so this is "open", not "new"). */
+  existing: boolean;
+  items: ScaffoldPreview[];
+}
+
+export interface SwitchResult {
+  info: ProjectInfo;
+  /** Set when the project that was open had its dispatch paused first. */
+  paused: { project: string | null; running: number; cancelled: boolean } | null;
+}
+
+export type LibraryAgentView = LibraryAgent & { usage: { links: number; runs: number; projects: string[] } };
+
+export interface ProjectAgentView {
+  library: LibraryAgent;
+  assignment: ProjectAgent;
+}
+
+export type PromoteTarget = { scope: 'agent'; agentId: string } | { scope: 'global' };
+
 export type PlanningView = PlanningSessionDetail & { running: PlannerStage | null };
 
 export interface Api {
@@ -222,9 +310,73 @@ export interface Api {
   lessons: {
     update(req: {
       id: number;
-      patch: { rejection_reason?: string; fix_applied?: string; prevention?: string };
+      patch: {
+        rejection_reason?: string;
+        fix_applied?: string;
+        prevention?: string;
+        trigger_keywords?: string;
+        check_text?: string;
+        check_type?: 'automatic' | 'manual' | 'none';
+        status?: 'draft' | 'active' | 'needs_rewrite' | 'retired';
+      };
     }): Promise<Result<Lesson>>;
     remove(id: number): Promise<Result<null>>;
+    /** Copy a project lesson to one library agent or to everybody. Needs a prevention check (D40). */
+    promote(req: { id: number; target: PromoteTarget }): Promise<Result<LibraryLesson>>;
+    retire(id: number): Promise<Result<Lesson>>;
+    /** Agent- and global-scope lessons in the library. */
+    library(): Promise<Result<LibraryLesson[]>>;
+    updateLibrary(req: {
+      id: number;
+      patch: {
+        rejection_reason?: string;
+        fix_applied?: string;
+        prevention?: string;
+        trigger_keywords?: string;
+        check_text?: string;
+        check_type?: 'automatic' | 'manual';
+        status?: 'active' | 'needs_rewrite' | 'retired';
+      };
+    }): Promise<Result<LibraryLesson>>;
+  };
+  projects: {
+    list(): Promise<Result<ProjectEntry[]>>;
+    /** A folder picker; null when cancelled. */
+    pick(): Promise<Result<string | null>>;
+    /** What opening or creating a project in this folder would write, and where it would collide with existing files. */
+    plan(req: { path: string; name?: string; repoPath?: string | null }): Promise<Result<ScaffoldPlan>>;
+    /** Write the missing project files (never replacing a file unless listed in `replace`), register and open the project. */
+    create(req: {
+      path: string;
+      name?: string;
+      repoPath?: string | null;
+      replace?: string[];
+    }): Promise<Result<SwitchResult>>;
+    /** Register a folder that already has a project.json, without opening it. */
+    addExisting(path: string): Promise<Result<ProjectEntry[]>>;
+    /** Forget a project. Its files are never touched. */
+    remove(id: string): Promise<Result<ProjectEntry[]>>;
+    switchTo(req: { id: string; cancelRunning?: boolean }): Promise<Result<SwitchResult>>;
+  };
+  library: {
+    agents(filter?: LibraryAgentFilter): Promise<Result<LibraryAgentView[]>>;
+    templates(): Promise<Result<readonly AgentTemplate[]>>;
+    create(req: NewLibraryAgent): Promise<Result<LibraryAgent>>;
+    update(req: { id: string; patch: LibraryAgentPatch }): Promise<Result<LibraryAgent>>;
+    archive(id: string): Promise<Result<LibraryAgent>>;
+    restore(id: string): Promise<Result<LibraryAgent>>;
+    /** The D35 rule: an unused agent is deleted, one with links or runs is archived. */
+    remove(id: string): Promise<Result<{ result: 'deleted' | 'archived' }>>;
+    versions(id: string): Promise<Result<AgentVersion[]>>;
+  };
+  projectAgents: {
+    list(): Promise<Result<ProjectAgentView[]>>;
+    /** Add library agents to this project. `notes` say whether each got its old settings back or the defaults. */
+    assign(ids: string[]): Promise<Result<{ notes: string[] }>>;
+    remove(id: string): Promise<Result<null>>;
+    update(req: { id: string; patch: AssignmentPatch }): Promise<Result<ProjectAgent>>;
+    /** Open the project spec (AGENTS.md) in the system editor. */
+    openSpec(): Promise<Result<null>>;
   };
   models: {
     /** Replace one provider's editable model list (settings). */

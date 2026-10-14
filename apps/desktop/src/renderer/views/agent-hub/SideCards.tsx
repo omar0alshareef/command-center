@@ -115,9 +115,17 @@ export function TodaySummary({
     <Card title="Today's summary" label="Today's summary">
       <dl className="grid grid-cols-3 gap-2 text-center">
         {[
-          ['Completed', s.completed, 'var(--success)'],
-          ['In progress', s.inProgress, 'var(--accent)'],
-          ['Blocked', s.blocked, 'var(--danger)'],
+          [
+            'Completed',
+            s.completed,
+            'color-mix(in srgb, var(--success) var(--tag-ink), var(--text))',
+          ],
+          [
+            'In progress',
+            s.inProgress,
+            'color-mix(in srgb, var(--accent-light) var(--tag-ink), var(--text))',
+          ],
+          ['Blocked', s.blocked, 'color-mix(in srgb, var(--danger) var(--tag-ink), var(--text))'],
         ].map(([k, v, c]) => (
           <div key={k as string} className="rounded-md bg-surface-2 py-1.5">
             <dd className="font-mono text-[16px]" style={{ color: c as string }}>

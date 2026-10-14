@@ -1,14 +1,16 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Db } from '@command-center/core';
+import type { Db, LibraryDb } from '@command-center/core';
+import { dirname } from 'node:path';
 import pkg from '../package.json' with { type: 'json' };
 import { createSession } from './session';
 import { registerAgentTools } from './tools/agent';
+import { registerLibraryTools } from './tools/library';
 import { registerMilestoneTools } from './tools/milestone';
 import { registerReadTools } from './tools/read';
 import type { Ctx } from './tools/shared';
 import { registerTaskTools } from './tools/task';
 
-export const TOOL_COUNT = 30;
+export const TOOL_COUNT = 34;
 
 const INSTRUCTIONS = `Command Center is the shared project board for the human operator and AI agents.
 
@@ -22,13 +24,16 @@ You are registered automatically as the calling agent. To act for a sub-agent, r
 
 export interface ServerOptions {
   db: Db;
+  /** Read-only library connection (agents, library lessons). Absent when COMMAND_CENTER_LIBRARY is not set. */
+  library?: LibraryDb | null;
   env?: NodeJS.ProcessEnv;
   now?: () => Date;
 }
 
-/** Build the MCP server with all 30 tools. Transport-agnostic so tests can use an in-memory pair. */
+/** Build the MCP server with all 34 tools. Transport-agnostic so tests can use an in-memory pair. */
 export function createServer({
   db,
+  library = null,
   env = process.env,
   now = () => new Date(),
 }: ServerOptions): McpServer {
@@ -37,10 +42,17 @@ export function createServer({
     { instructions: INSTRUCTIONS },
   );
   const session = createSession(db, () => server.server.getClientVersion()?.name, env);
-  const ctx: Ctx = { db, session, now };
+  const ctx: Ctx = {
+    db,
+    lib: library,
+    projectRoot: db.name ? dirname(db.name) : null,
+    session,
+    now,
+  };
   registerReadTools(server, ctx);
   registerTaskTools(server, ctx);
   registerMilestoneTools(server, ctx);
   registerAgentTools(server, ctx);
+  registerLibraryTools(server, ctx);
   return server;
 }

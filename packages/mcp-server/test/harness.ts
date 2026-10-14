@@ -3,7 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDb, type Db } from '@command-center/core';
+import { openDb, type Db, type LibraryDb } from '@command-center/core';
 import { seedDb } from '../../core/src/seed';
 import { createServer } from '../src/server';
 
@@ -31,8 +31,13 @@ export interface Harness extends Peer {
 }
 
 /** A real MCP client talking to a real server over an in-memory transport, on `db`. */
-async function attach(db: Db, clientName: string, env: NodeJS.ProcessEnv): Promise<Peer> {
-  const server = createServer({ db, env, now: () => NOW });
+async function attach(
+  db: Db,
+  clientName: string,
+  env: NodeJS.ProcessEnv,
+  library: LibraryDb | null = null,
+): Promise<Peer> {
+  const server = createServer({ db, env, library, now: () => NOW });
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: clientName, version: '1.0.0' });
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
@@ -47,19 +52,29 @@ async function attach(db: Db, clientName: string, env: NodeJS.ProcessEnv): Promi
 
 /** First session on a fresh (seeded) temp project. */
 export async function connect(
-  opts: { clientName?: string; env?: NodeJS.ProcessEnv; seed?: boolean } = {},
+  opts: {
+    clientName?: string;
+    env?: NodeJS.ProcessEnv;
+    seed?: boolean;
+    library?: LibraryDb | null;
+  } = {},
 ): Promise<Harness> {
   const root = mkdtempSync(join(tmpdir(), 'cc-mcp-'));
   const db = openDb(root);
   if (opts.seed !== false) seedDb(db, { now: NOW });
-  const first = await attach(db, opts.clientName ?? 'test-client', opts.env ?? {});
+  const first = await attach(
+    db,
+    opts.clientName ?? 'test-client',
+    opts.env ?? {},
+    opts.library ?? null,
+  );
   const others: Peer[] = [];
   return {
     ...first,
     db,
     root,
     another: async (clientName, env = {}) => {
-      const peer = await attach(db, clientName, env);
+      const peer = await attach(db, clientName, env, opts.library ?? null);
       others.push(peer);
       return peer;
     },

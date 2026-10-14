@@ -56,7 +56,7 @@ Agents drive the board through the `command-center` MCP server (stdio). The app'
 
 The server registers the calling agent automatically on its first call, named after the client (`claude-code` for Claude Code). Override with `COMMAND_CENTER_AGENT_ID`, `COMMAND_CENTER_AGENT_NAME`, `COMMAND_CENTER_AGENT_TYPE` (`orchestrator` | `sub-agent` | `external`) and `COMMAND_CENTER_AGENT_MODEL` in the config's `env`. A tool call can never act as `operator`, `system` or a human agent, and can act only as the session agent or sub-agents registered under it (`register_agent` it, then pass its id as `agent_id`). Review is independent: an agent cannot approve work submitted by itself or by its own parent or sub-agents; the operator or an unrelated agent must.
 
-### The 30 tools
+### The 34 tools
 
 | Group | Tools |
 |---|---|
@@ -65,6 +65,9 @@ The server registers the calling agent automatically on its first call, named af
 | Milestone (5) | `add_milestone_note`, `set_milestone_dates`, `update_drift`, `create_milestone`, `add_milestone_task` |
 | Agent (1) | `register_agent` |
 | Runs (2) | `list_runs` (provider runs with usage and cost), `cancel_run` (stop a run; it can never approve or complete work) |
+| Library and spec (4) | `list_library_agents`, `get_project_spec`, `get_lessons_for_task` (reads) and `propose_lesson` (the only write: always a **draft**) |
+
+MCP can read the agent library and the project spec but **cannot** create, edit, assign or delete library agents, promote or retire a lesson, or change a lesson's scope or status: those are operator actions in the app, so an agent cannot widen its own permissions or remove a lesson that constrains it. The library is found at `COMMAND_CENTER_LIBRARY` (the app puts it in the generated config) or the default folder below.
 
 Typical loop: `get_project_status` → `list_tasks` → `get_task_context` → `start_task` → work (`log_action`) → `complete_task`. The task then waits in **Review** for the human. Errors name the tool to call next, and unknown parameters are rejected rather than ignored.
 
@@ -86,6 +89,10 @@ command-center audit   --id TASK-001   # Code Quality -> Security -> Final Valid
 command-center orchestrate --status    # the orchestrator: mode, runs, caps, spend (--pause / --resume; the app does the running)
 command-center runs --task TASK-001    # provider runs: provider/model, time, tokens, cost (an estimate unless reported)
 command-center lessons --task TASK-001 # lessons from past rejections that apply (or --query text; no flag = latest)
+command-center lessons --needs-rewrite # lessons whose mistake came back and that need rewriting (project and library)
+command-center project status          # folder, spec status and hash, assigned agents, lesson counts   (--json)
+command-center projects                # the registry of known projects, and why one cannot be opened   (--json)
+command-center agents --library        # the app-wide agent library                                     (--json)
 command-center hydrate --plan plan.json # create phases, agents, milestones and tasks from a plan (see Hydrate below)
 ```
 
@@ -98,6 +105,24 @@ command-center hydrate --plan plan.json # create phases, agents, milestones and 
 ## Lessons learned
 
 Rejecting a task (in the app, over MCP `reject_task`, or a failed `audit`) saves **what went wrong** in the `lessons_learned` table and rewrites `.claude/LESSONS_LEARNED.md` (a generated view: edit lessons in the app's Agent Hub, not in the file). When the task is completed again, the `complete_task` summary is recorded as **the fix**; a rejection may also carry a **prevention** note. Similar new tasks are handed the most relevant lessons (FTS5 search over reason, fix and prevention) in `get_task_context`, in the `enrich_task` reply, in `TASK_CONTEXT.md` (`## Relevant lessons`) and in `command-center prepare`. The Agent Hub's Lessons list lets you search, edit and delete them.
+
+**Scopes and checks (M15).** A rejection makes a **project** lesson. It is **active** when the reviewer gave a *prevention check* (a short statement to verify, or an automatic check, below) and a **draft** when not; a draft applies only in its own project and cannot be promoted. From the Lessons panel you can **promote** an active lesson to one library agent (`agent` scope: every project, only that agent) or to everybody (`global`); each promotion is logged. Before a run starts, the lessons that apply to the agent and the task's words (FTS5 over trigger keywords, reason, fix and prevention; agent, then project, then global, newest first, at most 10) are put in the prompt under "Before you start", and the run records their ids. If a reviewer says a rejection is the *same mistake* as a lesson (or an automatic check fails again), that lesson's `occurrences` goes up and at two it becomes **needs rewrite** with a warning in the panel. **Retire** stops a lesson being handed out.
+
+*Automatic checks* use one small, safe syntax (no free-form shell) and run when a task reaches Review; a failed one sends the task back to In Progress naming the lesson:
+
+```
+file-exists <path>            file-missing <path>
+no-match <glob> /<regex>/i    must-match <glob> /<regex>/       (flags: i m s u)
+command npm run <script>      (the project's own script exits 0)
+```
+
+## Agent library, projects and the project spec (M15)
+
+- **Agents page** (tab 7): the app-wide library, created once and used by any project: starter templates (frontend, backend, database, security, design, marketing, reviewer), edit history, archive and delete. An agent in no project and with no runs is **deleted**; one with a project link or run history is **archived** (history stays readable). Editing an agent once changes it in every project from its next run; its provider and model are set there, not per project.
+- **Project agents** (Agent Hub): the agents this project uses. **Add** opens the library picker (multi-select); **Remove** only unlinks (the agent stays in the library and adding it back restores its project settings: enabled, task types it may take, extra constraints). **Project spec** opens `AGENTS.md`.
+- **Projects:** the title-bar project name opens the switcher (registered projects, **New project…**, **Add existing…**, remove from list; files are never deleted). A project whose folder is missing or whose database cannot open shows its error and cannot be opened. Switching pauses dispatch for the project you leave and says so (runs in flight are cancelled, with a confirmation). **New project** writes `project.json`, `README.md`, `AGENTS.md` and `details/` from templates in a folder you choose, shows a diff for any file that already exists and never overwrites one unless you tick *replace*; `LICENSE` is copied from the code repository when you give one. The project's data stays in that folder's own `command-center.db`.
+- **The spec:** `AGENTS.md` is read at every dispatch (an edit applies to the next run, no restart). A prompt is built as *agent profile → project spec → "Before you start" lessons → task context*; the run record stores the layers, the spec hash and the lesson ids. Tools listed under `## Forbidden tools` in the spec are passed to Claude Code as `--disallowedTools`. A missing spec only shows a "no project spec" notice and runs still start; a malformed `project.json` blocks dispatch **for that project only**, naming the bad field. The planner reads the spec and the applicable lessons before it proposes anything.
+- **Where things live:** the agent library and project registry are one file, `library.db`, in `%APPDATA%\Command Center` (macOS `~/Library/Application Support/Command Center`, Linux `~/.config/Command Center`); set `COMMAND_CENTER_LIBRARY` to a folder to use another (the app, CLI and MCP server all honour it).
 
 ## Plan a project (Planning tab)
 
@@ -115,6 +140,7 @@ Agent Hub → **Orchestrator** (or the status bar) switches the orchestrator on.
 - **Reviews:** a task an agent finished is reviewed by a different agent (never the same agent or its family) or by you. Automatic review by another agent is off by default (Settings → Providers).
 - **Visibility:** each run is one activity-feed entry (provider, model, duration; **Output** opens its last lines), a row in the task's History, and a count in the status bar (running, queued, today's spend against the ceiling). Costs are labelled **estimate** unless the provider reported them (Claude Code does).
 - **Risk:** agents run on your computer with the permissions their provider already grants (Claude Code may edit files and run `npm run` scripts in the project folder). Command Center does not sandbox anything beyond that.
+- **Exactly which tools Claude Code gets** (`claude -p --output-format json --permission-mode acceptEdits`): for work runs `--allowedTools Read Edit Write Glob Grep "Bash(npm run *)" "Bash(git status)" "Bash(git diff *)"`; for reviews only `--tools Read Grep Glob`. Everything else (any other shell command, web access, MCP tools) is not allowed in those runs. The planner (`claude -p --output-format text`) passes no tool flags, so Claude Code's own settings decide what it may use. Note that `Bash(npm run *)` runs whatever scripts the project's `package.json` defines, so an unattended agent can run arbitrary package scripts; remove that risk by forbidding `Bash` in the project spec (`## Forbidden tools`) or reviewing the scripts.
 
 ## Choose a model per agent
 
@@ -143,7 +169,7 @@ The app listens on `127.0.0.1:38120` with a per-project bearer token (Settings o
 
 ## Keyboard
 
-`Ctrl/Cmd+K` command palette (tabs, tasks, milestones, settings), `Ctrl/Cmd+1…6` tabs, `Ctrl/Cmd+,` Settings, `?` shortcut sheet, `/` search, `T` today, `[` `]` milestones, `Esc` closes the top overlay. Card drag works from the keyboard (Space, arrows, Space) with screen-reader announcements.
+`Ctrl/Cmd+K` command palette (tabs, tasks, milestones, settings), `Ctrl/Cmd+1…7` tabs, `Ctrl/Cmd+,` Settings, `?` shortcut sheet, `/` search, `T` today, `[` `]` milestones, `Esc` closes the top overlay. Card drag works from the keyboard (Space, arrows, Space) with screen-reader announcements.
 
 ## Settings
 

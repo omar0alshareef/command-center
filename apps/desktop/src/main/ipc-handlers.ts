@@ -6,6 +6,9 @@ import { ensureShimDir } from './cli-shim';
 import { PtyManager } from './pty';
 import { terminalApi } from './terminal-api';
 import { lessonsApi } from './lessons-api';
+import { getLibrary } from './library-service';
+import { libraryApi } from './library-api';
+import { projectsApi } from './projects-api';
 import { milestoneApi } from './milestone-api';
 import { OrchestratorLoop } from './orchestrator-loop';
 import { orchestratorApi } from './orchestrator-api';
@@ -80,6 +83,38 @@ export function registerIpc(project: ProjectService): void {
     (v) => broadcast(CH.orchEvent, v),
   );
   orchestrator.start();
+
+  const lib = libraryApi(
+    () => project.db(),
+    () => project.info().root,
+    () => project.info().projectId,
+  );
+  ipcMain.handle(CH.lessonPromote, (_e, req: unknown) => lib.lessons.promote(req));
+  ipcMain.handle(CH.lessonRetire, (_e, id: unknown) => lib.lessons.retire(id));
+  ipcMain.handle(CH.libLessons, () => lib.lessons.library());
+  ipcMain.handle(CH.libLessonUpdate, (_e, req: unknown) => lib.lessons.updateLibrary(req));
+  ipcMain.handle(CH.libAgents, (_e, f: unknown) => lib.agents(f));
+  ipcMain.handle(CH.libTemplates, () => lib.templates());
+  ipcMain.handle(CH.libCreate, (_e, req: unknown) => lib.create(req));
+  ipcMain.handle(CH.libUpdate, (_e, req: unknown) => lib.update(req));
+  ipcMain.handle(CH.libArchive, (_e, id: unknown) => lib.archive(id));
+  ipcMain.handle(CH.libRestore, (_e, id: unknown) => lib.restore(id));
+  ipcMain.handle(CH.libDelete, (_e, id: unknown) => lib.remove(id));
+  ipcMain.handle(CH.libVersions, (_e, id: unknown) => lib.versions(id));
+  ipcMain.handle(CH.pagList, () => lib.projectAgents.list());
+  ipcMain.handle(CH.pagAssign, (_e, ids: unknown) => lib.projectAgents.assign(ids));
+  ipcMain.handle(CH.pagRemove, (_e, id: unknown) => lib.projectAgents.remove(id));
+  ipcMain.handle(CH.pagUpdate, (_e, req: unknown) => lib.projectAgents.update(req));
+  ipcMain.handle(CH.specOpen, () => lib.projectAgents.openSpec());
+
+  const projects = projectsApi(project, orchestrator);
+  ipcMain.handle(CH.projList, () => projects.list());
+  ipcMain.handle(CH.projPick, () => projects.pick());
+  ipcMain.handle(CH.projPlan, (_e, req: unknown) => projects.plan(req));
+  ipcMain.handle(CH.projCreate, (_e, req: unknown) => projects.create(req));
+  ipcMain.handle(CH.projAdd, (_e, p: unknown) => projects.addExisting(p));
+  ipcMain.handle(CH.projRemove, (_e, id: unknown) => projects.remove(id));
+  ipcMain.handle(CH.projSwitch, (_e, req: unknown) => projects.switchTo(req));
   const orch = orchestratorApi(() => project.db(), orchestrator);
   ipcMain.handle(CH.modelsSet, (_e, req: unknown) => orch.setModels(req));
   ipcMain.handle(CH.agentSetModel, (_e, req: unknown) => orch.setAgentModel(req));
@@ -101,6 +136,15 @@ export function registerIpc(project: ProjectService): void {
   const plan = planningApi(
     () => project.db(),
     (e) => broadcast(CH.planEvent, e),
+    () => {
+      let lib = null;
+      try {
+        lib = getLibrary();
+      } catch {
+        /* no library: the planner still reads the project's own rules and lessons */
+      }
+      return { root: project.info().root, lib };
+    },
   );
   planner = plan.planner;
   ipcMain.handle(CH.planList, () => plan.list());

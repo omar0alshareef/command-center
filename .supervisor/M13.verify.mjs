@@ -91,7 +91,7 @@ await launch();
 await page.setViewportSize?.({ width: 1280, height: 800 });
 
 await step('V1 six tabs, Ctrl+6 opens Planning', async () => {
-  check('V1a six tabs', (await page.locator('[role=tab][id^=tab-]').count()) === 6);
+  check('V1a seven tabs (the M15 Agents tab is the seventh)', (await page.locator('[role=tab][id^=tab-]').count()) === 7);
   await page.keyboard.press('Control+6');
   await page.locator('#plan-idea').waitFor({ timeout: 5000 });
   check('V1b Ctrl+6 shows the Planning composer', true);

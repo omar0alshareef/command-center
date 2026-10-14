@@ -2,16 +2,21 @@ import { spawn } from 'node:child_process';
 import {
   addPlanningQuestions,
   findClaude,
+  formatLessonsBlock,
   getPlanningSession,
+  getRequiredLessons,
   getSessionDocuments,
   parseStageOutput,
   plannerPrompt,
   proposeTeam,
+  readProjectFile,
+  readSpec,
   savePlanningDocument,
   savePlanningProposal,
   setPlanningError,
   setPlanningStatus,
   type Db,
+  type LibraryDb,
   type LlmStage,
   type PlannerContext,
   type PlannerStage,
@@ -177,6 +182,11 @@ export class Planner {
     private readonly getDb: () => Db,
     private readonly settings: () => PlannerSettingsStore,
     private readonly emit: (e: PlannerEvent) => void,
+    /** M15: where the project spec and the library lessons are read from (the planner reads them before proposing). */
+    private readonly source: () => { root: string | null; lib: LibraryDb | null } = () => ({
+      root: null,
+      lib: null,
+    }),
   ) {}
 
   /** Sessions with a run in flight, and the stage each is on. */
@@ -237,9 +247,34 @@ export class Planner {
     }
   }
 
+  /** The project's AGENTS.md (when it has one) and the lessons that apply to the idea, as prompt text. */
+  private rules(idea: string, answers: string[]): Pick<PlannerContext, 'projectRules' | 'lessons'> {
+    const { root, lib } = this.source();
+    const out: Pick<PlannerContext, 'projectRules' | 'lessons'> = {};
+    if (root) {
+      const file = readProjectFile(root);
+      const spec = readSpec(root, file.ok ? file.project : null);
+      if (spec.status === 'ok' && spec.text?.trim()) out.projectRules = spec.text.trim();
+    }
+    const block = formatLessonsBlock(
+      getRequiredLessons(this.getDb(), lib, {
+        agentId: null,
+        label: idea,
+        keywords: answers,
+        limit: 10,
+      }),
+    );
+    if (block) out.lessons = block;
+    return out;
+  }
+
   private context(sessionId: string): PlannerContext {
     const d = getPlanningSession(this.getDb(), sessionId);
     return {
+      ...this.rules(
+        d.session.idea,
+        d.session.requirements.map((r) => r.answer ?? ''),
+      ),
       idea: d.session.idea,
       requirements: d.session.requirements,
       today: new Date().toISOString().slice(0, 10),
