@@ -105,13 +105,20 @@ const claudeCalls = () =>
     .filter(Boolean)
     .map((l) => JSON.parse(l));
 const shot = (n) => page.screenshot({ path: join(shotDir, `M15-${n}.png`) });
-const setTheme = (t) =>
-  page.evaluate((x) => {
+// The REAL theme switch (the title-bar button cycles dark > light > calm > calm dark > system), then wait for the colour
+// transitions to finish: measuring or photographing mid-transition shows washed-out colours that are not in the theme.
+const themeNow = () =>
+  page.evaluate(() => {
     const d = document.documentElement.dataset;
-    d.theme = x === 'calm-dark' ? 'calm' : x;
-    if (x === 'calm-dark') d.mode = 'dark';
-    else delete d.mode;
-  }, t);
+    return d.theme === 'calm' ? (d.mode === 'dark' ? 'calm-dark' : 'calm') : (d.theme ?? '');
+  });
+const setTheme = async (t) => {
+  for (let i = 0; i < 6 && (await themeNow()) !== t; i++) {
+    await page.getByRole('button', { name: /^Theme:/ }).click();
+    await sleep(150);
+  }
+  await sleep(700);
+};
 const tabKey = { hub: 'Control+3', agents: 'Control+7', board: 'Control+2' };
 const goto = async (k) => {
   await page.keyboard.press(tabKey[k]);
@@ -222,9 +229,16 @@ await step('S1 switcher: lists both, missing folder shows its error and cannot b
   check('S1b the missing folder shows its error', /does not exist/.test(ghostText));
   check('S1c and its Open button is disabled', await page.getByRole('button', { name: 'Open Ghost' }).isDisabled());
   await shot('switcher-dark');
+  await page.keyboard.press('Escape');
   await setTheme('calm');
+  await page.locator('[data-project-switcher]').click();
+  await page.locator('[data-project]').first().waitFor({ timeout: 8000 });
+  await sleep(400);
   await shot('switcher-calm');
+  await page.keyboard.press('Escape');
   await setTheme('dark');
+  await page.locator('[data-project-switcher]').click();
+  await page.locator('[data-project]').first().waitFor({ timeout: 8000 });
   // Running dispatch in A, then switch to B: A is paused and the app says so.
   await page.evaluate(() => window.api.orchestrator.resume());
   await sleep(500);
@@ -572,13 +586,16 @@ await step('UX contrast: new views meet 4.5:1 in dark, light, calm and calm dark
   for (const theme of ['dark', 'light', 'calm', 'calm-dark']) {
     await setTheme(theme);
     await goto('agents');
+    await shot(`ux-${theme}-agents`);
     let r = await contrastScan();
     check(`UX ${theme}: Agents page`, r.bad.length === 0, [...new Set(r.bad)].slice(0, 12).join(' | ') || `${r.count} texts`);
     await goto('hub');
+    await shot(`ux-${theme}-agent-hub`);
     r = await contrastScan();
     check(`UX ${theme}: Agent Hub (project agents, lessons)`, r.bad.length === 0, [...new Set(r.bad)].slice(0, 12).join(' | ') || `${r.count} texts`);
     await page.locator('[data-project-switcher]').click();
     await sleep(300);
+    await shot(`ux-${theme}-switcher`);
     r = await contrastScan();
     check(`UX ${theme}: project switcher`, r.bad.length === 0, [...new Set(r.bad)].slice(0, 12).join(' | ') || `${r.count} texts`);
     await page.keyboard.press('Escape');
@@ -589,7 +606,7 @@ await step('UX contrast: new views meet 4.5:1 in dark, light, calm and calm dark
     await page.locator('[data-scaffold-plan]').waitFor({ timeout: 8000 });
     r = await contrastScan();
     check(`UX ${theme}: new project dialog with plan`, r.bad.length === 0, [...new Set(r.bad)].slice(0, 12).join(' | ') || `${r.count} texts`);
-    if (theme === 'dark') await shot('new-project-dialog-dark');
+    await shot(`ux-${theme}-new-project`);
     await page.keyboard.press('Escape');
     await sleep(200);
   }
