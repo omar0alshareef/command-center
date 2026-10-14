@@ -33,6 +33,8 @@ export interface ProviderRunInput {
   onChunk?: (text: string) => void;
   /** CLI providers only: may the agent edit files and run the project's npm scripts. */
   allowEdits?: boolean;
+  /** CLI providers only: tools the project spec forbids (`## Forbidden tools` in AGENTS.md). */
+  disallowedTools?: string[];
 }
 
 export interface ProviderUsage {

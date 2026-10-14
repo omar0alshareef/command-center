@@ -1,14 +1,27 @@
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { nowIso, write, type Db } from './db';
-import { LessonNotFoundError } from './errors';
-import { LessonSchema, type Lesson } from './types';
+import { InvalidInputError, LessonNotFoundError } from './errors';
+import { validateCheck } from './lesson-checks';
+import { LESSON_STATUSES, LessonSchema, type Lesson } from './types';
 
 // Self-improving memory (blueprint Phase 12). The `lessons_learned` table is the source of truth;
 // `.claude/LESSONS_LEARNED.md` is a rendered view of it that is rewritten after every change, so the two
 // cannot drift. Retrieval is FTS5 over reason + fix + prevention (D7).
 
-/** Insert a lesson. The FTS index is kept in sync by triggers (migrations 002, 004). */
+export interface LessonExtras {
+  /** A short, verifiable statement (D40). With one the lesson is `active`; without, it is a `draft` and cannot be promoted. */
+  checkText?: string;
+  /** `automatic` checks use the syntax in lesson-checks.ts and run when a task reaches Review; `manual` ones are a reviewer's checklist item. */
+  checkType?: 'automatic' | 'manual';
+  triggerKeywords?: string;
+  projectId?: string | null;
+}
+
+/**
+ * Insert a project lesson (D37: a rejection starts as `project` scope). It is `active` when the reviewer gave a prevention
+ * check and a `draft` otherwise. The FTS index is kept in sync by triggers (migrations 002, 004, 009).
+ */
 export function addLesson(
   db: Db,
   subtaskId: string,
@@ -16,16 +29,54 @@ export function addLesson(
   fixApplied = '',
   at = nowIso(),
   prevention = '',
+  extra: LessonExtras = {},
 ): number {
+  const checkText = extra.checkText?.trim() ?? '';
+  const checkType = checkText ? (extra.checkType ?? 'manual') : 'none';
+  if (checkType === 'automatic') validateCheck(checkText);
   return write(db, () =>
     Number(
       db
         .prepare(
-          'INSERT INTO lessons_learned (subtask_id, rejection_reason, fix_applied, prevention, created_at) VALUES (?, ?, ?, ?, ?)',
+          `INSERT INTO lessons_learned (subtask_id, rejection_reason, fix_applied, prevention, created_at, scope, trigger_keywords,
+             check_text, check_type, status, updated_at, project_id)
+           VALUES (?, ?, ?, ?, ?, 'project', ?, ?, ?, ?, ?, ?)`,
         )
-        .run(subtaskId, rejectionReason, fixApplied, prevention, at).lastInsertRowid,
+        .run(
+          subtaskId,
+          rejectionReason,
+          fixApplied,
+          prevention,
+          at,
+          extra.triggerKeywords?.trim() ?? '',
+          checkText,
+          checkType,
+          checkText ? 'active' : 'draft',
+          at,
+          extra.projectId ?? null,
+        ).lastInsertRowid,
     ),
   );
+}
+
+/**
+ * Count one more recurrence of the same mistake (a reviewer said so, or an automatic check failed again). At two or more
+ * the lesson's wording or check is not working: it becomes `needs_rewrite` and shows a warning in the Agent Hub (D39).
+ */
+export function recordRecurrence(db: Db, id: number, at = nowIso()): Lesson {
+  return write(db, () => {
+    const cur = getLesson(db, id);
+    if (!cur) throw new LessonNotFoundError(id);
+    const occurrences = cur.occurrences + 1;
+    const status =
+      occurrences >= 2 && (cur.status === 'active' || cur.status === 'draft')
+        ? 'needs_rewrite'
+        : cur.status;
+    db.prepare(
+      'UPDATE lessons_learned SET occurrences = ?, status = ?, updated_at = ? WHERE id = ?',
+    ).run(occurrences, status, at, id);
+    return { ...cur, occurrences, status, updated_at: at };
+  });
 }
 
 export function getLesson(db: Db, id: number): Lesson | null {
@@ -37,6 +88,10 @@ export interface LessonPatch {
   rejection_reason?: string;
   fix_applied?: string;
   prevention?: string;
+  trigger_keywords?: string;
+  check_text?: string;
+  check_type?: 'automatic' | 'manual' | 'none';
+  status?: (typeof LESSON_STATUSES)[number];
 }
 
 /** Edit a lesson (what was wrong, how it was fixed, how to prevent it). Rewrites LESSONS_LEARNED.md. */
@@ -44,14 +99,39 @@ export function updateLesson(db: Db, id: number, patch: LessonPatch): Lesson {
   const lesson = write(db, () => {
     const cur = getLesson(db, id);
     if (!cur) throw new LessonNotFoundError(id);
+    if (cur.promoted_to)
+      throw new InvalidInputError('This lesson was promoted: edit it in the library.');
+    const checkText = patch.check_text?.trim() ?? cur.check_text;
+    const checkType = !checkText
+      ? 'none'
+      : (patch.check_type ?? (cur.check_type === 'none' ? 'manual' : cur.check_type));
+    if (checkType === 'automatic') validateCheck(checkText);
+    // Giving a draft its first check makes it a real lesson; the operator can still choose another status.
+    const status = patch.status ?? (cur.status === 'draft' && checkText ? 'active' : cur.status);
     const next = {
       rejection_reason: patch.rejection_reason?.trim() || cur.rejection_reason,
       fix_applied: patch.fix_applied?.trim() ?? cur.fix_applied,
       prevention: patch.prevention?.trim() ?? cur.prevention,
-    };
+      trigger_keywords: patch.trigger_keywords?.trim() ?? cur.trigger_keywords,
+      check_text: checkText,
+      check_type: checkType,
+      status,
+      updated_at: nowIso(),
+    } as const;
     db.prepare(
-      'UPDATE lessons_learned SET rejection_reason = ?, fix_applied = ?, prevention = ? WHERE id = ?',
-    ).run(next.rejection_reason, next.fix_applied, next.prevention, id);
+      `UPDATE lessons_learned SET rejection_reason = ?, fix_applied = ?, prevention = ?, trigger_keywords = ?, check_text = ?,
+         check_type = ?, status = ?, updated_at = ? WHERE id = ?`,
+    ).run(
+      next.rejection_reason,
+      next.fix_applied,
+      next.prevention,
+      next.trigger_keywords,
+      next.check_text,
+      next.check_type,
+      next.status,
+      next.updated_at,
+      id,
+    );
     return { ...cur, ...next };
   });
   syncLessonsFile(db);
@@ -89,7 +169,7 @@ const STOP = new Set(
   ),
 );
 
-function tokens(...parts: string[]): string[] {
+export function tokens(...parts: string[]): string[] {
   const words =
     parts
       .join(' ')
@@ -115,7 +195,7 @@ export function getRelevantLessons(
   const fts = db
     .prepare(
       `SELECT l.* FROM lessons_fts JOIN lessons_learned l ON l.id = lessons_fts.rowid
-       WHERE lessons_fts MATCH ? ORDER BY bm25(lessons_fts) LIMIT ?`,
+       WHERE lessons_fts MATCH ? AND l.status != 'retired' AND l.promoted_to IS NULL ORDER BY bm25(lessons_fts) LIMIT ?`,
     )
     .all(match, limit);
   if (fts.length > 0) return LessonSchema.array().parse(fts);
@@ -127,7 +207,7 @@ export function getRelevantLessons(
   return LessonSchema.array().parse(
     db
       .prepare(
-        `SELECT * FROM lessons_learned WHERE ${like} ORDER BY created_at DESC, id DESC LIMIT ?`,
+        `SELECT * FROM lessons_learned WHERE (${like}) AND status != 'retired' AND promoted_to IS NULL ORDER BY created_at DESC, id DESC LIMIT ?`,
       )
       .all(...params, limit),
   );
@@ -147,7 +227,7 @@ export function getLessonsForTask(
   const own = LessonSchema.array().parse(
     db
       .prepare(
-        'SELECT * FROM lessons_learned WHERE subtask_id = ? ORDER BY created_at DESC, id DESC',
+        "SELECT * FROM lessons_learned WHERE subtask_id = ? AND status != 'retired' AND promoted_to IS NULL ORDER BY created_at DESC, id DESC",
       )
       .all(taskId),
   );

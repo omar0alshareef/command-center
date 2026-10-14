@@ -25,12 +25,15 @@ const EDIT_TOOLS = [
 const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob'];
 
 /** The argument list for one run (exported so tests pin it). The prompt travels on stdin, never in the arguments. */
-export function claudeCodeArgs(input: Pick<ProviderRunInput, 'model' | 'allowEdits'>): string[] {
+export function claudeCodeArgs(
+  input: Pick<ProviderRunInput, 'model' | 'allowEdits' | 'disallowedTools'>,
+): string[] {
   const args = ['-p', '--output-format', 'json', '--no-session-persistence'];
   if (input.model) args.push('--model', input.model);
   if (input.allowEdits)
     args.push('--permission-mode', 'acceptEdits', '--allowedTools', ...EDIT_TOOLS);
   else args.push('--tools', ...READ_ONLY_TOOLS);
+  if (input.disallowedTools?.length) args.push('--disallowedTools', ...input.disallowedTools);
   return args;
 }
 

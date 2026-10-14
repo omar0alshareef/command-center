@@ -14,6 +14,11 @@ export interface NewRun {
   kind?: 'work' | 'review';
   attempt?: number;
   status?: 'queued' | 'running';
+  /** What the prompt was built from (D34, D38): layer names, spec hash/status and lesson ids (`[]` = none matched). */
+  layers?: string[];
+  specHash?: string | null;
+  specStatus?: string | null;
+  lessonIds?: string[] | null;
 }
 
 export function createRun(db: Db, o: NewRun, at = nowIso()): Run {
@@ -22,8 +27,9 @@ export function createRun(db: Db, o: NewRun, at = nowIso()): Run {
   write(db, () =>
     db
       .prepare(
-        `INSERT INTO runs (id, task_id, agent_id, provider, model, kind, attempt, status, queued_at, started_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO runs (id, task_id, agent_id, provider, model, kind, attempt, status, queued_at, started_at,
+           layers, spec_hash, spec_status, lesson_ids)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -36,6 +42,10 @@ export function createRun(db: Db, o: NewRun, at = nowIso()): Run {
         o.status ?? 'running',
         at,
         running ? at : null,
+        o.layers ? JSON.stringify(o.layers) : null,
+        o.specHash ?? null,
+        o.specStatus ?? null,
+        o.lessonIds ? JSON.stringify(o.lessonIds) : null,
       ),
   );
   const run = getRun(db, id);

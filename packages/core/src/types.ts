@@ -148,13 +148,33 @@ export const PhaseSchema = z.object({
 });
 export type Phase = z.infer<typeof PhaseSchema>;
 
+export const LESSON_SCOPES = ['project', 'agent', 'global'] as const;
+export const LESSON_STATUSES = ['draft', 'active', 'needs_rewrite', 'retired'] as const;
+export const CHECK_TYPES = ['automatic', 'manual', 'none'] as const;
+
 export const LessonSchema = z.object({
   id: z.number(),
   subtask_id: z.string(),
   rejection_reason: z.string(),
   fix_applied: z.string(),
+  /** The prevention rule: how to avoid the mistake (D40). */
   prevention: z.string(),
   created_at: z.string(),
+  /** Always `project` for a row in a project's database; agent and global lessons live in the library (see `promoted_to`). */
+  scope: z.enum(LESSON_SCOPES),
+  agent_id: z.string().nullable(),
+  /** Space-separated words a task must share for this lesson to apply (FTS), on top of the reason and the prevention rule. */
+  trigger_keywords: z.string(),
+  /** A short, verifiable statement of the check (D40); automatic checks use the syntax in `lesson-checks.ts`. */
+  check_text: z.string(),
+  check_type: z.enum(CHECK_TYPES),
+  /** How many later rejections or audit failures were the same mistake. Two or more -> needs_rewrite. */
+  occurrences: z.number(),
+  status: z.enum(LESSON_STATUSES),
+  updated_at: z.string().nullable(),
+  /** Set when promoted: `agent:<library agent id>` or `global`. The library holds the live copy. */
+  promoted_to: z.string().nullable(),
+  project_id: z.string().nullable(),
 });
 export type Lesson = z.infer<typeof LessonSchema>;
 
@@ -182,6 +202,17 @@ export const RunSchema = z.object({
   error: z.string().nullable(),
   output_tail: z.string().nullable(),
   cancel_requested: z.number().transform((n) => n !== 0),
+  /** Prompt layers used (D34), the spec file hash and status, and the ids of lessons injected (D38; `[]` = looked up, none matched). */
+  layers: z
+    .string()
+    .nullable()
+    .transform((s) => (s === null ? null : (JSON.parse(s) as string[]))),
+  spec_hash: z.string().nullable(),
+  spec_status: z.string().nullable(),
+  lesson_ids: z
+    .string()
+    .nullable()
+    .transform((s) => (s === null ? null : (JSON.parse(s) as string[]))),
 });
 export type Run = z.infer<typeof RunSchema>;
 

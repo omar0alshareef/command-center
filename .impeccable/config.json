@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "packages/core/test/lessons-scope.test.ts"
+        ],
+        "createdAt": "2026-10-13T18:02:59.572Z",
+        "reason": "assistant: test fixture string for a lesson check (font-family: Inter), not a UI design choice; the project's own spec already mandates Inter"
+      }
+    ]
+  }
+}

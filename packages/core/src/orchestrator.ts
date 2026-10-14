@@ -3,6 +3,12 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { sameAgentFamily } from './agents';
 import { buildTaskContextMd } from './context';
+import { auditCompletedTask } from './lesson-audit';
+import { getLibraryAgent } from './library/agents';
+import type { LibraryDb } from './library/db';
+import { assignmentBlock, syncMirrors } from './project-agents';
+import { readProjectFile } from './project-file';
+import { buildRunPrompt, type BuiltPrompt } from './prompt';
 import type { Db } from './db';
 import { CoreError } from './errors';
 import { agentProvider, canChooseModel, resolveAgentModel } from './models';
@@ -40,10 +46,15 @@ export interface Route {
 }
 
 /** Who runs this task and on what: the task's override beats the agent's provider. Null when it cannot be routed. */
-export function routeTask(db: Db, task: Task): Route | null {
+export function routeTask(db: Db, task: Task, lib: LibraryDb | null = null): Route | null {
   if (task.execution_mode !== 'agent' || !task.assignee) return null;
   const agent = getAgent(db, task.assignee);
   if (!agent || !canChooseModel(agent)) return null;
+  // A library agent the project removed or disabled, that may not take this kind of task, or that was archived in the library
+  // (D35), receives no dispatches. Agents the library does not manage are unaffected.
+  if (assignmentBlock(db, agent.id, getMilestone(db, task.milestone_id)?.domain ?? null))
+    return null;
+  if (lib && getLibraryAgent(lib, agent.id)?.status === 'archived') return null;
   const wanted = task.provider_override ?? agent.provider ?? DEFAULT_PROVIDER;
   if (!isProviderId(wanted)) return null;
   return { agent, provider: wanted };
@@ -54,7 +65,11 @@ export function routeTask(db: Db, task: Task): Route | null {
  * `depends_on` task done, no run already queued or running for it, and its provider available (when `available` is given).
  * Ordered by milestone planned start, then priority, then due date, then id.
  */
-export function readyTasks(db: Db, available: ReadonlySet<ProviderId> | null = null): Task[] {
+export function readyTasks(
+  db: Db,
+  available: ReadonlySet<ProviderId> | null = null,
+  lib: LibraryDb | null = null,
+): Task[] {
   const active = new Set(
     (
       db
@@ -72,7 +87,7 @@ export function readyTasks(db: Db, available: ReadonlySet<ProviderId> | null = n
   };
   const ready = listTasks(db, { status: 'todo' }).filter((t) => {
     if (active.has(t.id)) return false;
-    const route = routeTask(db, t);
+    const route = routeTask(db, t, lib);
     if (!route) return false;
     if (available && !available.has(route.provider)) return false;
     return t.depends_on.every((id) => getTask(db, id)?.status === 'done');
@@ -103,6 +118,16 @@ export interface OrchestratorStatus {
   /** Why no new run will start, when a cap (not the concurrency limit) is what stops it. */
   pausedByCap: CapReason;
   providers: ({ id: ProviderId } & Detection)[];
+  /** Set when this project's project.json is malformed: dispatch is blocked for this project only (D36). */
+  projectBlock: string | null;
+}
+
+/** Why dispatch is blocked for the project in `folder` (a malformed project.json), or null. A missing file is fine (D36). */
+export function projectDispatchBlock(folder: string): string | null {
+  const f = readProjectFile(folder);
+  return !f.ok && !f.missing
+    ? `Dispatch is blocked until project.json is fixed: ${f.issues.join('; ')}`
+    : null;
 }
 
 export function capReason(db: Db, now: Date): CapReason {
@@ -121,6 +146,7 @@ export function orchestratorStatus(
   db: Db,
   availability: ReadonlyMap<ProviderId, Detection> | null = null,
   now = new Date(),
+  lib: LibraryDb | null = null,
 ): OrchestratorStatus {
   const cfg = getOrchestratorConfig(db);
   const running = (
@@ -132,7 +158,7 @@ export function orchestratorStatus(
   return {
     mode: getOrchestratorMode(db),
     running,
-    queued: readyTasks(db, avail).length,
+    queued: readyTasks(db, avail, lib).length,
     maxConcurrent: cfg.maxConcurrent,
     startedLastHour: runUsageSince(db, new Date(now.getTime() - 3_600_000).toISOString()).started,
     maxPerHour: cfg.maxPerHour,
@@ -140,6 +166,7 @@ export function orchestratorStatus(
     dailyCeiling: cfg.dailySpendUsd,
     pausedByCap: capReason(db, now),
     providers: availability ? [...availability].map(([id, d]) => ({ id, ...d })) : [],
+    projectBlock: db.name ? projectDispatchBlock(dirname(db.name)) : null,
   };
 }
 
@@ -151,13 +178,12 @@ export interface OrchestratorDeps {
   /** The key for an API provider (decrypted by the app). Never stored by the core. */
   getKey: (id: ProviderId) => string | null;
   now?: () => Date;
+  /** The app-wide library: agent profiles (D34), agent- and global-scope lessons (D38), archived agents. Null for a bare project. */
+  library?: LibraryDb | null;
 }
 
 /** Per-run output cap (characters). */
 const MAX_OUTPUT_CHARS = 200_000;
-
-const SYSTEM = (agent: Agent) =>
-  `You are ${agent.name}, an agent working for the operator inside Command Center. Do only the task below, in the project folder you are running in, and keep changes small and relevant. When you finish, reply with a short report whose LAST line is "SUMMARY: <one sentence saying what you did>". If you cannot complete the task, explain why and end with "SUMMARY: BLOCKED - <reason>".`;
 
 const REVIEW_SYSTEM = (agent: Agent) =>
   `You are ${agent.name}, an independent reviewer. You did NOT do this work. Check the report against the acceptance criteria and reply with a short assessment whose LAST two lines are "VERDICT: APPROVE" or "VERDICT: REJECT", and "REASON: <one sentence>".`;
@@ -203,10 +229,12 @@ export class Orchestrator {
   private availability = new Map<ProviderId, Detection>();
   private shuttingDown = false;
   private readonly now: () => Date;
+  private readonly lib: LibraryDb | null;
 
   constructor(private readonly d: OrchestratorDeps) {
     this.db = d.db;
     this.now = d.now ?? (() => new Date());
+    this.lib = d.library ?? null;
   }
 
   // ---- providers ----
@@ -238,11 +266,11 @@ export class Orchestrator {
   // ---- state ----
 
   status(): OrchestratorStatus {
-    return orchestratorStatus(this.db, this.availability, this.now());
+    return orchestratorStatus(this.db, this.availability, this.now(), this.lib);
   }
 
   readyTasks(): Task[] {
-    return readyTasks(this.db, this.availableSet());
+    return readyTasks(this.db, this.availableSet(), this.lib);
   }
 
   /** Resolves when no run is in flight (tests; also used when the app quits). */
@@ -328,12 +356,14 @@ export class Orchestrator {
     const mode = getOrchestratorMode(this.db);
     if (mode === 'draining' && this.inflight.size === 0) setOrchestratorMode(this.db, 'paused');
     if (mode !== 'running') return [];
+    if (projectDispatchBlock(this.d.projectRoot)) return []; // a malformed project.json blocks THIS project's dispatch only
+    if (this.lib) syncMirrors(this.db, this.lib); // an agent edited once in the library applies from the next run
     const cfg = getOrchestratorConfig(this.db);
     const started: string[] = [];
     for (const task of this.readyTasks()) {
       if (capReason(this.db, this.now())) break;
       if (this.inflight.size >= cfg.maxConcurrent) break;
-      const route = routeTask(this.db, task);
+      const route = routeTask(this.db, task, this.lib);
       if (!route) continue;
       if (this.agentRunning(route.agent.id) >= route.agent.max_concurrent) continue;
       started.push(this.launch(task, route, {}));
@@ -354,7 +384,10 @@ export class Orchestrator {
         'NOT_READY',
         `${taskId} is ${task.status}; only a To Do task can be started.`,
       );
-    const route = routeTask(this.db, task);
+    const block = projectDispatchBlock(this.d.projectRoot);
+    if (block) throw new CoreError('PROJECT_INVALID', block);
+    if (this.lib) syncMirrors(this.db, this.lib);
+    const route = routeTask(this.db, task, this.lib);
     if (!route)
       throw new CoreError(
         'NOT_ROUTABLE',
@@ -384,8 +417,10 @@ export class Orchestrator {
 
   private launch(task: Task, route: Route, o: { manual?: boolean }): string {
     const abort = new AbortController();
-    // The first attempt's row is created synchronously so two ticks can never start the same task twice.
-    const run = this.openRun(task, route, 1, 'work');
+    // The first attempt's row is created synchronously so two ticks can never start the same task twice. The prompt is built
+    // here, so the spec file is read at dispatch (an edit applies to the very next run) and the run records what it was built from.
+    const built = this.build(task, route.agent);
+    const run = this.openRun(task, route, 1, 'work', built);
     const entry: Inflight = {
       abort,
       promise: Promise.resolve(),
@@ -395,7 +430,7 @@ export class Orchestrator {
       runId: run.id,
     };
     this.inflight.set(task.id, entry);
-    entry.promise = this.executeWork(task.id, route, run, entry, o)
+    entry.promise = this.executeWork(task.id, route, run, built, entry, o)
       .catch((e) => {
         // Last resort: an unexpected error must not leave a run "running" forever.
         this.closeRun(entry.runId, {
@@ -415,7 +450,25 @@ export class Orchestrator {
     return (Object.keys(this.d.providers) as ProviderId[]).map((id) => this.d.getKey(id));
   }
 
-  private openRun(task: Task, route: Route, attempt: number, kind: 'work' | 'review'): Run {
+  /** The D34 prompt for this agent and task: library profile, project rules, required lessons, task context. */
+  private build(task: Task, agent: Agent): BuiltPrompt {
+    return buildRunPrompt({
+      db: this.db,
+      lib: this.lib,
+      projectRoot: this.d.projectRoot,
+      task,
+      agent,
+      now: this.now(),
+    });
+  }
+
+  private openRun(
+    task: Task,
+    route: Route,
+    attempt: number,
+    kind: 'work' | 'review',
+    built: BuiltPrompt | null = null,
+  ): Run {
     const { model, warning } = resolveAgentModel(this.db, route.agent.id);
     if (warning)
       logAction(this.db, {
@@ -435,6 +488,14 @@ export class Orchestrator {
       kind,
       attempt,
       status: 'running',
+      ...(built
+        ? {
+            layers: built.layers,
+            specHash: built.specHash,
+            specStatus: built.specStatus,
+            lessonIds: built.lessonIds,
+          }
+        : {}),
     });
   }
 
@@ -449,6 +510,7 @@ export class Orchestrator {
     prompt: string,
     abort: AbortController,
     allowEdits: boolean,
+    disallowedTools: string[] = [],
   ): Promise<ProviderRunResult> {
     const adapter = this.d.providers[run.provider as ProviderId];
     const cfg = getOrchestratorConfig(this.db);
@@ -462,6 +524,7 @@ export class Orchestrator {
       maxOutputChars: MAX_OUTPUT_CHARS,
       apiKey: this.d.getKey(run.provider as ProviderId),
       allowEdits,
+      ...(disallowedTools.length > 0 ? { disallowedTools } : {}),
     });
   }
 
@@ -551,6 +614,7 @@ export class Orchestrator {
     taskId: string,
     route: Route,
     first: Run,
+    firstBuilt: BuiltPrompt,
     entry: Inflight,
     o: { manual?: boolean },
   ): Promise<void> {
@@ -567,25 +631,27 @@ export class Orchestrator {
       });
       return;
     }
-    const md = buildTaskContextMd(this.db, taskId, this.now()) ?? `# ${taskId}`;
-    this.ensureContextFile(md);
+    this.ensureContextFile(firstBuilt.prompt);
 
     let run = first;
+    let built = firstBuilt;
     let lastError = 'The run failed.';
     for (let attempt = 1; attempt <= 2; attempt++) {
       if (attempt === 2) {
         const t = getTask(this.db, taskId);
         if (!t || t.status !== 'in_progress') return;
-        run = this.openRun(t, route, 2, 'work');
+        built = this.build(t, agent); // the spec may have changed since the first attempt
+        run = this.openRun(t, route, 2, 'work', built);
         entry.runId = run.id;
       }
       try {
         const result = await this.callProvider(
           run,
-          SYSTEM(agent),
-          md,
+          built.system,
+          built.prompt,
           abort,
           route.provider === 'claude-code',
+          built.forbiddenTools,
         );
         const closed = this.recordSuccess(run, route, result);
         const summary = extractSummary(result.output);
@@ -598,6 +664,13 @@ export class Orchestrator {
           return;
         }
         transition(this.db, taskId, 'complete', { actor: agent.id, summary });
+        // Automatic lesson checks run when a task reaches Review (D40): a failed one sends it back to In Progress.
+        const audit = auditCompletedTask(this.db, this.lib, {
+          taskId,
+          agentId: agent.id,
+          projectRoot: this.d.projectRoot,
+        });
+        if (audit.sentBack) return;
         if (getOrchestratorConfig(this.db).autoReview) await this.review(taskId, agent, closed);
         return;
       } catch (e) {

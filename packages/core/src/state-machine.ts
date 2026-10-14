@@ -8,7 +8,7 @@ import {
   TaskNotFoundError,
 } from './errors';
 import { sameAgentFamily } from './agents';
-import { addLesson, recordFixForTask, syncLessonsFile } from './lessons';
+import { addLesson, recordFixForTask, recordRecurrence, syncLessonsFile } from './lessons';
 import { getAgent, getTask, logAction } from './queries';
 import { TASK_STATUSES, type Task, type TaskStatus } from './types';
 
@@ -51,6 +51,15 @@ export interface TransitionPayload {
   force?: boolean;
   /** `complete` / `approve` only: the caller confirmed skipping steps (e.g. todo → done). */
   skipSteps?: boolean;
+  /** `reject` only (D40): the verifiable prevention check. Given, the new lesson is `active`; without it, a `draft`. */
+  check?: string;
+  checkType?: 'automatic' | 'manual';
+  /** `reject` only: words that make this lesson apply to later tasks (on top of its reason and prevention rule). */
+  triggerKeywords?: string;
+  /** `reject` only (D39): the reviewer says this is the same mistake as this project lesson. It counts a recurrence instead of adding a lesson. */
+  sameAs?: number;
+  /** `reject` only: send the task back without recording any lesson (the host records a recurrence elsewhere, e.g. a library lesson). */
+  noLesson?: boolean;
 }
 
 const LOG_ACTION: Record<Trigger, string> = {
@@ -159,15 +168,25 @@ function transitionTx(
         break;
       case 'reject':
         next.status = 'in_progress';
-        addLesson(
-          db,
-          taskId,
-          reason ?? '',
-          payload.fixApplied?.trim() ?? '',
-          now,
-          payload.prevention?.trim() ?? '',
-        );
-        lessonsChanged = true;
+        if (payload.sameAs !== undefined) {
+          recordRecurrence(db, payload.sameAs, now);
+          lessonsChanged = true;
+        } else if (!payload.noLesson) {
+          addLesson(
+            db,
+            taskId,
+            reason ?? '',
+            payload.fixApplied?.trim() ?? '',
+            now,
+            payload.prevention?.trim() ?? '',
+            {
+              ...(payload.check ? { checkText: payload.check } : {}),
+              ...(payload.checkType ? { checkType: payload.checkType } : {}),
+              ...(payload.triggerKeywords ? { triggerKeywords: payload.triggerKeywords } : {}),
+            },
+          );
+          lessonsChanged = true;
+        }
         break;
       case 'block':
         next.status = 'blocked';

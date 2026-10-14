@@ -32,7 +32,10 @@ export function openDbReadonly(projectRoot: string): Db {
   return db;
 }
 
-export function migrate(db: Db): void {
+export function migrate(
+  db: Db,
+  list: readonly { version: number; name: string; sql: string }[] = migrations,
+): void {
   db.exec(
     'CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)',
   );
@@ -44,7 +47,7 @@ export function migrate(db: Db): void {
         (r) => r.version,
       ),
     );
-    for (const m of migrations) {
+    for (const m of list) {
       if (applied.has(m.version)) continue;
       db.exec(m.sql);
       db.prepare('INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)').run(

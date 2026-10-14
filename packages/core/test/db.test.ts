@@ -14,7 +14,7 @@ beforeEach(() => {
 afterEach(() => t.cleanup());
 
 describe('openDb', () => {
-  it('applies migrations 1-8, sets pragmas, seeds project and built-in agents', () => {
+  it('applies migrations 1-9, sets pragmas, seeds project and built-in agents', () => {
     const versions = t.db.prepare('SELECT version FROM schema_version ORDER BY version').all();
     expect(versions).toEqual([
       { version: 1 },
@@ -25,6 +25,7 @@ describe('openDb', () => {
       { version: 6 },
       { version: 7 },
       { version: 8 },
+      { version: 9 },
     ]);
     expect(t.db.pragma('journal_mode', { simple: true })).toBe('wal');
     expect(t.db.pragma('foreign_keys', { simple: true })).toBe(1);
@@ -38,7 +39,7 @@ describe('openDb', () => {
 
   it('is idempotent: reopening does not re-run migrations', () => {
     const again = openDb(t.root);
-    expect(again.prepare('SELECT COUNT(*) n FROM schema_version').get()).toEqual({ n: 8 });
+    expect(again.prepare('SELECT COUNT(*) n FROM schema_version').get()).toEqual({ n: 9 });
     expect(again.prepare('SELECT COUNT(*) n FROM agents').get()).toEqual({ n: 2 });
     again.close();
   });

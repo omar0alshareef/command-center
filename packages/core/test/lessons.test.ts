@@ -173,6 +173,16 @@ describe('LESSONS_LEARNED.md stays in sync with the table', () => {
         fix_applied: '',
         prevention: 'p',
         created_at: '2026-01-15T10:00:00.000Z',
+        scope: 'project',
+        agent_id: null,
+        trigger_keywords: '',
+        check_text: '',
+        check_type: 'none',
+        occurrences: 0,
+        status: 'active',
+        updated_at: null,
+        promoted_to: null,
+        project_id: null,
       },
     ]);
     expect(parseLessonsMd(md)[0]).toMatchObject({
