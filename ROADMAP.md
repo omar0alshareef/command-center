@@ -655,9 +655,11 @@ Out of scope for M15
 - **Live run view:** pass `onChunk` from `Orchestrator.callProvider` to a `run:chunk` IPC channel; a panel (Agent Hub or its own tab, operator to choose) lists every run in flight with agent, task, provider/model, elapsed time, streamed output and Cancel. Finished runs keep their output (RunOutputDialog).
 - **Start date control:** a field in Settings or the project header to change the project start (and target) date, since day 0 now drives week numbers and the swim lane.
 - **Orchestrator explainer in the app:** a short help text in Settings → Providers: dispatch is plain code (D22), it has no provider; the providers belong to agents (and per-task overrides); how task order, dependencies and the concurrency limits decide what starts next.
+- **Dependency hand-off in the prompt:** when a task has `depends_on`, `buildRunPrompt` adds a section with each finished dependency's id, label, completion summary, files it changed and its lessons, so an agent starting task 9 sees what task 5 did without calling any tool. Capped (about 500 tokens per dependency) like the other prompt layers.
+- **Activity log file:** export `agent_log` and finished `runs` to `activity-log.jsonl` in the project folder (appended as events happen, one JSON object per line) plus a readable `ACTIVITY.md` of the last 100 events. The database stays the source of truth; the files are for agents and people who read files. Agents are told in the prompt that the file exists.
 - *(The operator adds further features here.)*
 
-**Exit criteria:** `tsc --noEmit` strict, lint, tests pass; a real run's output streams into the live view while it runs; Cancel from the view stops the provider process; a project created today shows Week 1 and opens the swim lane at day 0.
+**Exit criteria:** `tsc --noEmit` strict, lint, tests pass; a task that depends on a finished task gets that task's summary in its prompt (test on the prompt builder); `ACTIVITY.md` and `activity-log.jsonl` appear and grow after a run; a real run's output streams into the live view while it runs; Cancel from the view stops the provider process; a project created today shows Week 1 and opens the swim lane at day 0.
 
 ---
 
