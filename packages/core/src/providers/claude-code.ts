@@ -24,6 +24,19 @@ const EDIT_TOOLS = [
 ];
 const READ_ONLY_TOOLS = ['Read', 'Grep', 'Glob'];
 
+/**
+ * Forbidding one shell tool forbids the family: on Windows Claude Code also has a `PowerShell` tool, and with only `Bash`
+ * disallowed a run still executed shell commands (verified live with the real CLI, 2026-10-15).
+ */
+export function withShellFamily(tools: readonly string[]): string[] {
+  const shell = (t: string) => /^(bash|powershell)(\(|$)/i.test(t.trim());
+  const out = [...tools];
+  if (tools.some(shell))
+    for (const t of ['Bash', 'PowerShell'])
+      if (!out.some((x) => x.toLowerCase() === t.toLowerCase())) out.push(t);
+  return out;
+}
+
 /** The argument list for one run (exported so tests pin it). The prompt travels on stdin, never in the arguments. */
 export function claudeCodeArgs(
   input: Pick<ProviderRunInput, 'model' | 'allowEdits' | 'disallowedTools'>,
@@ -33,7 +46,8 @@ export function claudeCodeArgs(
   if (input.allowEdits)
     args.push('--permission-mode', 'acceptEdits', '--allowedTools', ...EDIT_TOOLS);
   else args.push('--tools', ...READ_ONLY_TOOLS);
-  if (input.disallowedTools?.length) args.push('--disallowedTools', ...input.disallowedTools);
+  if (input.disallowedTools?.length)
+    args.push('--disallowedTools', ...withShellFamily(input.disallowedTools));
   return args;
 }
 

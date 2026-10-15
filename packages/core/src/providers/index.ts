@@ -9,7 +9,7 @@ import type { ProviderAdapter, ProviderEnv, ProviderId } from './types';
 
 export * from './types';
 export * from './pricing';
-export { claudeCodeArgs } from './claude-code';
+export { claudeCodeArgs, withShellFamily } from './claude-code';
 
 /** Find an executable on PATH (and the CLI installers' usual folder). null when it is not installed. */
 export function findOnPath(

@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import {
   buildProviders,
   claudeCodeArgs,
+  withShellFamily,
   estimateCostUsd,
   findOnPath,
   ProviderError,
@@ -330,6 +331,19 @@ describe('claude-code', () => {
       output_tokens: 55,
     },
   };
+
+  it('forbidding one shell tool forbids the family (the Windows PowerShell tool bypassed a Bash-only ban)', () => {
+    expect(withShellFamily(['Bash'])).toEqual(['Bash', 'PowerShell']);
+    expect(withShellFamily(['powershell'])).toEqual(['powershell', 'Bash']);
+    expect(withShellFamily(['Bash(npm run *)'])).toEqual(['Bash(npm run *)', 'Bash', 'PowerShell']);
+    expect(withShellFamily(['WebFetch'])).toEqual(['WebFetch']);
+    const args = claudeCodeArgs({ model: null, allowEdits: true, disallowedTools: ['Bash'] });
+    expect(args.slice(args.indexOf('--disallowedTools'))).toEqual([
+      '--disallowedTools',
+      'Bash',
+      'PowerShell',
+    ]);
+  });
 
   it('builds read-only args without edits, edit args with them, and --model only when set', () => {
     const plain = claudeCodeArgs({ model: null, allowEdits: false });
