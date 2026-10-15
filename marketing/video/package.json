@@ -1,0 +1,27 @@
+{
+  "name": "howto-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A 32-second vertical how-to video, built as code with Remotion. Standalone: nothing in the app imports it.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render HowTo out/howto.mp4 && remotion render HowToNoText out/howto-notext.mp4",
+    "render:text": "remotion render HowTo out/howto.mp4",
+    "render:notext": "remotion render HowToNoText out/howto-notext.mp4",
+    "srt": "tsx scripts/srt.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.535",
+    "@remotion/google-fonts": "4.0.535",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.535"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "19.2.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}
