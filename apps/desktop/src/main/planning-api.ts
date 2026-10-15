@@ -2,6 +2,7 @@ import { safeStorage } from 'electron';
 import {
   abandonPlanningSession,
   answerPlanningQuestion,
+  adoptPlanTeam,
   approvePlan,
   createPlanningSession,
   findClaude,
@@ -131,7 +132,16 @@ export function planningApi(
         const sid = Id.parse(id);
         if (planner.active().some((a) => a.sessionId === sid))
           throw new Error('Wait for the planner to finish (or cancel it) before approving.');
+        const team = getPlanningSession(getDb(), sid).proposal?.team ?? [];
         const r = approvePlan(getDb(), sid);
+        // The approved team becomes library agents linked to this project (reusable elsewhere). A library that cannot be
+        // opened never undoes an approval: the agents simply stay project agents.
+        try {
+          const lib = source?.().lib;
+          if (lib) adoptPlanTeam(getDb(), lib, team);
+        } catch {
+          /* approved either way */
+        }
         return {
           milestones: r.milestones,
           tasks: r.tasks,

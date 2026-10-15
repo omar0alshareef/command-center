@@ -59,6 +59,7 @@ export const CH = {
   projAdd: 'projects:add',
   projRemove: 'projects:remove',
   projSwitch: 'projects:switch',
+  projRelocate: 'projects:relocate',
   libAgents: 'library:agents',
   libTemplates: 'library:templates',
   libCreate: 'library:create',
@@ -260,7 +261,9 @@ export interface SwitchResult {
   paused: { project: string | null; running: number; cancelled: boolean } | null;
 }
 
-export type LibraryAgentView = LibraryAgent & { usage: { links: number; runs: number; projects: string[] } };
+export type LibraryAgentView = LibraryAgent & {
+  usage: { links: number; runs: number; projects: string[] };
+};
 
 export interface ProjectAgentView {
   library: LibraryAgent;
@@ -344,7 +347,11 @@ export interface Api {
     /** A folder picker; null when cancelled. */
     pick(): Promise<Result<string | null>>;
     /** What opening or creating a project in this folder would write, and where it would collide with existing files. */
-    plan(req: { path: string; name?: string; repoPath?: string | null }): Promise<Result<ScaffoldPlan>>;
+    plan(req: {
+      path: string;
+      name?: string;
+      repoPath?: string | null;
+    }): Promise<Result<ScaffoldPlan>>;
     /** Write the missing project files (never replacing a file unless listed in `replace`), register and open the project. */
     create(req: {
       path: string;
@@ -357,6 +364,8 @@ export interface Api {
     /** Forget a project. Its files are never touched. */
     remove(id: string): Promise<Result<ProjectEntry[]>>;
     switchTo(req: { id: string; cancelRunning?: boolean }): Promise<Result<SwitchResult>>;
+    /** A project's folder moved: point the list at the new folder (picked in a dialog). Files are never touched. */
+    relocate(req: { id: string; path: string }): Promise<Result<ProjectEntry[]>>;
   };
   library: {
     agents(filter?: LibraryAgentFilter): Promise<Result<LibraryAgentView[]>>;

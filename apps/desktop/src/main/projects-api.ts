@@ -13,6 +13,7 @@ import {
   projectHealth,
   readProjectFile,
   registerProject,
+  relocateProject,
   removeProjectRecord,
   slugify,
 } from '@command-center/core';
@@ -156,6 +157,26 @@ export function projectsApi(project: ProjectService, loop: OrchestratorLoop) {
         if (rec && cur && getProjectByPath(getLibrary(), cur)?.id === rec.id)
           throw new InvalidInputError('This project is open. Switch to another project first.');
         removeProjectRecord(getLibrary(), id);
+        return entries();
+      }),
+
+    relocate: (raw: unknown): Result<ProjectEntry[]> =>
+      run(() => {
+        const r = z
+          .object({ id: z.string().min(1).max(100), path: Path })
+          .strict()
+          .parse(raw);
+        const cur = project.info().root;
+        const rec = getProjectRecord(getLibrary(), r.id);
+        if (
+          rec &&
+          cur &&
+          normalizePath(rec.path).toLowerCase() === normalizePath(cur).toLowerCase()
+        )
+          throw new InvalidInputError(
+            'This project is open: its folder is fine. Switch to another project first.',
+          );
+        relocateProject(getLibrary(), r.id, r.path);
         return entries();
       }),
 

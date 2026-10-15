@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { nowIso, write, type Db } from './db';
 import { CoreError, InvalidInputError } from './errors';
-import { getLibraryAgent, type LibraryAgent } from './library/agents';
+import {
+  AGENT_TEMPLATES,
+  createLibraryAgent,
+  getLibraryAgent,
+  type LibraryAgent,
+} from './library/agents';
 import type { LibraryDb } from './library/db';
 import { getAgent, logAction } from './queries';
 import { toJson } from './types';
@@ -248,4 +253,52 @@ export function assignmentBlock(db: Db, agentId: string, domain: string | null):
   )
     return `not allowed to take ${domain ?? 'untyped'} tasks`;
   return null;
+}
+
+/**
+ * After a plan is approved: every role of its team becomes a LIBRARY agent (created once, reused by any project and by later
+ * plans) linked to this project, instead of an agent that exists only here. A role the library already has is just linked.
+ * The role's starter profile comes from the template for its first matching stage (frontend, backend, ...). Never throws for
+ * one role: a role that cannot be made is reported in `skipped` and stays a plain project agent.
+ */
+export function adoptPlanTeam(
+  db: Db,
+  lib: LibraryDb,
+  team: readonly {
+    id: string;
+    name: string;
+    capabilities: readonly string[];
+    executor: 'agent' | 'external' | 'human';
+    tool: string | null;
+  }[],
+  actor = 'operator',
+): { created: string[]; linked: string[]; skipped: string[] } {
+  const out = { created: [] as string[], linked: [] as string[], skipped: [] as string[] };
+  for (const r of team) {
+    try {
+      if (!getLibraryAgent(lib, r.id)) {
+        const tpl = AGENT_TEMPLATES.find((t) => r.capabilities.includes(t.role));
+        createLibraryAgent(
+          lib,
+          {
+            id: r.id,
+            name: r.name,
+            role: tpl?.role ?? r.capabilities[0] ?? 'general',
+            type: r.executor === 'agent' ? 'sub-agent' : r.executor,
+            executor: r.executor,
+            tool: r.executor === 'external' ? r.tool : null,
+            base_instructions: r.executor === 'agent' ? (tpl?.instructions ?? '') : '',
+            default_permissions:
+              r.executor === 'agent' ? (tpl?.permissions ?? ['read', 'write']) : [],
+          },
+          actor,
+        );
+        out.created.push(r.id);
+      } else out.linked.push(r.id);
+      assignLibraryAgent(db, lib, r.id, actor);
+    } catch {
+      out.skipped.push(r.id);
+    }
+  }
+  return out;
 }

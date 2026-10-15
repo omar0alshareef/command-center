@@ -362,3 +362,74 @@ describe('a run records what it was built from', () => {
     expect(listRuns(bad.db)).toHaveLength(0);
   });
 });
+
+describe('a moved project folder and an approved plan team', () => {
+  it('relocating points the registry at the new folder; bad targets are refused; files are untouched', async () => {
+    const { cpSync, existsSync, mkdirSync } = await import('node:fs');
+    const { normalizePath, relocateProject, registerProject } =
+      await import('../src/library/registry');
+    const a = env.project('old-place');
+    const rec = registerProject(env.lib, { name: 'Moved', path: a.root });
+    const moved = join(a.root, '..', 'new-place');
+    cpSync(a.root, moved, { recursive: true });
+    expect(relocateProject(env.lib, rec.id, moved).path.toLowerCase()).toBe(
+      normalizePath(moved).toLowerCase(),
+    );
+    expect(existsSync(a.root)).toBe(true); // nothing was moved or deleted
+    expect(() => relocateProject(env.lib, rec.id, join(moved, 'nope'))).toThrow(/does not exist/);
+    const empty = join(moved, '..', 'empty-dir');
+    mkdirSync(empty);
+    expect(() => relocateProject(env.lib, rec.id, empty)).toThrow(/no project.json or database/);
+    const other = registerProject(env.lib, { name: 'Other', path: a.root });
+    expect(() => relocateProject(env.lib, other.id, moved)).toThrow(/already in the list/);
+  });
+
+  it('an approved plan team becomes library agents linked to the project, and is reused by the next plan', async () => {
+    const { adoptPlanTeam } = await import('../src/project-agents');
+    const { getLibraryAgent } = await import('../src/library/agents');
+    const team = [
+      {
+        id: 'frontend-team',
+        name: 'Frontend',
+        capabilities: ['frontend'],
+        executor: 'agent' as const,
+        tool: null,
+      },
+      {
+        id: 'voiceover-team',
+        name: 'Voice-over',
+        capabilities: ['voiceover'],
+        executor: 'external' as const,
+        tool: 'Voice tool',
+      },
+      {
+        id: 'publishing-team',
+        name: 'Publishing',
+        capabilities: ['publish'],
+        executor: 'human' as const,
+        tool: null,
+      },
+    ];
+    const p1 = env.project('p1');
+    const r1 = adoptPlanTeam(p1.db, env.lib, team);
+    expect(r1.created.sort()).toEqual(['frontend-team', 'publishing-team', 'voiceover-team']);
+    expect(getLibraryAgent(env.lib, 'frontend-team')).toMatchObject({
+      role: 'frontend',
+      executor: 'agent',
+    });
+    expect(getLibraryAgent(env.lib, 'frontend-team')?.base_instructions).toMatch(/user interfaces/);
+    expect(getLibraryAgent(env.lib, 'voiceover-team')).toMatchObject({
+      executor: 'external',
+      tool: 'Voice tool',
+    });
+    expect(getAgent(p1.db, 'publishing-team')?.executor).toBe('human');
+    // A second project's plan finds them in the library and only links them: one library row each.
+    const p2 = env.project('p2');
+    const r2 = adoptPlanTeam(p2.db, env.lib, team);
+    expect(r2.created).toEqual([]);
+    expect(r2.linked).toHaveLength(3);
+    expect(
+      env.lib.prepare("SELECT COUNT(*) n FROM library_agents WHERE id = 'frontend-team'").get(),
+    ).toEqual({ n: 1 });
+  });
+});

@@ -227,6 +227,7 @@ await step('S1 switcher: lists both, missing folder shows its error and cannot b
   const ghost = page.locator('[data-project="ghost"]');
   const ghostText = await ghost.innerText();
   check('S1b the missing folder shows its error', /does not exist/.test(ghostText));
+  check('S1c2 a Locate folder button is offered for it', (await page.getByRole('button', { name: 'Locate the folder of Ghost' }).count()) === 1);
   check('S1c and its Open button is disabled', await page.getByRole('button', { name: 'Open Ghost' }).isDisabled());
   await shot('switcher-dark');
   await page.keyboard.press('Escape');
@@ -611,6 +612,18 @@ await step('UX contrast: new views meet 4.5:1 in dark, light, calm and calm dark
     await sleep(200);
   }
   await setTheme('dark');
+});
+
+await step('RL a moved project folder can be located again', async () => {
+  const moved = join(work, 'moved-here');
+  cpSync(A, moved, { recursive: true });
+  const ghost = (await val('projects.list')).find((x) => x.id === 'ghost');
+  check('RL1 the missing project is listed as not openable', ghost && !ghost.openable);
+  const after = await val('projects.relocate', { id: 'ghost', path: moved });
+  const g2 = after.find((x) => x.id === 'ghost');
+  check('RL2 after locating the new folder it is openable and keeps its entry', g2?.openable && sameDir(g2.path, moved), g2?.path);
+  const bad = await ipc('projects.relocate', { id: 'ghost', path: join(work, 'nothing-here') });
+  check('RL3 a folder that does not exist is refused', bad.ok === false);
 });
 
 await step('X no unexpected console errors', async () => {

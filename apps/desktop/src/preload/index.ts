@@ -44,6 +44,7 @@ const api: Api = {
     addExisting: (path) => ipcRenderer.invoke(CH.projAdd, path),
     remove: (id) => ipcRenderer.invoke(CH.projRemove, id),
     switchTo: (req) => ipcRenderer.invoke(CH.projSwitch, req),
+    relocate: (req) => ipcRenderer.invoke(CH.projRelocate, req),
   },
   library: {
     agents: (f) => ipcRenderer.invoke(CH.libAgents, f),

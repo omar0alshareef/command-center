@@ -86,6 +86,31 @@ export function removeProjectRecord(lib: LibraryDb, id: string): void {
   lib.prepare('DELETE FROM projects WHERE id = ?').run(id);
 }
 
+/**
+ * The folder of a registered project moved: point the registry at the new place. The new folder must exist, must not already
+ * be registered under another entry, and (like "Add existing") must hold a valid project.json or at least a command-center.db.
+ * Nothing on disk is touched.
+ */
+export function relocateProject(lib: LibraryDb, id: string, newPath: string): ProjectRecord {
+  const rec = getProjectRecord(lib, id);
+  if (!rec) throw new CoreError('PROJECT_NOT_FOUND', `Project ${id} is not registered.`);
+  const path = normalizePath(newPath);
+  if (!existsSync(path) || !statSync(path).isDirectory())
+    throw new InvalidInputError(`The folder ${path} does not exist.`);
+  const other = getProjectByPath(lib, path);
+  if (other && other.id !== id)
+    throw new InvalidInputError(`That folder is already in the list as "${other.name}".`);
+  const file = readProjectFile(path);
+  if (!file.ok && !existsSync(resolve(path, 'command-center.db')))
+    throw new InvalidInputError(
+      file.missing
+        ? `${path} has no project.json or database: pick the project's own folder.`
+        : file.issues.join('; '),
+    );
+  lib.prepare('UPDATE projects SET path = ? WHERE id = ?').run(path, id);
+  return getProjectRecord(lib, id) as ProjectRecord;
+}
+
 export interface ProjectHealth {
   /** Can the switcher open it? False when the folder is missing or its database cannot be opened. */
   openable: boolean;

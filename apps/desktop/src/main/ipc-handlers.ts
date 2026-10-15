@@ -115,6 +115,7 @@ export function registerIpc(project: ProjectService): void {
   ipcMain.handle(CH.projAdd, (_e, p: unknown) => projects.addExisting(p));
   ipcMain.handle(CH.projRemove, (_e, id: unknown) => projects.remove(id));
   ipcMain.handle(CH.projSwitch, (_e, req: unknown) => projects.switchTo(req));
+  ipcMain.handle(CH.projRelocate, (_e, req: unknown) => projects.relocate(req));
   const orch = orchestratorApi(() => project.db(), orchestrator);
   ipcMain.handle(CH.modelsSet, (_e, req: unknown) => orch.setModels(req));
   ipcMain.handle(CH.agentSetModel, (_e, req: unknown) => orch.setAgentModel(req));

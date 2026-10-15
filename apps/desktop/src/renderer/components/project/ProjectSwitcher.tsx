@@ -69,6 +69,16 @@ export function ProjectSwitcher() {
     toast.info('Project added to the list.');
   };
 
+  const locate = async (p: ProjectEntry) => {
+    const picked = await window.api.projects.pick();
+    if (!picked.ok) return toast.error(picked.error.message);
+    if (!picked.value) return;
+    const res = await window.api.projects.relocate({ id: p.id, path: picked.value });
+    if (!res.ok) return toast.error(res.error.message);
+    setRows(res.value);
+    toast.info(`${p.name} now points to the new folder.`);
+  };
+
   const remove = async (p: ProjectEntry) => {
     setConfirmRemove(null);
     const res = await window.api.projects.remove(p.id);
@@ -140,6 +150,14 @@ export function ProjectSwitcher() {
                     </p>
                   ) : null}
                 </div>
+                {!p.openable ? (
+                  <Button
+                    onClick={() => void locate(p)}
+                    aria-label={`Locate the folder of ${p.name}`}
+                  >
+                    Locate folder…
+                  </Button>
+                ) : null}
                 <Button
                   disabled={busy || p.current || !p.openable}
                   onClick={() => pick(p)}
