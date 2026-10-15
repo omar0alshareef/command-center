@@ -130,7 +130,15 @@ export function projectsApi(project: ProjectService, loop: OrchestratorLoop) {
           slug: file.ok ? file.project.slug : slugify(p.name),
           path: p.path,
         });
-        return { ok: true, value: await openFolder(p.path, false) };
+        const switched = await openFolder(p.path, false);
+        // Day 0 of a new project is today: the swim lane and week numbers count from here.
+        project
+          .db()
+          .prepare(
+            "UPDATE project SET start_date = date('now','localtime'), target_date = date('now','localtime','+6 months') WHERE id = 1",
+          )
+          .run();
+        return { ok: true, value: switched };
       } catch (e) {
         return fail(e);
       }

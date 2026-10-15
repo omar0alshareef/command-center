@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, Menu, shell } from 'electron';
 import { join } from 'node:path';
 import { resolveProjectRoot } from './config';
 import { orchestrator, planner, projectEvents, pty, registerIpc, webhook } from './ipc-handlers';
@@ -23,6 +23,15 @@ function createWindow(): void {
   // A reload (or crash) drops the renderer's sessions: their shells would be orphans, so end them.
   win.webContents.on('did-start-navigation', (e) => {
     if (e.isMainFrame && !e.isSameDocument) pty.killAll();
+  });
+  // Electron has no context menu by default: give text fields right-click cut / copy / paste (the API key field).
+  win.webContents.on('context-menu', (_e, p) => {
+    if (!p.isEditable && !p.selectionText) return;
+    Menu.buildFromTemplate(
+      p.isEditable
+        ? [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { type: 'separator' }, { role: 'selectAll' }]
+        : [{ role: 'copy' }],
+    ).popup();
   });
   win.webContents.on('render-process-gone', () => pty.killAll());
 

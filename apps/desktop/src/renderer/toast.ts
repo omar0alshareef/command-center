@@ -14,6 +14,7 @@ interface ToastState {
 
 const MAX_TOASTS = 3;
 const AUTO_DISMISS_MS = 4000;
+const ERROR_DISMISS_MS = 10_000;
 let nextId = 1;
 
 export const useToasts = create<ToastState>((set, get) => ({

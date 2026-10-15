@@ -63,9 +63,9 @@ export function Calendar({ tracker }: { tracker: TrackerState }) {
 
   // `todayKey` is the only part of "now" the grid needs: it moves the today marker at local midnight.
   const week = useMemo(
-    () => buildWeek(tracker.subtasks, anchor, new Date(), weekStart),
+    () => buildWeek(tracker.subtasks, anchor, new Date(), weekStart, tracker.project.start_date),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- todayKey re-evaluates "today" at local midnight
-    [tracker.subtasks, anchor, todayKey, weekStart],
+    [tracker.subtasks, anchor, todayKey, weekStart, tracker.project.start_date],
   );
   const milestones = useMemo(
     () => new Map(tracker.milestones.map((m) => [m.id, m])),

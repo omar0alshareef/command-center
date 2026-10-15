@@ -4,6 +4,7 @@ import {
   ProviderError,
   type ProviderAdapter,
   type ProviderEnv,
+  type ModelChoice,
   type ProviderId,
   type ProviderRunInput,
   type ProviderRunResult,
@@ -40,6 +41,42 @@ async function smokeTest(adapter: ProviderAdapter, signal: AbortSignal) {
   }
 }
 
+/** Ask the provider which models this key can use (GET /models). Empty when there is no key or the call fails. */
+export async function fetchModelList(
+  env: ProviderEnv,
+  id: ProviderId,
+  url: string,
+  headers: Record<string, string>,
+  pick: (json: Record<string, unknown>) => ModelChoice[],
+): Promise<ModelChoice[]> {
+  if (!env.apiKey(id)) return [];
+  try {
+    const res = await env.fetch(url, { headers, signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return [];
+    return pick((await res.json()) as Record<string, unknown>);
+  } catch {
+    return [];
+  }
+}
+
+const rows = (json: Record<string, unknown>, key: string) =>
+  (Array.isArray(json[key]) ? json[key] : []) as Record<string, unknown>[];
+
+export const geminiModels = (env: ProviderEnv) =>
+  fetchModelList(
+    env,
+    'gemini',
+    `${trim(env.baseUrl('gemini') ?? 'https://generativelanguage.googleapis.com')}/v1beta/models?pageSize=200`,
+    { 'x-goog-api-key': env.apiKey('gemini') ?? '' },
+    (j) =>
+      rows(j, 'models')
+        .filter((m) => (m['supportedGenerationMethods'] as string[] | undefined)?.includes('generateContent'))
+        .map((m) => ({
+          id: String(m['name']).replace(/^models\//, ''),
+          label: String(m['displayName'] ?? m['name']),
+        })),
+  );
+
 const keyDetection = (env: ProviderEnv, id: ProviderId) => {
   const has = env.apiKey(id) !== null;
   return Promise.resolve({ available: has, detail: has ? 'API key set' : 'No API key set' });
@@ -53,6 +90,15 @@ export function anthropicAdapter(env: ProviderEnv): ProviderAdapter {
     needsKey: true,
     defaultModel: 'claude-sonnet-5-5',
     detect: () => keyDetection(env, 'anthropic-api'),
+    listModels: () =>
+      fetchModelList(
+        env,
+        'anthropic-api',
+        `${trim(env.baseUrl('anthropic-api') ?? 'https://api.anthropic.com')}/v1/models?limit=100`,
+        { 'x-api-key': env.apiKey('anthropic-api') ?? '', 'anthropic-version': '2023-06-01' },
+        (j) =>
+          rows(j, 'data').map((m) => ({ id: String(m['id']), label: String(m['display_name'] ?? m['id']) })),
+      ),
     test: (signal) => smokeTest(adapter, signal),
     async run(input): Promise<ProviderRunResult> {
       const key = keyOf(env, 'anthropic-api', input);
@@ -142,6 +188,19 @@ export function openaiAdapter(env: ProviderEnv): ProviderAdapter {
     needsKey: true,
     defaultModel: 'gpt-4o-mini',
     detect: () => keyDetection(env, 'openai-api'),
+    listModels: () =>
+      fetchModelList(
+        env,
+        'openai-api',
+        `${trim(env.baseUrl('openai-api') ?? 'https://api.openai.com')}/v1/models`,
+        { authorization: `Bearer ${env.apiKey('openai-api') ?? ''}` },
+        (j) =>
+          rows(j, 'data')
+            .map((m) => String(m['id']))
+            .filter((id) => /^(gpt|o\d|chatgpt)/.test(id) && !/(embed|audio|tts|whisper|image|realtime|transcribe|moderation)/.test(id))
+            .sort()
+            .map((id) => ({ id, label: id })),
+      ),
     test: (signal) => smokeTest(adapter, signal),
     run(input) {
       const key = keyOf(env, 'openai-api', input);

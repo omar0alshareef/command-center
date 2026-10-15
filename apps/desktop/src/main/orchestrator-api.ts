@@ -169,7 +169,9 @@ export function orchestratorApi(getDb: () => Db, loop: OrchestratorLoop) {
           const found = await loop.adapters()?.local.listModels?.();
           return { ok: true, value: found ?? [] };
         }
-        return { ok: true, value: getModelList(getDb(), pid) };
+        // Providers with a key report what that key can use; the saved list is the fallback (offline, no key, CLI providers).
+        const live = await loop.adapters()?.[pid].listModels?.();
+        return { ok: true, value: live?.length ? live : getModelList(getDb(), pid) };
       } catch (e) {
         return {
           ok: false,

@@ -640,6 +640,27 @@ Out of scope for M15
 
 ---
 
+### M17 — Operator Fixes & Live Run View  *(2–3 days; the operator will add more features here)*
+**Maps to:** New (post-M15), from the operator's first week of real use. M16 is the separate Remotion how-to project. Not started: the standing authorisation ended at M15, so wait for the operator's "continue".
+**Goal:** Fix what real use turned up, and let the operator watch what every agent is doing while it runs.
+
+*Fixed on 2026-10-15 (committed with M17; kept here so the milestone's record is complete)*
+- Error toasts disappear after 10 s (they used to stay forever).
+- A new project starts today (day 0); an old project with the placeholder 2026-01-01 start moves to its first milestone's creation date (migration 010). Calendar "Week N" counts from the project's start (Week 1 = the week it began), not the ISO week.
+- Right-click Cut / Copy / Paste / Select all in every text field (API key field).
+- Model choices come from the provider (Anthropic API, OpenAI, Gemini: GET /models with the saved key); the saved list is the fallback, and Claude Code CLI keeps the editable list.
+- Not verified: live calls to the three providers (no real keys on this machine).
+
+*To build*
+- **Live run view:** pass `onChunk` from `Orchestrator.callProvider` to a `run:chunk` IPC channel; a panel (Agent Hub or its own tab, operator to choose) lists every run in flight with agent, task, provider/model, elapsed time, streamed output and Cancel. Finished runs keep their output (RunOutputDialog).
+- **Start date control:** a field in Settings or the project header to change the project start (and target) date, since day 0 now drives week numbers and the swim lane.
+- **Orchestrator explainer in the app:** a short help text in Settings → Providers: dispatch is plain code (D22), it has no provider; the providers belong to agents (and per-task overrides); how task order, dependencies and the concurrency limits decide what starts next.
+- *(The operator adds further features here.)*
+
+**Exit criteria:** `tsc --noEmit` strict, lint, tests pass; a real run's output streams into the live view while it runs; Cancel from the view stops the provider process; a project created today shows Week 1 and opens the swim lane at day 0.
+
+---
+
 ## 4. Timeline Summary
 
 | Milestone | Focus | Est. effort | Cumulative |
@@ -660,6 +681,7 @@ Out of scope for M15
 | M13 | Planning workspace | 3–4d | ~25–26d |
 | M14 | Orchestrator + multi-provider runners (Slice 1 first: Claude Code model per agent, 0.5d) | 4–5d | ~30d |
 | M15 | Agent library, project workspaces, switcher, lessons | 4–5d | ~34–35d |
+| M17 | Operator fixes and live run view (more features to be added) | 2–3d | ~37d |
 
 Estimates are focused-build days for an agent working with review; expect the human to spend most time on reviewing M3, M5, M9, M13, M14 and M15. **Natural demo points:** after M4 (agent drives the board live), after M6 (full observability), after M12 (shippable), after M13 (plans created in-app), after M14 (tasks run without manual starts), after M15 (multi-project, shared agent library).
 

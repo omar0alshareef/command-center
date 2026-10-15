@@ -28,7 +28,7 @@ export function Skeleton({ className }: { className?: string }) {
   return <div aria-hidden className={cn('skeleton rounded-md', className)} />;
 }
 
-/** Bottom-right, max 3, 4s auto-dismiss; errors persist until dismissed. */
+/** Bottom-right, max 3, 4s auto-dismiss; errors 10s. */
 export function ToastHost() {
   const toasts = useToasts((s) => s.toasts);
   const dismiss = useToasts((s) => s.dismiss);

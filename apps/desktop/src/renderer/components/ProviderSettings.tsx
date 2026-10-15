@@ -40,7 +40,7 @@ function ModelListEditor({ provider }: { provider: string }) {
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={`model-list-${provider}`} className="text-[12px] text-muted">
-        Models agents can choose (<code>id</code> is sent to the provider; edit when names change)
+        Models agents can choose. Fetched from the provider when a key is set; this list is the fallback (<code>id</code> is sent to the provider)
       </label>
       <textarea
         id={`model-list-${provider}`}

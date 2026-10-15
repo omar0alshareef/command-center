@@ -58,6 +58,7 @@ export function buildWeek(
   anchor: Date,
   now = new Date(),
   weekStart: 'mon' | 'sun' = 'mon',
+  projectStart?: string,
 ): CalendarWeek {
   // `monday` / `sunday` are the first and last day of the shown week (named for the default).
   const monday = weekStart === 'sun' ? addDays(anchor, -anchor.getDay()) : mondayOf(anchor);
@@ -88,7 +89,14 @@ export function buildWeek(
         a.id.localeCompare(b.id),
     );
   const sunday = addDays(monday, 6);
-  const week = isoWeek(weekStart === 'sun' ? addDays(monday, 1) : monday);
+  // Week 1 is the week the project began in (its day 0), not the calendar year's week.
+  const origin = projectStart ? parseDayKey(projectStart.slice(0, 10)) : null;
+  const week = origin
+    ? Math.round(
+        (monday.getTime() - (weekStart === 'sun' ? addDays(origin, -origin.getDay()) : mondayOf(origin)).getTime()) /
+          604_800_000,
+      ) + 1
+    : isoWeek(weekStart === 'sun' ? addDays(monday, 1) : monday);
   return {
     monday,
     sunday,

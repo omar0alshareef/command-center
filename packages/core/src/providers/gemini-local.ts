@@ -1,4 +1,4 @@
-import { chatCompletions, geminiApi } from './api';
+import { chatCompletions, geminiApi, geminiModels } from './api';
 import { num, postJson } from './http';
 import { runProcess } from './spawn';
 import {
@@ -48,6 +48,7 @@ export function geminiAdapter(env: ProviderEnv): ProviderAdapter {
       });
     },
     test: (signal) => quickTest(adapter, signal),
+    listModels: () => geminiModels(env),
     async run(input): Promise<ProviderRunResult> {
       const bin = env.findBinary('gemini');
       if (!bin) return geminiApi(env, input.model ?? (adapter.defaultModel as string), input);
