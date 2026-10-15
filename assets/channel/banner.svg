@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440" role="img" aria-label="أصحاب الحرف - حرفتك تستحق أن تُرى">
+  <!-- YouTube banner 2560x1440. Mobile-safe area is 1546x423 centered (x 507-2053, y 508-932): all text sits inside it. -->
+  <rect width="2560" height="1440" fill="#1F4E4A"/>
+  <rect x="0" y="1340" width="2560" height="100" fill="#173C39"/>
+  <rect x="1020" y="880" width="520" height="12" rx="6" fill="#C8553D"/>
+  <text x="1280" y="720" text-anchor="middle" font-family="Cairo, Tajawal, Tahoma, Arial, sans-serif" font-weight="800" font-size="230" fill="#F6EFE4">أصحاب الحرف</text>
+  <text x="1280" y="830" text-anchor="middle" font-family="Cairo, Tajawal, Tahoma, Arial, sans-serif" font-weight="600" font-size="84" fill="#F0B8A6">حرفتك تستحق أن تُرى</text>
+</svg>
