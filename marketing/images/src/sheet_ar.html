@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --beige: #EFE8D7; --beige-deep: #E4DAC2; --paper: #FAF6EA;
+    --ink: #252E1B; --muted: #6B6F55; --clay: #B8693C; --olive: #59692B;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1600px; height: 1180px; background: var(--beige); color: var(--ink);
+         font-family: Cairo, Inter, system-ui, sans-serif; overflow: hidden; }
+  .wrap { padding: 64px 72px; height: 100%; display: flex; flex-direction: column; gap: 40px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; }
+  h1 { font-weight: 700; font-size: 46px; line-height: 1.35; }
+  h1 em { font-style: normal; color: var(--olive); }
+  .en { font-family: Lora, Georgia, serif; direction: ltr; font-size: 26px; color: var(--muted); max-width: 460px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .card { background: var(--paper); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .card h3 { font-weight: 700; font-size: 28px; line-height: 1.4; }
+  .card p { font-size: 19px; line-height: 1.8; color: var(--muted); }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 360px; flex: none; }
+  .shots figure { background: var(--beige-deep); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+  .shots img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .shots figcaption { padding: 14px 20px; font-size: 19px; color: var(--muted); background: var(--paper); }
+  .usp { background: var(--ink); color: var(--paper); border-radius: 18px; padding: 28px 36px;
+         display: flex; justify-content: space-between; align-items: center; gap: 32px; }
+  .usp b { font-weight: 700; font-size: 32px; }
+  .usp span { font-size: 19px; opacity: .85; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--clay); margin-inline-end: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>مركز قيادة مشروعك: خلّي المساعدين يشتغلوا،<br><em>والقرار إلك</em></h1>
+    <div class="en">Command Center: steer your agents, keep the final say.</div>
+  </header>
+
+  <div class="grid">
+    <div class="card"><h3>لوحة وحدة، ومصدر حقيقة وحدة</h3><p>المراحل والمهام والتشغيلات محفوظة بملف SQLite جوّا مشروعك. السوايملين ولوحة المهام والتقويم كلهم بيقروا نفس البيانات.</p></div>
+    <div class="card"><h3>الوكلاء بيتوصلوا عبر MCP</h3><p>Claude وغيره من الوكلاء بيقروا المشروع، وبيبدأوا المهام، وبيسجّلوا كل خطوة، وبيسلّموا شغلهم عبر أكتر من 24 أداة.</p></div>
+    <div class="card"><h3>بوابة موافقة بشرية</h3><p>الشغل المنتهي بيستنى بالمراجعة. الوكيل اللي عمل الشغل ما بيقدر يوافق عليه أبداً. إنت بتوافق، أو بترجعه مع سبب.</p></div>
+    <div class="card"><h3>بيتعلّم من الرفض</h3><p>كل رفض بيصير درس. المهام الجاية بتاخد الدروس المتعلقة فيها، وإنت بتقرر أيها بيضل.</p></div>
+  </div>
+
+  <div class="shots">
+    <figure><img src="../../video/public/shots/swim-lane.png"><figcaption><span class="dot"></span>خط سير المهام: شغل كل وكيل بمساره</figcaption></figure>
+    <figure><img src="../../video/public/shots/approve-dialog.png"><figcaption><span class="dot"></span>نافذة الموافقة: راجع قبل ما يتنشر أي شي</figcaption></figure>
+  </div>
+
+  <div class="usp">
+    <b>مشروعك. قاعدة بياناتك. قرارك في كل نتيجة.</b>
+    <span>محلي أولاً · بدون لوحة سحابية · كل فعل مسجّل · تكلفة كل تشغيل محسوبة</span>
+  </div>
+</div>
+</body>
+</html>

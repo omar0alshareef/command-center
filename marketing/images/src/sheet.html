@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --beige: #EFE8D7; --beige-deep: #E4DAC2; --paper: #FAF6EA;
+    --ink: #252E1B; --muted: #6B6F55; --clay: #B8693C; --olive: #59692B;
+    --tan: #D9C7A0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1600px; height: 1180px; background: var(--beige); color: var(--ink);
+         font-family: Inter, system-ui, sans-serif; overflow: hidden; }
+  .wrap { padding: 64px 72px; height: 100%; display: flex; flex-direction: column; gap: 40px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; }
+  h1 { font-family: Lora, Georgia, serif; font-weight: 500; font-size: 60px; line-height: 1.1; white-space: nowrap; }
+  h1 em { color: var(--olive); }
+  .ar { font-family: Cairo, Inter, sans-serif; font-size: 36px; color: var(--muted); direction: rtl; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .card { background: var(--paper); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .card h3 { font-family: Lora, Georgia, serif; font-weight: 500; font-size: 28px; }
+  .card p { font-size: 18px; line-height: 1.45; color: var(--muted); }
+  .shot { display: flex; flex-direction: column; gap: 16px; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1; }
+  .shots figure { background: var(--beige-deep); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+  .shots img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .shots figcaption { padding: 14px 20px; font-size: 18px; color: var(--muted); background: var(--paper); }
+  .usp { background: var(--ink); color: var(--paper); border-radius: 18px; padding: 28px 36px;
+         display: flex; justify-content: space-between; align-items: center; gap: 32px; }
+  .usp b { font-family: Lora, Georgia, serif; font-weight: 500; font-size: 30px; }
+  .usp span { font-size: 18px; opacity: .85; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--clay); margin-right: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Command Center: <em>steer your agents,</em><br>keep the final say.</h1>
+    <div class="ar">مركز قيادة لمشروعك: المساعدين بيشتغلوا، وإنت بتقرر</div>
+  </header>
+
+  <div class="grid">
+    <div class="card"><h3>One board, one truth</h3><p>Milestones, tasks and runs live in a single SQLite file in your project. Swim lane, task board and calendar all read the same data.</p></div>
+    <div class="card"><h3>Agents plug in via MCP</h3><p>Claude and other agents read the project, start tasks, log every action and submit work through 24+ MCP tools.</p></div>
+    <div class="card"><h3>Human approval gate</h3><p>Finished work waits in Review. The agent that did the work can never approve it. You approve or send it back with a reason.</p></div>
+    <div class="card"><h3>Learns from rejections</h3><p>Each rejection becomes a lesson. Future tasks get the relevant lessons in their context, and you decide which ones stick.</p></div>
+  </div>
+
+  <div class="shots">
+    <figure><img src="../../video/public/shots/swim-lane.png"><figcaption><span class="dot"></span>Swim lane: each agent's work, lane by lane</figcaption></figure>
+    <figure><img src="../../video/public/shots/approve-dialog.png"><figcaption><span class="dot"></span>Approve dialog: review before anything ships</figcaption></figure>
+  </div>
+
+  <div class="usp">
+    <b>Your project. Your database. Your call on every result.</b>
+    <span>Local-first · No hosted dashboard · Every action logged · Cost per run tracked</span>
+  </div>
+</div>
+</body>
+</html>
