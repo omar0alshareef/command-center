@@ -4,6 +4,25 @@ Desktop cockpit for steering a project worked on by AI agents. Single source of 
 
 Read the docs in this order: `COMMAND_CENTER_BLUEPRINT.md` → `UI_UX_SPEC.md` → `ROADMAP.md`.
 
+## What it does
+
+- **One board, one truth.** Milestones, tasks and runs live in a single SQLite file in your project. The swim lane, task board and calendar all read the same data.
+- **Agents plug in via MCP.** Claude and other agents read the project, start tasks, log every action and submit work through the MCP tools.
+- **Human approval gate.** Finished work waits in Review. The agent that did the work can never approve it. You approve, or send it back with a reason.
+- **Learns from rejections.** Each rejection becomes a lesson. Future tasks get the relevant lessons in their context, and you decide which ones stick.
+
+![Command Center feature sheet](marketing/images/sheet.png)
+
+Four themes (Dark, Light, Calm, Calm Dark):
+
+![The four themes](marketing/images/themes.png)
+
+Seven tabs, one board:
+
+![The seven tabs](marketing/images/tabs.png)
+
+More images and per-feature copy are in [`marketing/images/`](marketing/images/README.md).
+
 ## Prerequisites (Windows)
 
 - Node.js 22+
