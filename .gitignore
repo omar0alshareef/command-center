@@ -7,3 +7,5 @@ out/
 .env
 .DS_Store
 release/
+
+Claude outputs/
